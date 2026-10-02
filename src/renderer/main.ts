@@ -11,7 +11,7 @@ const settings = new URLSearchParams(location.search).get('view') === 'settings'
 document.body.className = settings ? 'settings-view' : 'pet-view';
 
 if (!api) {
-  root.innerHTML = '<div class="startup-error" role="alert">桌面连接未能建立。请关闭此窗口并重新启动 DesktopPlay。</div>';
+  root.innerHTML = '<div class="startup-error" role="alert">桌面连接未能建立。请关闭此窗口并重新启动 DesktopPet。</div>';
 } else {
   let dispose: (() => void) | undefined;
   let update: ((state: AppState) => void) | undefined;
@@ -20,6 +20,6 @@ if (!api) {
   api.getState().then(state => {
     const mounted = settings ? mountSettings(root, api, latest ?? state, demo) : mountPet(root, api, latest ?? state, demo);
     update = mounted.update; dispose = mounted.dispose;
-  }).catch(() => { root.innerHTML = '<div class="startup-error" role="alert">无法读取应用状态。请重新启动 DesktopPlay。</div>'; });
+  }).catch(() => { root.innerHTML = '<div class="startup-error" role="alert">无法读取应用状态。请重新启动 DesktopPet。</div>'; });
   window.addEventListener('beforeunload', () => { unsubscribe(); dispose?.(); });
 }

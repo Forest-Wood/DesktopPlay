@@ -1,6 +1,6 @@
-# DesktopPlay
+# DesktopPet
 
-DesktopPlay 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek 余额，GPT 小伙伴查看 Codex 编程额度。GPT 角色可在原版与白龙两种内置造型间切换，也可继续使用自定义图片。面向 Windows 10/11 x64，提供 NSIS 安装版和 portable 免安装版。桌宠本身不需要 Node.js 或 DeepSeek Harness（DSH）；实时 Codex 额度需要本机已有原生 Codex 程序，并已使用 ChatGPT 账户登录。
+DesktopPet 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek 余额，GPT 小伙伴查看 Codex 编程额度。GPT 角色可在原版与白龙两种内置造型间切换，也可继续使用自定义图片。面向 Windows 10/11 x64，提供 NSIS 安装版和 portable 免安装版。桌宠本身不需要 Node.js 或 DeepSeek Harness（DSH）；实时 Codex 额度需要本机已有原生 Codex 程序，并已使用 ChatGPT 账户登录。
 
 ## 桌宠与功能
 
@@ -15,24 +15,35 @@ DesktopPlay 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek �
 
 ![漫画对白气泡](docs/screenshots/v030-deepseek-usage.png)
 
-![设置与余额概览](docs/screenshots/settings.png)
+![浅色设置界面](docs/screenshots/v040-settings-light.png)
 
-![GPT 漫画气泡（明确标注的演示额度）](docs/screenshots/v030-gpt-classic-usage.png)
+![深色设置界面](docs/screenshots/v040-settings-dark.png)
 
-![GPT 白龙用量页（演示数据）](docs/screenshots/v030-dragon-usage.png)
+![GPT Plus 额度气泡（演示数据）](docs/screenshots/v040-gpt-quota.png)
 
-![GPT 白龙倒挂，文字保持正向](docs/screenshots/v030-dragon-inverted-top.png)
+![GPT 白龙用量页（演示数据）](docs/screenshots/v040-dragon-bottom.png)
 
-![Codex 额度与重置时间（演示数据）](docs/screenshots/gpt-quota.png)
+![GPT 白龙倒挂，文字保持正向](docs/screenshots/v040-dragon-inverted.png)
+
+
 
 ![GPT 白龙造型预览](docs/screenshots/gpt-dragon-v2-preview.png)
+
+## v0.4.0 升级说明
+
+- 应用由 DesktopPlay 改名为 **DesktopPet**，仓库仍为 `Forest-Wood/DesktopPlay`，数据继续保存在 `%APPDATA%\DesktopPlay`。安装版可覆盖升级，原有密钥、账本、自定义图片与位置继续使用。
+- 设置使用左侧分类和页内标签：账户与用量、桌宠与陪伴、应用偏好、提醒与记录、关于。切页保留草稿，点击底部“保存设置”才会提交；角色造型、导入图片和账户连接按钮即时生效。
+- 浅色／深色跟随 Windows 即时切换，内容区独立滚动。设计规范见 [DESIGN.md](DESIGN.md)。
+- 小鲸鱼、原版 GPT、白龙分别保存陪伴短句。旧版本短句原样迁移到小鲸鱼；自定义 GPT 图片使用原版 GPT 的短句。
+- 点击按压与人物镜像分别处理，修复左下角点击时反向的问题；白龙依据原图可见边界贴边，不修改原始 PNG。
+- Codex 显示 Plus／Pro 或实际套餐名称，未知则明确提示。主额度固定列出 5H 与每周，按实际窗口时长归类；服务未返回的窗口显示“未提供”，其他窗口仍保留。
 
 ## 获取与运行
 
 从 [GitHub Releases](https://github.com/Forest-Wood/DesktopPlay/releases) 下载：
 
-- `DesktopPlay-<版本>-Setup-x64.exe`：交互式安装，可选择安装目录并创建桌面快捷方式。
-- `DesktopPlay-<版本>-Portable-x64.exe`：单文件免安装版，直接运行。
+- `DesktopPet-<版本>-Setup-x64.exe`：交互式安装，可选择安装目录并创建桌面快捷方式。
+- `DesktopPet-<版本>-Portable-x64.exe`：单文件免安装版，直接运行。
 
 两种版本都把应用设置、加密保存的 API Key、账本和用户导入的图片放在 `%APPDATA%\DesktopPlay`。Portable 版也使用这个目录；删除 portable exe 不会自动删除这些数据。卸载安装版时默认保留数据。
 
@@ -43,16 +54,16 @@ DesktopPlay 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek �
 ## GPT 小伙伴与 Codex 额度
 
 1. 在设置中选择 **GPT 小伙伴**，或右键桌宠 → **切换桌宠**。
-2. 在官方 Codex CLI 或 VS Code 扩展中使用 ChatGPT 账户登录。DesktopPlay 自动寻找本机 `codex.exe`；未找到时可在设置中选择已安装的原生 `codex.exe`。
+2. 在官方 Codex CLI 或 VS Code 扩展中使用 ChatGPT 账户登录。DesktopPet 自动寻找本机 `codex.exe`；未找到时可在设置中选择已安装的原生 `codex.exe`。
 3. 点击桌宠在用量、总结和陪伴短句页面间切换；使用气泡底部的刷新按钮查询额度。GPT 角色启用或设置窗口打开期间，每 60 秒自动刷新。
 
 GPT 角色中可直接切换原版与白龙造型，或选择自定义图片。点击“换角色”后可在挽留页面确认切换，也可选择再陪一会儿；DeepSeek 与 GPT 账户角色仍可从设置或托盘菜单直接切换。
 
-额度来自官方 Codex App Server 的 [`account/rateLimits/read`](https://learn.chatgpt.com/docs/app-server#6-rate-limits-chatgpt) 只读接口。程序显示服务返回的实际窗口长度，例如 5 小时、每周；不会将所有账户硬编码为同一种额度。剩余百分比由 `100 - usedPercent` 计算，重置时间来自服务端 Unix 时间戳，界面按电脑本地时区显示。它不是 ChatGPT 网页对话额度，也不是 OpenAI API 余额。
+额度来自官方 Codex App Server 的 [`account/rateLimits/read`](https://learn.chatgpt.com/docs/app-server#6-rate-limits-chatgpt) 只读接口。程序按服务返回的窗口长度识别 5H、每周和其他窗口。套餐优先来自额度响应，缺失时通过 `account/read`（`refreshToken:false`）补充；仅提取套餐字段，不向界面传递邮箱或凭据。套餐查询失败不会丢弃成功取得的额度，不根据 Plus／Pro 身份推测未返回的限额。剩余百分比由 `100 - usedPercent` 计算，重置时间来自服务端 Unix 时间戳，界面按电脑本地时区显示。它不是 ChatGPT 网页对话额度，也不是 OpenAI API 余额。
 
 离线或查询失败时保留最近成功数据并标记错误和更新时间。倒计时归零只表示到达服务上次报告的时间，需要重新查询才能确认恢复；未知窗口或重置时间显示“未知”，不会虚构余额或恢复时间。没有登录或没有安装 Codex 时，两个桌宠和 DeepSeek 功能仍可使用。
 
-DesktopPlay 通过 Codex 原生程序读取额度，不读取或复制 `auth.json`，不要求在桌宠中粘贴 ChatGPT 登录令牌，不启动对话或消耗推理额度。登录凭据仍由官方 Codex 管理。若额度失效，请在 Codex 中重新登录后刷新。
+DesktopPet 通过 Codex 原生程序读取额度，不读取或复制 `auth.json`，不要求在桌宠中粘贴 ChatGPT 登录令牌，不启动对话或消耗推理额度。登录凭据仍由官方 Codex 管理。若额度失效，请在 Codex 中重新登录后刷新。
 
 GPT 原版与白龙造型均为根据用户提供参考图生成的非官方二创形象，不是 OpenAI 官方吉祥物，也不代表 OpenAI 的认可。白龙图像可在 GPT 设置中作为内置造型使用。素材来源、制作记录与提示词见 [GPT 原版素材记录](docs/gpt-art-prompt.md) 和 [GPT 白龙素材记录](docs/gpt-dragon-v2-art-prompt.md)；具体素材权利说明见 [第三方代码与素材声明](THIRD_PARTY_NOTICES.md)。
 

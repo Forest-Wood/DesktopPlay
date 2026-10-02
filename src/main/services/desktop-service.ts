@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { DEFAULT_SETTINGS } from '../../shared/defaults';
+import { DEFAULT_SETTINGS, DEFAULT_PHRASES_BY_PERSONA } from '../../shared/defaults';
 import type { AppSettings, BalanceSnapshot, DaySummary, ServiceState } from '../../shared/types';
 
 type Secrets = { isEncryptionAvailable(): boolean; encryptString(s: string): Buffer; decryptString(b: Buffer): string };
@@ -20,6 +20,9 @@ function decimal(value: bigint): string { return `${value / UNIT}.${(value % UNI
 function plain(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value) && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
 }
+function validPhrases(value: unknown): value is string[] {
+  return Array.isArray(value) && value.length >= 1 && value.length <= 20 && value.every(v => typeof v === 'string' && !!v.trim() && v.length <= 200);
+}
 function settings(patch: unknown, base = DEFAULT_SETTINGS): AppSettings {
   if (!plain(patch)) throw new Error('设置格式无效');
   if (Reflect.ownKeys(patch).some(key => typeof key !== 'string' || !Object.hasOwn(DEFAULT_SETTINGS, key) || !Object.hasOwn(Object.getOwnPropertyDescriptor(patch, key)!, 'value'))) throw new Error('包含未知或危险设置');
@@ -31,7 +34,9 @@ function settings(patch: unknown, base = DEFAULT_SETTINGS): AppSettings {
     } else if (key === 'scale' || key === 'volume') {
       if (typeof value !== 'number' || !Number.isFinite(value) || value < (key === 'scale' ? 0.5 : 0) || value > (key === 'scale' ? 2 : 1)) throw new Error('数值设置无效');
     } else if (key === 'phrases') {
-      if (!Array.isArray(value) || value.length < 1 || value.length > 20 || value.some(v => typeof v !== 'string' || !v.trim() || v.length > 200)) throw new Error('短句设置无效');
+      if (!validPhrases(value)) throw new Error('短句设置无效');
+    } else if (key === 'phrasesByPersona') {
+      if (!plain(value) || Reflect.ownKeys(value).length !== 3 || ['whale', 'gpt', 'dragon'].some(persona => !Object.hasOwn(value, persona) || !Object.hasOwn(Object.getOwnPropertyDescriptor(value, persona)!, 'value') || !validPhrases(value[persona]))) throw new Error('人设短句设置无效');
     } else if (value !== null) amount(value);
     Object.assign(result, { [key]: structuredClone(value) });
   }
@@ -60,7 +65,11 @@ function disk(value: unknown): Disk {
     });
     accounts[id] = { balance: raw.balance === null ? null : snapshot(raw.balance), days: days.slice(-365), low: raw.low, budgetDays: raw.budgetDays.slice(-365) as string[] };
   }
-  return { version: 1, settings: settings(value.settings), key: value.key as string | null, accounts };
+  const restoredSettings = settings(value.settings);
+  if (plain(value.settings) && !Object.hasOwn(value.settings, 'phrasesByPersona')) {
+    restoredSettings.phrasesByPersona = { whale: structuredClone(restoredSettings.phrases), gpt: [...DEFAULT_PHRASES_BY_PERSONA.gpt], dragon: [...DEFAULT_PHRASES_BY_PERSONA.dragon] };
+  }
+  return { version: 1, settings: restoredSettings, key: value.key as string | null, accounts };
 }
 
 export class DesktopService {

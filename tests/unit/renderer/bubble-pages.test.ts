@@ -21,7 +21,7 @@ describe('speech bubble pages and local reports', () => {
     expect(usageStatus(account, false)).toContain('展示最近数据');
   });
   it('summarizes the lowest reported quota and identifies retained data', () => {
-    const account = state({ activePet: 'gpt', codex: { status: 'error', updatedAt: new Date().toISOString(), available: true, error: 'offline', source: 'codex-app-server', buckets: [{ id: 'a', name: 'A', planType: null, creditsRemaining: null, unlimitedCredits: false, primary: { usedPercent: 12, remainingPercent: 88, windowMinutes: 300, resetsAt: null }, secondary: { usedPercent: 93, remainingPercent: 7, windowMinutes: 10080, resetsAt: null } }] } });
+    const account = state({ activePet: 'gpt', codex: { planType: null, status: 'error', updatedAt: new Date().toISOString(), available: true, error: 'offline', source: 'codex-app-server', buckets: [{ id: 'a', name: 'A', planType: null, creditsRemaining: null, unlimitedCredits: false, primary: { usedPercent: 12, remainingPercent: 88, windowMinutes: 300, resetsAt: null }, secondary: { usedPercent: 93, remainingPercent: 7, windowMinutes: 10080, resetsAt: null } }] } });
     expect(summaryText(account)).toContain('最近数据：最低剩余额度 7%');
     expect(summaryText(account)).toContain('重置时间');
   });

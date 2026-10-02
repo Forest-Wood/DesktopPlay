@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { CodexQuotaService, normalizeCodexQuota, requestCodexQuota } from '../../../src/main/services/codex-quota';
+import { accountPlanType, quotaPlanType, CodexQuotaService, normalizeCodexQuota, requestCodexQuota } from '../../../src/main/services/codex-quota';
 
 vi.mock('node:child_process', () => ({ spawn: vi.fn() }));
 const services: CodexQuotaService[] = [];
@@ -22,6 +22,13 @@ function childFixture() {
   return child;
 }
 describe('Codex quota normalization', () => {
+  it('extracts only plan data from quota and account results', () => {
+    expect(quotaPlanType(response)).toBe('plus');
+    expect(quotaPlanType({ planType: 'pro', rateLimits: response.rateLimits })).toBe('pro');
+    expect(quotaPlanType({ rateLimitsByLimitId: { codex: { planType: 'business' } } })).toBe('business');
+    expect(accountPlanType({ account: { planType: 'pro', email: 'private@example.com', token: 'secret' } })).toBe('pro');
+    expect(accountPlanType({ account: { type: 'apiKey' } })).toBeNull();
+  });
   it('reads named buckets and both actual windows, without inventing resets', () => {
     const buckets = normalizeCodexQuota({ rateLimitsByLimitId: { codex: response.rateLimits, review: { limitName: 'Code review', primary: { usedPercent: 105 } } } });
     expect(buckets[0]).toMatchObject({ id: 'codex', planType: 'plus', primary: { remainingPercent: 75, windowMinutes: 300, resetsAt: '2027-01-15T08:00:00.000Z' }, secondary: { remainingPercent: 60, windowMinutes: 10080, resetsAt: null } });
@@ -46,6 +53,19 @@ describe('Codex quota normalization', () => {
   });
 });
 describe('Codex quota service', () => {
+  it('keeps a native quota reading when the overall deadline interrupts optional account lookup', async () => {
+    vi.useFakeTimers(); const child = childFixture();
+    const service = new CodexQuotaService({ cwd: '.', discoverExecutable: async () => 'codex.exe', timeoutMs: 100 });
+    services.push(service); await service.init();
+    const pending = service.refresh();
+    child.stdout.write(JSON.stringify({ id: 1, result: {} }) + '\n');
+    await vi.advanceTimersByTimeAsync(90);
+    child.stdout.write(JSON.stringify({ id: 2, result: { rateLimits: { ...response.rateLimits, planType: null } } }) + '\n');
+    await vi.advanceTimersByTimeAsync(10); await pending;
+    expect(service.getState()).toMatchObject({ status: 'ready', planType: null, error: null });
+    expect(service.getState().buckets[0].primary?.remainingPercent).toBe(75);
+    expect(child.kill).toHaveBeenCalledOnce();
+  });
   it('discovers without executing, then coalesces concurrent refreshes', async () => {
     let resolve!: (value: unknown) => void;
     const runner = vi.fn(() => new Promise(resolvePromise => { resolve = resolvePromise; }));
@@ -88,6 +108,31 @@ describe('Codex quota service', () => {
   });
 });
 describe('read-only app-server protocol', () => {
+  it.each(['malformed', 'stdin'])('retains valid quota after a broken account fallback transport: %s', async failure => {
+    const child = childFixture();
+    const pending = requestCodexQuota('C:\\codex.exe', '.', new AbortController().signal);
+    const quota = { rateLimits: { ...response.rateLimits, planType: null } };
+    child.stdout.write(JSON.stringify({ id: 1, result: {} }) + '\n');
+    child.stdout.write(JSON.stringify({ id: 2, result: quota }) + '\n');
+    if (failure === 'malformed') child.stdout.write('not JSON\n');
+    else child.stdin.emit('error', new Error('private account details'));
+    await expect(pending).resolves.toEqual(quota);
+    expect(child.kill).toHaveBeenCalledOnce();
+  });
+  it.each(['pro', null, 'error', 'exit', 'timeout'])('falls back to account/read without losing quota or exposing identity: %s', async plan => {
+    vi.useFakeTimers();
+    const child = childFixture(); const writes: string[] = []; child.stdin.on('data', chunk => writes.push(String(chunk)));
+    const pending = requestCodexQuota('C:\\codex.exe', '.', new AbortController().signal);
+    const quota = { rateLimits: { ...response.rateLimits, planType: null } };
+    child.stdout.write(JSON.stringify({ id: 1, result: {} }) + '\n');
+    child.stdout.write(JSON.stringify({ id: 2, result: quota }) + '\n');
+    expect(JSON.parse(writes.at(-1)!)).toEqual({ id: 3, method: 'account/read', params: { refreshToken: false } });
+    if (plan === 'exit') child.emit('exit');
+    else if (plan === 'timeout') await vi.advanceTimersByTimeAsync(1500);
+    else child.stdout.write(JSON.stringify(plan === 'error' ? { id: 3, error: { message: 'private account' } } : { id: 3, result: { account: { planType: plan, email: 'private@example.com' } } }) + '\n');
+    expect(await pending).toEqual(plan === 'pro' ? { ...quota, planType: 'pro' } : quota);
+    expect(JSON.stringify(await pending)).not.toContain('private');
+  });
   it('initializes and reads quotas only, then closes the hidden native child', async () => {
     const child = childFixture(); const writes: string[] = []; child.stdin.on('data', chunk => writes.push(String(chunk)));
     const controller = new AbortController(); const pending = requestCodexQuota('C:\\codex.exe', '.', controller.signal);

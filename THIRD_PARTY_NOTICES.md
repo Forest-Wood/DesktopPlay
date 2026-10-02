@@ -38,4 +38,4 @@ SOFTWARE.
 
 ### 原小鲸鱼与音效
 
-上游仓库素材 `assets/DSniang1.png`、`assets/Ya1.mp3`、`assets/Ya2.mp3` 来自 [MeteorNOX/DeepSeek-Balance-Whale-Widget commit 49d688d46673fbf4221b458afc943276c68a0839](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/tree/49d688d46673fbf4221b458afc943276c68a0839)，在本项目中对应 `whale.png`、`press.mp3`、`release.mp3`。项目维护者确认已获得将这些素材独立分发于 DesktopPlay 的授权。此处记录维护者提供的授权确认；没有虚构或声称存在额外的书面授权文件。美术素材不因本文件中的代码许可证而成为 MIT 授权素材。该版本的来源记录见上游 [PROVENANCE.md](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/blob/49d688d46673fbf4221b458afc943276c68a0839/PROVENANCE.md)。
+上游仓库素材 `assets/DSniang1.png`、`assets/Ya1.mp3`、`assets/Ya2.mp3` 来自 [MeteorNOX/DeepSeek-Balance-Whale-Widget commit 49d688d46673fbf4221b458afc943276c68a0839](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/tree/49d688d46673fbf4221b458afc943276c68a0839)，在本项目中对应 `whale.png`、`press.mp3`、`release.mp3`。项目维护者确认已获得将这些素材独立分发于 DesktopPet（原名 DesktopPlay） 的授权。此处记录维护者提供的授权确认；没有虚构或声称存在额外的书面授权文件。美术素材不因本文件中的代码许可证而成为 MIT 授权素材。该版本的来源记录见上游 [PROVENANCE.md](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/blob/49d688d46673fbf4221b458afc943276c68a0839/PROVENANCE.md)。

@@ -2,10 +2,23 @@ import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { CodexQuotaBucket, CodexQuotaState, CodexQuotaWindow } from '../../shared/types';
+import { APP_VERSION } from '../../shared/defaults';
 
 type RecordValue = Record<string, unknown>;
 function record(value: unknown): RecordValue | null { return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as RecordValue : null; }
-function string(value: unknown): string | null { return typeof value === 'string' && value.trim() ? value : null; }
+function string(value: unknown): string | null { return typeof value === 'string' && value.trim() ? value.trim() : null; }
+/** Return only the subscription name; account identity never leaves this module. */
+export function quotaPlanType(value: unknown): string | null {
+  const result = record(value);
+  if (!result) return null;
+  const buckets = record(result.rateLimitsByLimitId);
+  return string(result.planType) ?? string(record(result.rateLimits)?.planType)
+    ?? string(record(buckets?.codex)?.planType)
+    ?? Object.values(buckets ?? {}).map(bucket => string(record(bucket)?.planType)).find(Boolean) ?? null;
+}
+export function accountPlanType(value: unknown): string | null {
+  return string(record(record(value)?.account)?.planType);
+}
 function window(value: unknown): CodexQuotaWindow | null {
   const data = record(value);
   if (!data || typeof data.usedPercent !== 'number' || !Number.isFinite(data.usedPercent) || data.usedPercent < 0) return null;
@@ -85,26 +98,29 @@ export async function discoverCodexExecutable(): Promise<string | null> {
   return null;
 }
 
-/** Read-only protocol: initialize, initialized, account/rateLimits/read. */
+/** Read-only protocol; account/read is a bounded fallback for missing plan data. */
 export function requestCodexQuota(executable: string, cwd: string, signal: AbortSignal): Promise<unknown> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) { reject(new Error('aborted')); return; }
     const child = spawn(executable, ['app-server'], { cwd, windowsHide: true, shell: false, stdio: ['pipe', 'pipe', 'pipe'] });
     let buffer = '', totalBytes = 0, finished = false, initialized = false;
+    let quotaResult: RecordValue | null = null;
+    let accountTimer: ReturnType<typeof setTimeout> | undefined;
     const complete = (error: Error | null, result?: unknown) => {
       if (finished) return; finished = true;
+      clearTimeout(accountTimer);
       signal.removeEventListener('abort', abort);
       child.stdin.end(); child.kill();
-      if (error) reject(error); else resolve(result);
+      if (error && !quotaResult) reject(error); else resolve(error ? quotaResult : result);
     };
-    const abort = () => complete(new Error('aborted'));
+    const abort = () => quotaResult ? complete(null, quotaResult) : complete(new Error('aborted'));
     signal.addEventListener('abort', abort, { once: true });
     const send = (message: unknown) => child.stdin.write(`${JSON.stringify(message)}\n`);
     child.on('error', () => complete(new Error('launch-failed')));
     child.stdin.on('error', () => complete(new Error('protocol-failed')));
     // Consume stderr without retaining or exposing messages that may contain account data.
     child.stderr.on('data', () => {});
-    child.on('exit', () => complete(new Error('server-exited')));
+    child.on('exit', () => quotaResult ? complete(null, quotaResult) : complete(new Error('server-exited')));
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (chunk: string) => {
       if (finished) return;
@@ -118,17 +134,27 @@ export function requestCodexQuota(executable: string, cwd: string, signal: Abort
         let message: RecordValue | null;
         try { message = record(JSON.parse(line)); } catch { complete(new Error('invalid-protocol')); return; }
         if (!message) { complete(new Error('invalid-protocol')); return; }
-        if (message.id !== 1 && message.id !== 2) continue;
+        if (message.id !== 1 && message.id !== 2 && message.id !== 3) continue;
+        if (message.id === 3 && quotaResult) {
+          const planType = message.error == null ? accountPlanType(message.result) : null;
+          complete(null, planType ? { ...quotaResult, planType } : quotaResult); return;
+        }
         if (message.error != null || !Object.hasOwn(message, 'result')) { complete(new Error('request-failed')); return; }
         if (message.id === 1 && !initialized) {
           initialized = true;
           send({ method: 'initialized' });
           send({ id: 2, method: 'account/rateLimits/read', params: {} });
-        } else if (message.id === 2 && initialized) complete(null, message.result);
+        } else if (message.id === 2 && initialized) {
+          try { normalizeCodexQuota(message.result); } catch { complete(new Error('invalid-quota')); return; }
+          if (quotaPlanType(message.result)) { complete(null, message.result); return; }
+          quotaResult = record(message.result);
+          accountTimer = setTimeout(() => complete(null, quotaResult), 1500);
+          send({ id: 3, method: 'account/read', params: { refreshToken: false } });
+        }
         else { complete(new Error('invalid-protocol')); return; }
       }
     });
-    send({ id: 1, method: 'initialize', params: { clientInfo: { name: 'desktopplay', title: 'DesktopPlay', version: '0.2.1' }, capabilities: { experimentalApi: false } } });
+    send({ id: 1, method: 'initialize', params: { clientInfo: { name: 'desktopplay', title: 'DesktopPet', version: APP_VERSION }, capabilities: { experimentalApi: false } } });
   });
 }
 
@@ -141,7 +167,7 @@ export interface CodexQuotaOptions {
   timeoutMs?: number;
 }
 export class CodexQuotaService {
-  private state: CodexQuotaState = { status: 'idle', buckets: [], updatedAt: null, error: null, source: 'codex-app-server', available: false };
+  private state: CodexQuotaState = { planType: null, status: 'idle', buckets: [], updatedAt: null, error: null, source: 'codex-app-server', available: false };
   private executable: string | null = null;
   private listeners = new Set<(state: CodexQuotaState) => void>();
   private inFlight: Promise<CodexQuotaState> | null = null;
@@ -165,7 +191,7 @@ export class CodexQuotaService {
     await this.inFlight;
     if (this.disposed) return;
     this.executable = executable;
-    this.update({ status: 'idle', available: true, buckets: [], updatedAt: null, error: null });
+    this.update({ status: 'idle', available: true, planType: null, buckets: [], updatedAt: null, error: null });
   }
   refresh(): Promise<CodexQuotaState> {
     if (this.inFlight) return this.inFlight;
@@ -176,12 +202,15 @@ export class CodexQuotaService {
     this.inFlight = (async () => {
       let timer: ReturnType<typeof setTimeout> | undefined;
       let timedOut = false;
-      const cancelled = new Promise<never>((_, reject) => controller.signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true }));
+      // The native reader settles on abort and may already hold valid quota while
+      // waiting on optional account metadata. Only injected runners need a race.
+      const cancelled = this.options.requestRunner ? new Promise<never>((_, reject) => controller.signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true })) : null;
       timer = setTimeout(() => { timedOut = true; controller.abort(); }, Math.max(1, Math.min(20_000, this.options.timeoutMs ?? 15_000)));
       try {
-        const result = await Promise.race([(this.options.requestRunner ?? requestCodexQuota)(executable, this.options.cwd, controller.signal), cancelled]);
+        const request = (this.options.requestRunner ?? requestCodexQuota)(executable, this.options.cwd, controller.signal);
+        const result = await (cancelled ? Promise.race([request, cancelled]) : request);
         const buckets = normalizeCodexQuota(result);
-        if (!this.disposed && !controller.signal.aborted) this.update({ status: 'ready', buckets, updatedAt: (this.options.now?.() ?? new Date()).toISOString(), error: null });
+        if (!this.disposed && this.executable === executable && (!controller.signal.aborted || timedOut)) this.update({ status: 'ready', planType: quotaPlanType(result), buckets, updatedAt: (this.options.now?.() ?? new Date()).toISOString(), error: null });
       } catch {
         if (!this.disposed && (this.executable === executable) && (!controller.signal.aborted || timedOut)) this.update({ status: 'error', error: timedOut ? '读取 Codex 额度超时，请稍后刷新。' : '无法读取 Codex 额度，请确认已在 Codex 登录 ChatGPT 账户后刷新。' });
       } finally { clearTimeout(timer); if (this.controller === controller) this.controller = null; this.inFlight = null; }

@@ -10,7 +10,8 @@ import type { Orientation, Point } from './geometry';
 import { contains, getPetLayout, PET_WIDTH } from '../shared/pet-layout';
 import type { AppState, AppSettings, BuiltinPetId, GptAppearance, BubblePlacement } from '../shared/types';
 
-app.setName('DesktopPlay');
+app.setName('DesktopPet');
+app.setAppUserModelId('io.github.forestwood.desktopplay');
 // Isolated profiles are supported only by development/test builds.
 if (!app.isPackaged && process.env.DESKTOPPLAY_USER_DATA) app.setPath('userData', path.resolve(process.env.DESKTOPPLAY_USER_DATA));
 else app.setPath('userData', path.join(app.getPath('appData'), 'DesktopPlay'));
@@ -38,7 +39,7 @@ let lastSettings: AppSettings | null = null;
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => { showPet(); if (settingsWindow) settingsWindow.focus(); });
-  app.whenReady().then(start).catch(() => { dialog.showErrorBox('DesktopPlay 启动失败', '无法初始化本地数据，请检查应用数据目录的访问权限后重试。'); app.quit(); });
+  app.whenReady().then(start).catch(() => { dialog.showErrorBox('DesktopPet 启动失败', '无法初始化本地数据，请检查应用数据目录的访问权限后重试。'); app.quit(); });
 }
 app.on('window-all-closed', () => { /* The tray keeps the desktop pet alive. */ });
 app.on('before-quit', () => {
@@ -101,7 +102,7 @@ async function loadWindow(win: BrowserWindow, view: string): Promise<void> {
 }
 
 async function createPet(): Promise<void> {
-  const area = screen.getPrimaryDisplay().workArea, size = petSize(fitScale(service.getState().settings.scale, area));
+  const area = screen.getPrimaryDisplay().workArea, size = petSize(fitScale(service.getState().settings.scale, area, assets.get()));
   let bounds = { ...size, x: area.x + area.width - size.width - 16, y: area.y + area.height - size.height - 8 };
   let savedCharacter: Point | null = null;
   try {
@@ -115,11 +116,11 @@ async function createPet(): Promise<void> {
       bounds = { ...bounds, x: Math.round(saved.x), y: Math.round(saved.y) }; flipped = saved.flipped === true;
     }
   } catch { /* First launch uses the lower right corner. */ }
-  const anchor = savedCharacter ?? characterOrigin(bounds, orientation());
+  const anchor = savedCharacter ?? characterOrigin(bounds, orientation(), assets.get());
   const selectedArea = screen.getDisplayNearestPoint({ x: Math.round(anchor.x + 110 * size.width / PET_WIDTH), y: Math.round(anchor.y + 110 * size.width / PET_WIDTH) }).workArea;
-  const placed = placeCharacter(anchor, selectedArea, service.getState().settings.scale, orientation(), false);
+  const placed = placeCharacter(anchor, selectedArea, service.getState().settings.scale, orientation(), false, assets.get());
   bounds = placed.bounds; flipped = placed.flipped; verticalFlipped = placed.verticalFlipped; bubblePlacement = placed.bubblePlacement;
-  petWindow = securedWindow({ ...bounds, frame: false, transparent: true, resizable: false, maximizable: false, minimizable: false, skipTaskbar: true, hasShadow: false, alwaysOnTop: service.getState().settings.alwaysOnTop, show: false, backgroundColor: '#00000000', title: 'DesktopPlay · 小鲸鱼' });
+  petWindow = securedWindow({ ...bounds, frame: false, transparent: true, resizable: false, maximizable: false, minimizable: false, skipTaskbar: true, hasShadow: false, alwaysOnTop: service.getState().settings.alwaysOnTop, show: false, backgroundColor: '#00000000', title: 'DesktopPet · 小鲸鱼' });
   petWindow.on('close', (event) => { if (!quitting) { event.preventDefault(); petWindow?.hide(); } });
   petWindow.on('move', scheduleWindowSave);
   petWindow.on('blur', finishDrag);
@@ -132,7 +133,7 @@ async function createPet(): Promise<void> {
 async function openSettings(): Promise<void> {
   if (settingsWindow && !settingsWindow.isDestroyed()) { settingsWindow.show(); settingsWindow.focus(); return; }
   const area = screen.getPrimaryDisplay().workArea;
-  settingsWindow = securedWindow({ width: Math.min(1060, area.width), height: Math.min(800, area.height), minWidth: Math.min(760, area.width), minHeight: Math.min(560, area.height), show: false, autoHideMenuBar: true, backgroundColor: '#f5f7f9', title: 'DesktopPlay · 设置', icon: path.join(__dirname, '../dist/assets/whale.png') });
+  settingsWindow = securedWindow({ width: Math.min(1060, area.width), height: Math.min(800, area.height), minWidth: Math.min(760, area.width), minHeight: Math.min(560, area.height), show: false, autoHideMenuBar: true, backgroundColor: '#f5f7f9', title: 'DesktopPet · 设置', icon: path.join(__dirname, '../dist/assets/whale.png') });
   settingsWindow.on('closed', () => { settingsWindow = null; });
   await loadWindow(settingsWindow, 'settings');
   settingsWindow.show();
@@ -140,11 +141,13 @@ async function openSettings(): Promise<void> {
 
 function showPet(): void { petWindow?.showInactive(); restoreToScreen(); }
 async function selectPet(id: BuiltinPetId): Promise<void> {
-  await assets.select(id); updateTray(); publish();
+  const anchor = petWindow ? characterOrigin(petWindow.getBounds(), orientation(), assets.get()) : null;
+  await assets.select(id); if (anchor) positionPet(anchor, service.getState().settings.snapToEdges); updateTray(); publish();
   if (id === 'gpt') void codex.refresh();
 }
 async function selectGptAppearance(id: GptAppearance): Promise<void> {
-  await assets.selectGptAppearance(id); updateTray(); publish();
+  const anchor = petWindow ? characterOrigin(petWindow.getBounds(), orientation(), assets.get()) : null;
+  await assets.selectGptAppearance(id); if (anchor) positionPet(anchor, service.getState().settings.snapToEdges); updateTray(); publish();
 }
 function refreshCurrent(): void { if (assets.getSelected() === 'gpt') void codex.refresh(); else void service.refresh(); }
 function petMenu(): Electron.MenuItemConstructorOptions[] {
@@ -163,7 +166,7 @@ function createTray(): void {
 }
 function updateTray(): void {
   if (tray) {
-    tray.setToolTip(`DesktopPlay · ${assets.get().name}`);
+    tray.setToolTip(`DesktopPet · ${assets.get().name}`);
     tray.setImage(nativeImage.createFromPath(path.join(__dirname, `../dist/assets/${assets.getSelected() === 'gpt' ? assets.getGptAppearance() === 'dragon' ? 'gpt-dragon-v2' : 'gpt' : 'whale'}.png`)).resize({ width: 32, height: 32 }));
   }
   tray?.setContextMenu(Menu.buildFromTemplate([
@@ -175,7 +178,7 @@ function updateTray(): void {
     { type: 'separator' },
     { label: '总在最前', type: 'checkbox', checked: service.getState().settings.alwaysOnTop, click: () => { void service.updateSettings({ alwaysOnTop: !service.getState().settings.alwaysOnTop }).catch(() => {}); } },
     { label: '隐藏桌宠', click: () => petWindow?.hide() },
-    { type: 'separator' }, { label: '退出 DesktopPlay', click: () => app.quit() },
+    { type: 'separator' }, { label: '退出 DesktopPet', click: () => app.quit() },
   ]));
 }
 function applySettings(): void {
@@ -183,12 +186,15 @@ function applySettings(): void {
   if (petWindow && !petWindow.isDestroyed()) {
     petWindow.setAlwaysOnTop(settings.alwaysOnTop);
     if (!lastSettings || settings.scale !== lastSettings.scale) {
-      positionPet(characterOrigin(petWindow.getBounds(), orientation()), false);
+      positionPet(characterOrigin(petWindow.getBounds(), orientation(), assets.get()), false);
     }
   }
   if (app.isPackaged && (!lastSettings || lastSettings.launchAtLogin !== settings.launchAtLogin)) {
     const executable = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
-    app.setLoginItemSettings({ openAtLogin: settings.launchAtLogin, path: executable, args: [] });
+    // v0.3 used Electron's product-name default. Keep that Run value across the rename.
+    // A launch through an explicitly identified shortcut can have used the appId instead.
+    app.setLoginItemSettings({ openAtLogin: false, name: 'io.github.forestwood.desktopplay' });
+    app.setLoginItemSettings({ openAtLogin: settings.launchAtLogin, name: 'electron.app.DesktopPlay', path: executable, args: [] });
   }
   lastSettings = { ...settings, phrases: [...settings.phrases] }; updateTray();
 }
@@ -197,19 +203,19 @@ function scheduleWindowSave(): void {
   if (windowSaveTimer) clearTimeout(windowSaveTimer);
   windowSaveTimer = setTimeout(() => {
     if (!petWindow || petWindow.isDestroyed()) return;
-    const saved = JSON.stringify({ version: 2, character: characterOrigin(petWindow.getBounds(), orientation()), ...orientation() });
+    const saved = JSON.stringify({ version: 2, character: characterOrigin(petWindow.getBounds(), orientation(), assets.get()), ...orientation() });
     geometryWrites = geometryWrites.then(async () => { await writeFile(`${profileFile}.tmp`, saved); await rename(`${profileFile}.tmp`, profileFile); }).catch(() => {});
   }, 200);
 }
 function restoreToScreen(): void {
   if (!petWindow || petWindow.isDestroyed()) return;
-  positionPet(characterOrigin(petWindow.getBounds(), orientation()), false); publish();
+  positionPet(characterOrigin(petWindow.getBounds(), orientation(), assets.get()), false); publish();
 }
 function positionPet(anchor: Point, snap: boolean): void {
   if (!petWindow || petWindow.isDestroyed()) return;
   const old = petWindow.getBounds(), scale = old.width / PET_WIDTH;
   const area = screen.getDisplayNearestPoint({ x: Math.round(anchor.x + 110 * scale), y: Math.round(anchor.y + 110 * scale) }).workArea;
-  const next = placeCharacter(anchor, area, service.getState().settings.scale, orientation(), snap);
+  const next = placeCharacter(anchor, area, service.getState().settings.scale, orientation(), snap, assets.get());
   const changed = flipped !== next.flipped || verticalFlipped !== next.verticalFlipped || bubblePlacement !== next.bubblePlacement || old.width !== next.bounds.width;
   flipped = next.flipped; verticalFlipped = next.verticalFlipped; bubblePlacement = next.bubblePlacement;
   petWindow.setBounds(next.bounds); scheduleWindowSave();
@@ -218,7 +224,7 @@ function positionPet(anchor: Point, snap: boolean): void {
 function beginDrag(): void {
   if (!petWindow || dragStart) return;
   petWindow.setIgnoreMouseEvents(false);
-  dragStart = { mouse: screen.getCursorScreenPoint(), character: characterOrigin(petWindow.getBounds(), orientation()), moved: false };
+  dragStart = { mouse: screen.getCursorScreenPoint(), character: characterOrigin(petWindow.getBounds(), orientation(), assets.get()), moved: false };
   dragTimer = setInterval(() => {
     if (!dragStart || !petWindow) return;
     const cursor = screen.getCursorScreenPoint();
@@ -231,14 +237,14 @@ function finishDrag(): void {
   if (dragTimer) clearInterval(dragTimer); dragTimer = null;
   if (!dragStart || !petWindow) return;
   const moved = dragStart.moved; dragStart = null;
-  if (moved) positionPet(characterOrigin(petWindow.getBounds(), orientation()), service.getState().settings.snapToEdges);
+  if (moved) positionPet(characterOrigin(petWindow.getBounds(), orientation(), assets.get()), service.getState().settings.snapToEdges);
   updateHitRegion();
 }
 function updateHitRegion(): void {
   if (!petWindow || petWindow.isDestroyed() || !petWindow.isVisible() || dragStart) return;
   const p = screen.getCursorScreenPoint(), b = petWindow.getBounds(), s = b.width / PET_WIDTH;
   const x = (p.x - b.x) / s, y = (p.y - b.y) / s;
-  const layout = getPetLayout(flipped, bubblePlacement);
+  const layout = getPetLayout(flipped, bubblePlacement, assets.get());
   const inPet = contains(layout.character, x, y);
   const inBubble = bubbleVisible && contains(layout.bubbleHit, x, y);
   petWindow.setIgnoreMouseEvents(!(inPet || inBubble), { forward: true });
@@ -276,10 +282,10 @@ function registerIpc(): void {
   handle('choose-pet', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender)!;
     const selection = await dialog.showOpenDialog(win, { title: '选择桌宠图片', properties: ['openFile'], filters: [{ name: '角色图片', extensions: ['png', 'webp', 'gif'] }] });
-    if (!selection.canceled && selection.filePaths[0]) { await assets.import(selection.filePaths[0]); updateTray(); publish(); }
+    if (!selection.canceled && selection.filePaths[0]) { const anchor = petWindow ? characterOrigin(petWindow.getBounds(), orientation(), assets.get()) : null; await assets.import(selection.filePaths[0]); if (anchor) positionPet(anchor, service.getState().settings.snapToEdges); updateTray(); publish(); }
     return getState();
   });
-  handle('reset-pet', async () => { await assets.reset(); updateTray(); publish(); return getState(); });
+  handle('reset-pet', async () => { const anchor = petWindow ? characterOrigin(petWindow.getBounds(), orientation(), assets.get()) : null; await assets.reset(); if (anchor) positionPet(anchor, service.getState().settings.snapToEdges); updateTray(); publish(); return getState(); });
   handle('open-settings', openSettings);
   handle('show-menu', () => {
     Menu.buildFromTemplate([{ label: '切换桌宠', submenu: petMenu() }, { label: 'GPT 造型', submenu: appearanceMenu() }, { label: '设置、余额与额度', click: () => { void openSettings(); } }, { label: '刷新当前额度', click: refreshCurrent }, { type: 'separator' }, { label: '隐藏桌宠', click: () => petWindow?.hide() }, { label: '退出', click: () => app.quit() }]).popup({ window: petWindow ?? undefined });

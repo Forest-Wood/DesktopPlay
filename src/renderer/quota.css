@@ -1,0 +1,17 @@
+.quota-plan-badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: color-mix(in srgb, var(--accent, #378a76) 13%, transparent); color: var(--accent, #378a76); border: 1px solid color-mix(in srgb, currentColor 20%, transparent); margin-bottom: 8px; }
+.quota-bucket { padding: 12px; margin-bottom: 10px; border: 1px solid var(--border, #d8e2de); border-radius: 16px; background: var(--surface, #fafcfb); }
+.quota-bucket-name { font-size: 13px; font-weight: 600; margin: 0 0 10px; color: var(--muted, #65716e); overflow-wrap: anywhere; }
+.quota-windows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.quota-window { min-width: 0; }
+.quota-window-title { display: flex; align-items: center; justify-content: flex-start; gap: 4px; font-size: 12px; color: var(--muted, #65716e); }
+.quota-percentage { display: block; font-size: 34px; line-height: 1.25; letter-spacing: -1px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.quota-window progress { width: 100%; height: 6px; accent-color: var(--accent, #378a76); }
+.quota-countdown, .quota-reset, .quota-credits, .quota-empty { font-size: 12px; line-height: 1.5; color: var(--muted, #65716e); margin: 5px 0 0; }
+.quota-stale .quota-percentage { opacity: .75; }
+.quota-compact .quota-bucket { padding: 1px 0; border: 0; background: transparent; margin-bottom: 0; color: var(--bubble-ink, inherit); }
+.quota-compact .quota-bucket-name { font-size: 9px; line-height: 12px; margin-bottom: 1px; color: inherit; }
+.quota-compact .quota-windows { gap: 10px; }
+.quota-compact .quota-window-title { font-size: 9px; line-height: 12px; gap: 4px; color: inherit; }
+.quota-compact .quota-percentage { font-size: 34px; line-height: 1.15; color: inherit; }
+.quota-compact .quota-countdown { font-size: 9px; line-height: 1.35; margin: 1px 0 0; color: inherit; }
+.quota-compact .quota-plan-badge { font-size: 9px; line-height: 12px; padding: 1px 6px; margin-bottom: 1px; color: var(--bubble-ink, inherit); background: color-mix(in srgb, var(--bubble-ink, #378a76) 10%, transparent); }

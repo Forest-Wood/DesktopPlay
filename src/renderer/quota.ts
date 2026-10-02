@@ -1,4 +1,21 @@
-import type { CodexQuotaState } from '../shared/types';
+import type { CodexQuotaBucket, CodexQuotaState, CodexQuotaWindow } from '../shared/types';
+import './quota.css';
+
+export function planLabel(plan: string | null): string {
+  const name = plan?.trim();
+  if (!name) return '套餐未知';
+  return { plus: 'Plus', pro: 'Pro' }[name.toLowerCase() as 'plus' | 'pro'] ?? name;
+}
+export function quotaSlots(bucket: CodexQuotaBucket, main: boolean): { label: string; window: CodexQuotaWindow | null }[] {
+  const windows = [bucket.primary, bucket.secondary].filter((value): value is CodexQuotaWindow => value !== null);
+  if (!main) return windows.map(window => ({ label: windowLabel(window.windowMinutes), window }));
+  return [{ label: '5H', window: windows.find(window => window.windowMinutes === 300) ?? null },
+    { label: '每周', window: windows.find(window => window.windowMinutes === 10080) ?? null },
+    ...windows.filter(window => window.windowMinutes !== 300 && window.windowMinutes !== 10080).map(window => ({ label: windowLabel(window.windowMinutes), window }))];
+}
+export function remainingLabel(value: number): string {
+  return Number.isFinite(value) ? `${Number(Math.max(0, Math.min(100, value)).toFixed(1))}%` : '未知';
+}
 
 export function windowLabel(minutes: number | null): string {
   if (minutes === 300) return '5 小时';
@@ -33,35 +50,40 @@ export function quotaStatus(quota: CodexQuotaState, demo: boolean): string {
 
 export function renderQuota(root: HTMLElement, quota: CodexQuotaState, compact: boolean, demo: boolean): void {
   root.replaceChildren();
+  root.classList.toggle('quota-compact', compact);
   root.classList.toggle('quota-stale', quotaIsStale(quota));
   const add = (parent: HTMLElement, tag: string, className: string, text?: string) => {
     const node = document.createElement(tag); node.className = className;
     if (text !== undefined) node.textContent = text;
     parent.append(node); return node;
   };
+  add(root, 'span', 'quota-plan-badge', planLabel(quota.planType));
   if (!quota.buckets.length) {
     add(root, 'p', 'quota-empty', quota.status === 'loading' ? '正在读取额度与重置时间…' : '额度未知 · 请先登录本机 Codex。');
     if (!compact && quota.error) add(root, 'p', 'service-message', quota.error);
     return;
   }
-  for (const bucket of quota.buckets) {
+  const main = quota.buckets.find(bucket => bucket.id.toLowerCase() === 'codex') ?? quota.buckets[0];
+  for (const bucket of [main, ...quota.buckets.filter(bucket => bucket !== main)]) {
     const card = add(root, 'article', 'quota-bucket');
-    add(card, 'h3', 'quota-bucket-name', `${bucket.name}${!compact && bucket.planType ? ` · ${bucket.planType}` : ''}`);
+    add(card, 'h3', 'quota-bucket-name', bucket.name);
     const windows = add(card, 'div', 'quota-windows');
-    for (const quotaWindow of [bucket.primary, bucket.secondary]) {
-      if (!quotaWindow) continue;
+    for (const slot of quotaSlots(bucket, bucket === main)) {
+      const quotaWindow = slot.window;
       const row = add(windows, 'div', 'quota-window');
       const title = add(row, 'div', 'quota-window-title');
-      add(title, 'span', '', windowLabel(quotaWindow.windowMinutes));
-      const remaining = Number.isFinite(quotaWindow.remainingPercent) ? Math.max(0, Math.min(100, quotaWindow.remainingPercent)) : null;
-      const remainingLabel = add(title, 'strong', '', remaining == null ? '未知' : `${Number(remaining.toFixed(1))}%${compact ? '' : ' 剩余'}`);
-      if (compact && remaining !== null) add(remainingLabel, 'span', 'quota-remaining-suffix', '剩余');
+      add(title, 'span', '', slot.label);
+      add(title, 'span', '', '剩余');
+      const remaining = quotaWindow && Number.isFinite(quotaWindow.remainingPercent) ? Math.max(0, Math.min(100, quotaWindow.remainingPercent)) : null;
+      add(row, 'strong', 'quota-percentage', quotaWindow ? remainingLabel(quotaWindow.remainingPercent) : '未提供');
       if (!compact && remaining !== null) {
         const bar = document.createElement('progress'); bar.max = 100; bar.value = remaining;
-        bar.setAttribute('aria-label', `${windowLabel(quotaWindow.windowMinutes)}剩余额度`); row.append(bar);
+        bar.setAttribute('aria-label', `${slot.label}剩余额度`); row.append(bar);
       }
-      add(row, 'p', 'quota-countdown', resetCountdown(quotaWindow.resetsAt));
-      if (!compact) add(row, 'p', 'quota-reset', `重置于 ${localTime(quotaWindow.resetsAt)} · 本地时间`);
+      if (quotaWindow) {
+        add(row, 'p', 'quota-countdown', resetCountdown(quotaWindow.resetsAt));
+        if (!compact) add(row, 'p', 'quota-reset', `重置于 ${localTime(quotaWindow.resetsAt)} · 本地时间`);
+      }
     }
     if (!bucket.primary && !bucket.secondary) add(card, 'p', 'quota-empty', '未提供额度窗口');
     if (!compact && (bucket.unlimitedCredits || bucket.creditsRemaining !== null)) add(card, 'p', 'quota-credits', bucket.unlimitedCredits ? '附加额度：不限' : `附加余额：${bucket.creditsRemaining}`);

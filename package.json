@@ -1,6 +1,6 @@
 {
   "name": "desktopplay",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Windows 双角色桌宠：DeepSeek 余额与 Codex 编程额度",
   "private": true,
   "type": "module",
@@ -32,7 +32,7 @@
   },
   "build": {
     "appId": "io.github.forestwood.desktopplay",
-    "productName": "DesktopPlay",
+    "productName": "DesktopPet",
     "directories": {
       "output": "release"
     },
@@ -63,15 +63,17 @@
       "signExecutable": false
     },
     "nsis": {
+      "include": "build/installer.nsh",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "artifactName": "DesktopPlay-${version}-Setup-x64.exe",
-      "deleteAppDataOnUninstall": false
+      "artifactName": "DesktopPet-${version}-Setup-x64.exe",
+      "deleteAppDataOnUninstall": false,
+      "shortcutName": "DesktopPet"
     },
     "portable": {
-      "artifactName": "DesktopPlay-${version}-Portable-x64.exe"
+      "artifactName": "DesktopPet-${version}-Portable-x64.exe"
     },
     "publish": [
       {

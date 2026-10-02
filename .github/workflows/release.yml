@@ -51,8 +51,8 @@ jobs:
           $version = $env:RELEASE_TAG -replace '^v', ''
           $packages = @(Get-ChildItem -Path release -File -Filter '*-x64.exe' | Sort-Object Name)
           $expected = @(
-            "DesktopPlay-$version-Setup-x64.exe",
-            "DesktopPlay-$version-Portable-x64.exe"
+            "DesktopPet-$version-Setup-x64.exe",
+            "DesktopPet-$version-Portable-x64.exe"
           )
           if ($packages.Count -ne 2 -or @(Compare-Object $expected $packages.Name).Count -ne 0) {
             throw "Expected exactly the NSIS Setup and Portable x64 executables. Found: $($packages.Name -join ', ')"

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { characterOrigin, clampToArea, fitScale, petSize, placeCharacter, snapToArea } from '../../src/main/geometry';
 import { contains, getPetLayout } from '../../src/shared/pet-layout';
+import { GPT_DRAGON_PET } from '../../src/shared/defaults';
 describe('desktop geometry in DIP', () => {
   const area = { x: -1920, y: 0, width: 1920, height: 1040 };
   it('supports scaled sizes and negative monitor coordinates', () => {
@@ -46,10 +47,10 @@ describe('character anchored layout', () => {
     const upright = placeCharacter({ x: 1200, y: 49 }, area, 1, top, false);
     expect(upright).toMatchObject({ verticalFlipped: false, bubblePlacement: 'below' });
     expect(characterOrigin(upright.bounds, upright).y).toBe(49);
-    expect(placeCharacter({ x: 1200, y: 231 }, area, 1, upright, false).bubblePlacement).toBe('below');
-    const above = placeCharacter({ x: 1200, y: 232 }, area, 1, upright, false);
+    expect(placeCharacter({ x: 1200, y: 235 }, area, 1, upright, false).bubblePlacement).toBe('below');
+    const above = placeCharacter({ x: 1200, y: 236 }, area, 1, upright, false);
     expect(above.bubblePlacement).toBe('above');
-    expect(characterOrigin(above.bounds, above).y).toBe(232);
+    expect(characterOrigin(above.bounds, above).y).toBe(236);
   });
   it.each([0.5, 1, 1.25, 1.5, 2])('keeps all layout boxes on screen at scale %s, including negative monitor coordinates', scale => {
     const display = { x: -1366, y: -150, width: 1366, height: 728 };
@@ -74,13 +75,14 @@ describe('character anchored layout', () => {
       const layout = getPetLayout(flipped, placement);
       expect(contains(layout.bubbleHit, layout.bubble.x + 120, layout.bubble.y + 170)).toBe(true);
       expect(contains(layout.character, layout.character.x + 110, layout.character.y + 110)).toBe(true);
-      expect(contains(layout.character, 350, 439) || contains(layout.bubbleHit, 350, 439)).toBe(false);
+      const blankX = flipped ? 350 : 0;
+      expect(contains(layout.character, blankX, 439) || contains(layout.bubbleHit, blankX, 439)).toBe(false);
     }
   });
   it.each([{ x: 0, y: 0, width: 1920, height: 1040 }, { x: -768, y: 0, width: 768, height: 1024 }])('has continuous reachable anchors at maximum requested size on $width×$height screens', display => {
     const scale = petSize(fitScale(2, display)).width / 360;
-    let previous = placeCharacter({ x: display.x + 20, y: 4 * scale }, display, 2, normal, false);
-    for (let y = Math.ceil(4 * scale); y < display.height - 224 * scale; y++) {
+    let previous = placeCharacter({ x: display.x + 20, y: 0 }, display, 2, normal, false);
+    for (let y = 0; y < display.height - 220 * scale; y++) {
       const next = placeCharacter({ x: display.x + 20, y }, display, 2, previous, false);
       expect(Math.abs(characterOrigin(next.bounds, next).y - y)).toBeLessThanOrEqual(1);
       previous = next;
@@ -89,6 +91,23 @@ describe('character anchored layout', () => {
       const next = placeCharacter({ x, y: 300 }, display, 2, previous, false);
       expect(Math.abs(characterOrigin(next.bounds, next).x - x)).toBeLessThanOrEqual(1);
       previous = next;
+    }
+  });
+  it.each([0.5, 1, 1.25, 1.5, 2])('aligns dragon visible bounds at all four monitor edges at scale %s', requested => {
+    for (const display of [area, { x: -1366, y: -120, width: 1366, height: 728 }]) {
+      const size = petSize(fitScale(requested, display, GPT_DRAGON_PET)), scale = size.width / 360;
+      const { character, image } = getPetLayout(false, 'above', GPT_DRAGON_PET);
+      const content = GPT_DRAGON_PET.contentBounds!;
+      expect(image.y + content.y * image.height / content.imageHeight).toBeCloseTo(0);
+      expect(image.y + (content.y + content.height) * image.height / content.imageHeight).toBeCloseTo(character.height);
+      for (const left of [true, false]) for (const top of [true, false]) {
+        const anchor = { x: left ? display.x : display.x + display.width - character.width * scale, y: top ? display.y : display.y + display.height - character.height * scale };
+        const placed = placeCharacter(anchor, display, requested, normal, true, GPT_DRAGON_PET);
+        const actual = characterOrigin(placed.bounds, placed, GPT_DRAGON_PET);
+        expect(Math.abs(actual.x - anchor.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(actual.y - anchor.y)).toBeLessThanOrEqual(1);
+        expect(placed.verticalFlipped).toBe(top);
+      }
     }
   });
 });

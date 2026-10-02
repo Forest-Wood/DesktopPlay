@@ -1,3 +1,4 @@
+export type PetPersona = 'whale' | 'gpt' | 'dragon';
 export interface AppSettings {
   alwaysOnTop: boolean;
   launchAtLogin: boolean;
@@ -6,6 +7,7 @@ export interface AppSettings {
   soundEnabled: boolean;
   volume: number;
   phrases: string[];
+  phrasesByPersona: Record<PetPersona, string[]>;
   lowBalanceThreshold: string | null;
   dailyBudget: string | null;
 }
@@ -53,6 +55,8 @@ export interface PetAsset {
   name: string;
   url: string;
   isCustom: boolean;
+  /** Pixel bounds in the original image; right/bottom are exclusive. */
+  contentBounds?: { x: number; y: number; width: number; height: number; imageWidth: number; imageHeight: number };
 }
 
 export type BuiltinPetId = 'deepseek' | 'gpt';
@@ -77,6 +81,7 @@ export interface CodexQuotaBucket {
 }
 
 export interface CodexQuotaState {
+  planType: string | null;
   status: 'idle' | 'loading' | 'ready' | 'unavailable' | 'error';
   buckets: CodexQuotaBucket[];
   updatedAt: string | null;

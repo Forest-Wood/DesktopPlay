@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { DesktopService } from '../../../src/main/services/desktop-service';
+import { DEFAULT_PHRASES_BY_PERSONA } from '../../../src/shared/defaults';
 
 const secrets = { isEncryptionAvailable: () => true, encryptString: (s: string) => Buffer.from(`encrypted:${s}`), decryptString: (b: Buffer) => { const s = b.toString(); if (!s.startsWith('encrypted:')) throw new Error(); return s.slice(10); } };
 function reply(total: string, currency = 'CNY') { return new Response(JSON.stringify({ is_available: true, balance_infos: [{ currency, total_balance: total, granted_balance: '0', topped_up_balance: total }] }), { status: 200 }); }
@@ -16,6 +17,33 @@ async function fixture(responses: string[] = ['100'], options: { dataDir?: strin
   services.push(service); await service.init(); return { service, dataDir, fetchFn };
 }
 async function configured(values: string[], options: Parameters<typeof fixture>[1] = {}) { const result = await fixture(values, options); await result.service.setApiKey('test-key'); await result.service.refresh(); return result; }
+
+describe('persona phrase storage', () => {
+  it('migrates complete legacy custom text to whale and persists independent persona edits', async () => {
+    const { service, dataDir } = await fixture();
+    await service.updateSettings({ phrases: ['  自定义空格保留  ', '原版第二句'] });
+    service.dispose();
+    const file = path.join(dataDir, 'desktopplay.json');
+    const legacy = JSON.parse(await fs.readFile(file, 'utf8'));
+    delete legacy.settings.phrasesByPersona;
+    await fs.writeFile(file, JSON.stringify(legacy));
+    const restored = (await fixture([], { dataDir })).service;
+    expect(restored.getState().settings.phrasesByPersona).toEqual({ whale: legacy.settings.phrases, gpt: DEFAULT_PHRASES_BY_PERSONA.gpt, dragon: DEFAULT_PHRASES_BY_PERSONA.dragon });
+    const phrases = restored.getState().settings.phrasesByPersona;
+    phrases.dragon = ['龙族自定义'];
+    await restored.updateSettings({ phrasesByPersona: phrases }); restored.dispose();
+    const restarted = (await fixture([], { dataDir })).service;
+    expect(restarted.getState().settings.phrasesByPersona).toEqual(phrases);
+    expect(restarted.getState().settings.phrases).toEqual(legacy.settings.phrases);
+  });
+  it('validates every persona and rejects malformed or incomplete maps', async () => {
+    const { service } = await fixture();
+    for (const phrasesByPersona of [{ whale: ['one'] }, { ...DEFAULT_PHRASES_BY_PERSONA, dragon: [] }, { ...DEFAULT_PHRASES_BY_PERSONA, gpt: [' '] }, { ...DEFAULT_PHRASES_BY_PERSONA, extra: ['x'] }]) {
+      await expect(service.updateSettings({ phrasesByPersona: phrasesByPersona as typeof DEFAULT_PHRASES_BY_PERSONA })).rejects.toThrow();
+    }
+    expect(service.getState().settings.phrasesByPersona).toEqual(DEFAULT_PHRASES_BY_PERSONA);
+  });
+});
 
 describe('DesktopService ledger', () => {
   it('counts decreases and increases independently with eight decimal places', async () => {
