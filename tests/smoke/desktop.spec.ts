@@ -13,6 +13,7 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
   try {
     application = await electron.launch({ executablePath: electronPath as unknown as string, args: ['.'], cwd: process.cwd(), env });
     await expect.poll(() => application!.windows().length).toBe(2);
+    await expect.poll(() => application!.windows().some(page => page.url().includes('view=settings'))).toBe(true);
     const settings = application.windows().find(page => page.url().includes('view=settings'))!;
     const pet = application.windows().find(page => page.url().includes('view=pet'))!;
     const errors: string[] = [];
@@ -54,6 +55,7 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
 
     application = await electron.launch({ executablePath: electronPath as unknown as string, args: ['.'], cwd: process.cwd(), env });
     await expect.poll(() => application!.windows().length).toBe(2);
+    await expect.poll(() => application!.windows().some(page => page.url().includes('view=settings'))).toBe(true);
     const restarted = application.windows().find(page => page.url().includes('view=settings'))!;
     await expect(restarted.locator('#network-status')).toBeVisible();
     expect((await restarted.evaluate(() => window.desktopPlay.getState())).settings).toMatchObject({ scale: 1.25, soundEnabled: false, lowBalanceThreshold: '10.12345678' });
