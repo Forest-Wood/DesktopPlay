@@ -1,11 +1,14 @@
+const amountFormatter = new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const timeFormatter = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+
 export function money(value: string | null | undefined, currency: 'CNY' | 'USD' = 'CNY'): string {
   if (value == null || !Number.isFinite(Number(value))) return '—';
-  return `${currency === 'USD' ? '$' : '¥'}${Number(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${currency === 'USD' ? '$' : '¥'}${amountFormatter.format(Number(value))}`;
 }
 
 export function beijingTime(value: string | undefined): string {
   if (!value || !Number.isFinite(Date.parse(value))) return '尚未更新';
-  return new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(value));
+  return timeFormatter.format(new Date(value));
 }
 
 // Keep eight decimal places in settings without passing monetary values through floating point.
