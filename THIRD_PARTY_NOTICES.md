@@ -32,7 +32,9 @@ SOFTWARE.
 
 ### GPT 小伙伴
 
-`public/assets/gpt.png` 使用内置图像生成工具，根据用户提供的白发、薄荷绿 GPT 角色参考图与本项目小鲸鱼的 Q 版比例生成。它是非官方二创形象，不代表 OpenAI 的官方吉祥物、合作或认可；ChatGPT / OpenAI 标识的权利仍归原权利人。生成提示词与制作记录见 [docs/gpt-art-prompt.md](docs/gpt-art-prompt.md)。本项目的 MIT 代码许可证不授予第三方商标权。
+`public/assets/gpt.png` 使用内置图像生成工具，根据用户提供的白发、薄荷绿 GPT 角色参考图与本项目小鲸鱼的 Q 版比例生成。它是非官方二创形象，不代表 OpenAI 的官方吉祥物、合作或认可；ChatGPT / OpenAI 标识的权利仍归原权利人。生成提示词与制作记录见 [docs/gpt-art-prompt.md](docs/gpt-art-prompt.md)。
+
+`public/assets/gpt-dragon-v2.png` 是 GPT 角色可选的白龙内置造型，使用内置图像生成工具，根据用户提供的白发龙角角色参考图及本项目桌宠比例生成。它与原版 GPT 造型一样属于非官方二创形象，不代表 OpenAI 的官方形象、合作或认可。生成和定稿提示词见 [docs/gpt-dragon-v2-art-prompt.md](docs/gpt-dragon-v2-art-prompt.md)。本项目的 MIT 代码许可证不授予第三方商标权，也不应理解为对参考形象或生成美术素材权利的声明。
 
 ### 原小鲸鱼与音效
 

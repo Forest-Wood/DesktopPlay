@@ -1,8 +1,8 @@
 import { readFile, mkdir, writeFile, rename, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { BuiltinPetId, PetAsset } from '../shared/types';
-import { BUILTIN_PETS } from '../shared/defaults';
+import type { BuiltinPetId, GptAppearance, PetAsset } from '../shared/types';
+import { BUILTIN_PETS, GPT_DRAGON_PET } from '../shared/defaults';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 export function inspectImage(bytes: Buffer): { mime: string; width: number; height: number } {
@@ -34,14 +34,17 @@ export function inspectImage(bytes: Buffer): { mime: string; width: number; heig
 
 export class PetAssets {
   private selected: BuiltinPetId = 'deepseek';
+  private gptAppearance: GptAppearance = 'classic';
   private pets: Record<BuiltinPetId, PetAsset> = structuredClone(BUILTIN_PETS);
   private mutations: Promise<void> = Promise.resolve();
   constructor(private dataDir: string) {}
   private filename(id: BuiltinPetId): string { return path.join(this.dataDir, id === 'deepseek' ? 'pet.json' : 'gpt-pet.json'); }
   async init(): Promise<void> {
+    let appearance: unknown;
     try {
       const choice = JSON.parse(await readFile(path.join(this.dataDir, 'pet-selection.json'), 'utf8'));
       if (choice.activePet === 'gpt' || choice.activePet === 'deepseek') this.selected = choice.activePet;
+      appearance = choice.gptAppearance;
     } catch { /* Existing installations keep their original character. */ }
     await Promise.all((['deepseek', 'gpt'] as const).map(async id => {
       try {
@@ -54,9 +57,19 @@ export class PetAssets {
       this.pets[id] = { name: stored.name.slice(0, 100), url: `data:${image.mime};base64,${stored.data}`, isCustom: true };
     } catch { /* A missing or damaged user asset falls back to the packaged pet. */ }
     }));
+    this.gptAppearance = appearance === 'dragon' ? 'dragon' :
+      (appearance === 'custom' || appearance === undefined) && this.hasCustomGpt() ? 'custom' : 'classic';
   }
-  get(): PetAsset { return { ...this.pets[this.selected] }; }
+  get(): PetAsset {
+    if (this.selected === 'gpt') {
+      if (this.gptAppearance === 'dragon') return { ...GPT_DRAGON_PET };
+      if (this.gptAppearance === 'classic') return { ...BUILTIN_PETS.gpt };
+    }
+    return { ...this.pets[this.selected] };
+  }
   getSelected(): BuiltinPetId { return this.selected; }
+  getGptAppearance(): GptAppearance { return this.gptAppearance; }
+  hasCustomGpt(): boolean { return this.pets.gpt.isCustom; }
   private mutate(operation: () => Promise<void>): Promise<void> {
     const next = this.mutations.catch(() => {}).then(operation); this.mutations = next; return next;
   }
@@ -68,7 +81,18 @@ export class PetAssets {
   }
   select(id: unknown): Promise<void> {
     if (id !== 'deepseek' && id !== 'gpt') return Promise.reject(new Error('未知的桌宠角色。'));
-    return this.mutate(async () => { await this.save(path.join(this.dataDir, 'pet-selection.json'), { activePet: id }); this.selected = id; });
+    return this.mutate(async () => { await this.saveSelection(id, this.gptAppearance); this.selected = id; });
+  }
+  private saveSelection(activePet: BuiltinPetId, gptAppearance: GptAppearance): Promise<void> {
+    return this.save(path.join(this.dataDir, 'pet-selection.json'), { activePet, gptAppearance });
+  }
+  selectGptAppearance(id: unknown): Promise<void> {
+    if (id !== 'classic' && id !== 'dragon' && id !== 'custom') return Promise.reject(new Error('未知的 GPT 造型。'));
+    return this.mutate(async () => {
+      if (id === 'custom' && !this.hasCustomGpt()) throw new Error('请先为 GPT 导入自定义图片。');
+      await this.saveSelection(this.selected, id);
+      this.gptAppearance = id;
+    });
   }
   import(filename: string): Promise<void> {
     const id = this.selected;
@@ -76,6 +100,10 @@ export class PetAssets {
       const bytes = await readFile(filename);
       const image = inspectImage(bytes), data = bytes.toString('base64'), name = path.basename(filename).slice(0, 100);
       await this.save(this.filename(id), { name, data });
+      if (id === 'gpt') {
+        await this.saveSelection(this.selected, 'custom');
+        this.gptAppearance = 'custom';
+      }
       this.pets[id] = { name, url: `data:${image.mime};base64,${data}`, isCustom: true };
     });
   }
@@ -83,6 +111,10 @@ export class PetAssets {
     const id = this.selected;
     return this.mutate(async () => {
       await unlink(this.filename(id)).catch((error: NodeJS.ErrnoException) => { if (error.code !== 'ENOENT') throw error; });
+      if (id === 'gpt') {
+        await this.saveSelection(this.selected, 'classic');
+        this.gptAppearance = 'classic';
+      }
       this.pets[id] = { ...BUILTIN_PETS[id] };
     });
   }

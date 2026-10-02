@@ -1,99 +1,90 @@
 import type { AppState, DesktopApi } from '../shared/types';
-import { DEFAULT_SETTINGS } from '../shared/defaults';
-import { updateMoney } from './format';
+import { getPetLayout } from '../shared/pet-layout';
+import { money } from './format';
 import { localTime, quotaStatus, renderQuota } from './quota';
+import { pageCount, nextPage, summaryText, usageStatus } from './bubble-pages';
 
 export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, demo: boolean) {
-  let state = initial;
-  let bubbleVisible = false;
-  let lastAlertId: string | null = null;
+  let state = initial, page = 0, visible = false, retention = false, hovered = false, disposed = false;
+  let revision = 0, operation = 0, switching = false, refreshing = false, notice = '', lastAlertId: string | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let drag: { id: number; x: number; y: number; moved: boolean } | undefined;
   let interactive = false;
-  root.innerHTML = `<div class="pet-canvas"><section class="pet-bubble" aria-live="polite" hidden><div class="bubble-top"><span class="bubble-label">小鲸鱼的小报告</span><button class="bubble-close" type="button" aria-label="关闭气泡">×</button></div><p class="bubble-message"></p><div class="bubble-balances"><span>余额 <strong class="pet-balance">—</strong></span><span>今日 <strong class="pet-spent">—</strong></span></div><div class="bubble-footer"><span class="pet-status"></span><button class="bubble-settings" type="button">打开设置 ↗</button></div></section><button type="button" class="pet-character" aria-label="小鲸鱼，点击查看余额，拖动调整位置，右键打开菜单"><img class="pet-image" draggable="false" alt="">${demo ? '<span class="pet-demo">本地演示</span>' : ''}</button></div>`;
-  const canvas = root.querySelector<HTMLElement>('.pet-canvas')!;
-  const character = root.querySelector<HTMLButtonElement>('.pet-character')!;
-  const image = root.querySelector<HTMLImageElement>('.pet-image')!;
-  const bubble = root.querySelector<HTMLElement>('.pet-bubble')!;
-  const message = root.querySelector<HTMLElement>('.bubble-message')!;
-  const status = root.querySelector<HTMLElement>('.pet-status')!;
-  const quota = document.createElement('div'); quota.className = 'bubble-quota';
-  root.querySelector('.bubble-balances')!.after(quota);
-  const switchPet = document.createElement('button'); switchPet.className = 'bubble-switch'; switchPet.type = 'button';
-  root.querySelector('.bubble-footer')!.insertBefore(switchPet, root.querySelector('.bubble-settings'));
+  root.innerHTML = `<div class="pet-canvas"><section class="pet-bubble" aria-live="polite" hidden><div class="bubble-top"><span class="bubble-label"></span><span class="bubble-page"></span><button class="bubble-close" type="button" aria-label="关闭气泡">×</button></div><div class="bubble-content"><div class="bubble-balances"><span>余额<strong class="pet-balance"></strong></span><span>今日已观测<strong class="pet-spent"></strong></span></div><div class="bubble-quota"></div><p class="bubble-message"></p></div><div class="pet-status"></div><div class="bubble-footer"><button class="bubble-refresh" type="button">刷新</button><button class="bubble-switch" type="button">换角色</button><button class="bubble-appearance" type="button">换造型</button><button class="bubble-settings" type="button">设置</button></div><div class="bubble-retention-actions" hidden><button class="bubble-confirm" type="button">继续切换</button><button class="bubble-cancel" type="button">再陪一会儿</button></div></section><button type="button" class="pet-character"><span class="pet-mirror"><img class="pet-image" draggable="false" alt=""></span>${demo ? '<span class="pet-demo">本地演示</span>' : ''}</button></div>`;
+  const query = <T extends HTMLElement = HTMLElement>(selector: string) => root.querySelector<T>(selector)!;
+  const canvas = query('.pet-canvas'), character = query<HTMLButtonElement>('.pet-character'), image = query<HTMLImageElement>('.pet-image');
+  const bubble = query('.pet-bubble'), message = query('.bubble-message'), quota = query('.bubble-quota'), status = query('.pet-status');
+  const refresh = query<HTMLButtonElement>('.bubble-refresh'), confirm = query<HTMLButtonElement>('.bubble-confirm');
   const sounds = { press: new Audio('./assets/press.mp3'), release: new Audio('./assets/release.mp3') };
-  const play = (name: keyof typeof sounds) => {
-    if (!state.settings.soundEnabled || state.settings.volume <= 0) return;
-    const sound = sounds[name]; sound.volume = state.settings.volume; sound.currentTime = 0;
-    void sound.play().catch(() => {});
-  };
+  const play = (name: keyof typeof sounds) => { if (state.settings.soundEnabled && state.settings.volume > 0) { const sound = sounds[name]; sound.volume = state.settings.volume; sound.currentTime = 0; void sound.play().catch(() => {}); } };
   const setInteractive = (value: boolean) => { if (interactive !== value) { interactive = value; api.setInteractive(value); } };
-  const close = () => { clearTimeout(timer); bubbleVisible = false; bubble.hidden = true; api.setBubbleVisible(false); };
-  const show = (text: string, duration = 12000) => {
-    clearTimeout(timer); bubbleVisible = true; message.textContent = text; bubble.hidden = false; api.setBubbleVisible(true);
-    timer = setTimeout(close, duration);
+  const close = () => { clearTimeout(timer); visible = false; retention = false; notice = ''; bubble.hidden = true; api.setBubbleVisible(false); };
+  const schedule = (duration = 12000) => { clearTimeout(timer); if (visible && !retention && !hovered) timer = setTimeout(close, duration); };
+  const render = () => {
+    const isGpt = state.activePet === 'gpt', total = pageCount(state.settings.phrases);
+    if (page >= total) page = 0;
+    const usage = page === 0 && !retention && !notice;
+    query('.bubble-label').textContent = retention ? '再陪我一会儿吧' : notice ? '用量提醒' : page === 0 ? `${isGpt ? 'GPT' : 'DeepSeek'} 用量` : page === 1 ? '用量小报告' : '陪伴短句';
+    query('.bubble-page').textContent = retention ? '' : `${page + 1}/${total}`;
+    query('.bubble-balances').hidden = !usage || isGpt; quota.hidden = !usage || !isGpt;
+    message.hidden = usage; message.textContent = retention ? (isGpt ? '代码还没写完呢，再陪我一会儿，好吗？' : '我还想陪着你，再留一会儿，好吗？') : notice || (page === 1 ? summaryText(state) : state.settings.phrases[page - 2] ?? '工作一会儿，记得照顾自己哦。');
+    if (usage && isGpt) renderQuota(quota, state.codex, true, demo);
+    query('.pet-balance').textContent = money(state.balance?.total, state.balance?.currency);
+    query('.pet-spent').textContent = money(state.ledger.today?.spent, state.ledger.today?.currency);
+    status.textContent = isGpt ? `${quotaStatus(state.codex, demo)} · ${localTime(state.codex.updatedAt)} 更新` : usageStatus(state, demo);
+    status.title = (isGpt ? state.codex.error : state.error) || status.textContent;
+    query('.bubble-footer').hidden = retention; query('.bubble-retention-actions').hidden = !retention;
+    query('.bubble-appearance').hidden = !isGpt;
+    refresh.disabled = refreshing || (isGpt ? state.codex.status === 'loading' : state.status === 'loading');
+    refresh.textContent = refresh.disabled ? '刷新中' : '刷新'; confirm.disabled = switching;
+    query<HTMLButtonElement>('.bubble-cancel').disabled = switching;
+    query<HTMLButtonElement>('.bubble-appearance').disabled = switching;
+    query<HTMLButtonElement>('.bubble-switch').disabled = switching;
   };
+  const show = () => { visible = true; bubble.hidden = false; api.setBubbleVisible(true); render(); schedule(); };
   const update = (next: AppState) => {
-    state = next; const scale = state.effectiveScale ?? state.settings.scale;
-    canvas.style.transform = `scale(${scale})`;
-    root.style.width = `${360 * scale}px`; root.style.height = `${440 * scale}px`;
-    canvas.classList.toggle('flipped', state.flipped); image.src = state.pet.url;
-    canvas.classList.toggle('gpt-theme', state.activePet === 'gpt');
-    const isGpt = state.activePet === 'gpt';
-    character.setAttribute('aria-label', `${state.pet.name}，点击查看${isGpt ? 'Codex 额度' : '余额'}，拖动调整位置，右键打开菜单`);
-    root.querySelector<HTMLElement>('.bubble-label')!.textContent = isGpt ? 'GPT 的 Codex 小报告' : '小鲸鱼的小报告';
-    root.querySelector<HTMLElement>('.bubble-balances')!.hidden = isGpt; quota.hidden = !isGpt;
-    switchPet.textContent = isGpt ? '换小鲸鱼' : '换 GPT';
-    if (isGpt) renderQuota(quota, state.codex, true, demo);
-    updateMoney(root.querySelector<HTMLElement>('.pet-balance')!, state.balance?.total, state.balance?.currency);
-    updateMoney(root.querySelector<HTMLElement>('.pet-spent')!, state.ledger.today?.spent, state.ledger.today?.currency);
-    status.textContent = demo ? '演示余额' : state.status === 'loading' ? '正在查看余额…' : state.status === 'error' ? '连接异常 · 请查看设置' : state.status === 'unconfigured' ? '先在设置中连接账户' : '今日消费为已观测变化';
-    if (isGpt) { status.textContent = `${quotaStatus(state.codex, demo)} · ${localTime(state.codex.updatedAt)} 更新`; status.title = state.codex.error ?? status.textContent; }
-    if (!isGpt && state.alert && state.alert.id !== lastAlertId) { lastAlertId = state.alert.id; show(state.alert.message, 18000); }
+    if (disposed) return;
+    revision++; const changedPet = state.activePet !== next.activePet; state = next;
+    if (changedPet) { page = 0; retention = false; notice = ''; }
+    const scale = state.effectiveScale ?? state.settings.scale, layout = getPetLayout(state.flipped, state.bubblePlacement);
+    canvas.style.transform = `scale(${scale})`; root.style.width = `${360 * scale}px`; root.style.height = `${440 * scale}px`;
+    for (const [element, rect] of [[character, layout.character], [bubble, layout.bubble]] as const) { element.style.left = `${rect.x}px`; element.style.top = `${rect.y}px`; element.style.width = `${rect.width}px`; element.style.height = `${rect.height}px`; }
+    canvas.classList.toggle('flipped', state.flipped); canvas.classList.toggle('vertical-flipped', state.verticalFlipped); canvas.classList.toggle('bubble-below', state.bubblePlacement === 'below');
+    canvas.classList.toggle('gpt-theme', state.activePet === 'gpt'); canvas.classList.toggle('dragon-theme', state.activePet === 'gpt' && state.gptAppearance === 'dragon'); image.src = state.pet.url;
+    character.setAttribute('aria-label', `${state.pet.name}，点击切换用量、小报告和陪伴短句，拖动调整位置，右键打开菜单`);
+    render();
+    if (state.activePet !== 'gpt' && state.alert && state.alert.id !== lastAlertId && !retention) { lastAlertId = state.alert.id; notice = state.alert.message; show(); }
+    if (changedPet) schedule();
   };
-  const clicked = () => {
-    const phrases = state.settings.phrases;
-    const defaults = JSON.stringify(phrases) === JSON.stringify(DEFAULT_SETTINGS.phrases);
-    show(state.activePet === 'gpt' && (defaults || !phrases.length) ? '专注写代码，也记得休息一下呀。' : phrases.length ? phrases[Math.floor(Math.random() * phrases.length)]! : '工作一会儿，记得照顾自己呀。');
-    void (state.activePet === 'gpt' ? api.refreshCodexQuota() : api.refreshBalance()).then(update).catch(error => { show(error instanceof Error ? error.message : '暂时无法更新，请稍后再试。'); });
+  // Broadcasts may precede IPC resolution; an older response must not overwrite them.
+  const run = async (action: () => Promise<AppState>, kind: 'refresh' | 'switch' | 'appearance') => {
+    const ticket = ++operation, started = revision;
+    if (kind === 'refresh') refreshing = true; else switching = true; render();
+    try { const next = await action(); if (!disposed && ticket === operation && revision === started) update(next); if (!disposed && ticket === operation && kind === 'switch') { retention = false; page = 0; notice = ''; show(); } }
+    catch (error) { if (!disposed && ticket === operation) { status.textContent = error instanceof Error ? error.message : '操作失败，请重试。'; status.title = status.textContent; } }
+    finally { if (!disposed && ticket === operation) { refreshing = false; switching = false; refresh.disabled = state.activePet === 'gpt' ? state.codex.status === 'loading' : state.status === 'loading'; refresh.textContent = refresh.disabled ? '刷新中' : '刷新'; confirm.disabled = false; query<HTMLButtonElement>('.bubble-cancel').disabled = false; query<HTMLButtonElement>('.bubble-appearance').disabled = false; query<HTMLButtonElement>('.bubble-switch').disabled = false; } }
   };
-  character.addEventListener('pointerdown', event => {
-    if (event.button !== 0) return;
-    event.preventDefault(); drag = { id: event.pointerId, x: event.screenX, y: event.screenY, moved: false };
-    character.setPointerCapture(event.pointerId); character.classList.add('pressed'); setInteractive(true); play('press'); api.startDrag();
-  });
-  character.addEventListener('pointermove', event => {
-    if (drag?.id === event.pointerId && Math.hypot(event.screenX - drag.x, event.screenY - drag.y) > 5) drag.moved = true;
-  });
-  const endDrag = (event: PointerEvent, cancel = false) => {
-    if (!drag || drag.id !== event.pointerId) return;
-    const moved = drag.moved; drag = undefined; character.classList.remove('pressed'); api.endDrag(); play('release');
-    if (character.hasPointerCapture(event.pointerId)) character.releasePointerCapture(event.pointerId);
-    if (!cancel && !moved) clicked();
-  };
-  character.addEventListener('pointerup', event => endDrag(event));
-  character.addEventListener('pointercancel', event => endDrag(event, true));
-  character.addEventListener('lostpointercapture', event => endDrag(event, true));
+  const clicked = () => { if (retention) return; page = visible ? nextPage(page, state.settings.phrases) : 0; notice = ''; show(); };
+  character.addEventListener('pointerdown', event => { if (event.button !== 0) return; event.preventDefault(); drag = { id: event.pointerId, x: event.screenX, y: event.screenY, moved: false }; character.setPointerCapture(event.pointerId); character.classList.add('pressed'); setInteractive(true); play('press'); api.startDrag(); });
+  character.addEventListener('pointermove', event => { if (drag?.id === event.pointerId && Math.hypot(event.screenX - drag.x, event.screenY - drag.y) > 5) drag.moved = true; });
+  const endDrag = (event: PointerEvent, cancel = false) => { if (!drag || drag.id !== event.pointerId) return; const moved = drag.moved; drag = undefined; character.classList.remove('pressed'); api.endDrag(); play('release'); if (character.hasPointerCapture(event.pointerId)) character.releasePointerCapture(event.pointerId); if (!cancel && !moved) clicked(); };
+  character.addEventListener('pointerup', event => endDrag(event)); character.addEventListener('pointercancel', event => endDrag(event, true)); character.addEventListener('lostpointercapture', event => endDrag(event, true));
   character.addEventListener('click', event => { if (event.detail === 0) { play('press'); clicked(); play('release'); } });
-  const menu = (event: Event) => { event.preventDefault(); void api.showMenu().catch(() => show('无法打开菜单，请重试。')); };
-  character.addEventListener('contextmenu', menu);
-  character.addEventListener('keydown', event => { if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) menu(event); });
-  root.querySelector('.bubble-close')!.addEventListener('click', close);
-  switchPet.addEventListener('click', () => { void api.selectPet(state.activePet === 'gpt' ? 'deepseek' : 'gpt').then(next => { update(next); show(next.activePet === 'gpt' ? 'GPT 小伙伴来啦，帮你看看 Codex 额度。' : '小鲸鱼回来陪你啦。'); }).catch(() => show('切换失败，请重试。')); });
-  root.querySelector('.bubble-settings')!.addEventListener('click', () => { void api.openSettings().catch(() => show('无法打开设置，请重试。')); });
-  bubble.addEventListener('pointerenter', () => clearTimeout(timer));
-  bubble.addEventListener('pointerleave', () => { if (bubbleVisible) timer = setTimeout(close, 8000); });
-  const pointerMove = (event: PointerEvent) => {
-    if (drag) return;
-    const target = event.target instanceof Element ? event.target : null;
-    setInteractive(Boolean(target?.closest('.pet-character, .pet-bubble')));
-  };
+  const menu = (event: Event) => { event.preventDefault(); void api.showMenu().catch(() => { status.textContent = '无法打开菜单，请重试。'; }); };
+  character.addEventListener('contextmenu', menu); character.addEventListener('keydown', event => { if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) menu(event); });
+  query('.bubble-close').addEventListener('click', close);
+  refresh.addEventListener('click', () => { void run(() => state.activePet === 'gpt' ? api.refreshCodexQuota() : api.refreshBalance(), 'refresh'); });
+  query('.bubble-switch').addEventListener('click', () => { retention = true; clearTimeout(timer); render(); });
+  confirm.addEventListener('click', () => { const target = state.activePet === 'gpt' ? 'deepseek' : 'gpt'; void run(() => api.selectPet(target), 'switch'); });
+  query('.bubble-cancel').addEventListener('click', () => { retention = false; render(); schedule(); });
+  query('.bubble-appearance').addEventListener('click', () => { void run(() => api.selectGptAppearance(state.gptAppearance === 'dragon' ? 'classic' : 'dragon'), 'appearance'); });
+  query('.bubble-settings').addEventListener('click', () => { void api.openSettings().catch(() => { status.textContent = '无法打开设置，请重试。'; }); });
+  bubble.addEventListener('pointerenter', () => { hovered = true; clearTimeout(timer); }); bubble.addEventListener('pointerleave', () => { hovered = false; schedule(8000); });
+  const pointerMove = (event: PointerEvent) => { if (!drag) setInteractive(Boolean(event.target instanceof Element && event.target.closest('.pet-character, .pet-bubble'))); };
   const pointerLeave = () => { if (!drag) setInteractive(false); };
   const focusChange = () => setInteractive(Boolean(root.contains(document.activeElement) && document.activeElement !== document.body));
   document.addEventListener('pointermove', pointerMove); document.addEventListener('pointerleave', pointerLeave); root.addEventListener('focusin', focusChange); root.addEventListener('focusout', focusChange);
-  api.setBubbleVisible(false);
-  api.setInteractive(false);
-  update(initial);
-  const countdown = setInterval(() => { if (bubbleVisible && state.activePet === 'gpt') update(state); }, 30000);
-  return { update, dispose: () => { clearInterval(countdown); clearTimeout(timer); if (drag) api.endDrag(); api.setBubbleVisible(false); api.setInteractive(false); document.removeEventListener('pointermove', pointerMove); document.removeEventListener('pointerleave', pointerLeave); Object.values(sounds).forEach(sound => sound.pause()); } };
+  api.setBubbleVisible(false); api.setInteractive(false); update(initial);
+  const countdown = setInterval(() => { if (visible) render(); }, 30000);
+  return { update, dispose: () => { disposed = true; clearInterval(countdown); clearTimeout(timer); if (drag) api.endDrag(); api.setBubbleVisible(false); api.setInteractive(false); document.removeEventListener('pointermove', pointerMove); document.removeEventListener('pointerleave', pointerLeave); root.removeEventListener('focusin', focusChange); root.removeEventListener('focusout', focusChange); Object.values(sounds).forEach(sound => sound.pause()); } };
 }

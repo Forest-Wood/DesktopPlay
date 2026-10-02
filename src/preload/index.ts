@@ -10,6 +10,7 @@ const api: DesktopApi = {
   choosePet: () => ipcRenderer.invoke('desktopplay:choose-pet'),
   resetPet: () => ipcRenderer.invoke('desktopplay:reset-pet'),
   selectPet: (id) => ipcRenderer.invoke('desktopplay:select-pet', id),
+  selectGptAppearance: (id) => ipcRenderer.invoke('desktopplay:select-gpt-appearance', id),
   refreshCodexQuota: () => ipcRenderer.invoke('desktopplay:refresh-codex'),
   chooseCodexExecutable: () => ipcRenderer.invoke('desktopplay:choose-codex'),
   openCodexUsage: () => ipcRenderer.invoke('desktopplay:open-codex-usage'),

@@ -12,4 +12,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
 };
 export const DEFAULT_PET = { name: '小鲸鱼', url: './assets/whale.png', isCustom: false };
 export const GPT_PET = { name: 'GPT 小伙伴', url: './assets/gpt.png', isCustom: false };
+export const GPT_DRAGON_PET = { name: 'GPT 白龙', url: './assets/gpt-dragon-v2.png', isCustom: false };
 export const BUILTIN_PETS: Record<BuiltinPetId, PetAsset> = { deepseek: DEFAULT_PET, gpt: GPT_PET };

@@ -56,6 +56,8 @@ export interface PetAsset {
 }
 
 export type BuiltinPetId = 'deepseek' | 'gpt';
+export type GptAppearance = 'classic' | 'dragon' | 'custom';
+export type BubblePlacement = 'above' | 'below';
 
 export interface CodexQuotaWindow {
   usedPercent: number;
@@ -86,8 +88,12 @@ export interface CodexQuotaState {
 export interface AppState extends ServiceState {
   pet: PetAsset;
   activePet: BuiltinPetId;
+  gptAppearance: GptAppearance;
+  hasCustomGpt: boolean;
   codex: CodexQuotaState;
   flipped: boolean;
+  verticalFlipped: boolean;
+  bubblePlacement: BubblePlacement;
   effectiveScale?: number;
 }
 
@@ -100,6 +106,7 @@ export interface DesktopApi {
   choosePet(): Promise<AppState>;
   resetPet(): Promise<AppState>;
   selectPet(id: BuiltinPetId): Promise<AppState>;
+  selectGptAppearance(id: GptAppearance): Promise<AppState>;
   refreshCodexQuota(): Promise<AppState>;
   chooseCodexExecutable(): Promise<AppState>;
   openCodexUsage(): Promise<void>;

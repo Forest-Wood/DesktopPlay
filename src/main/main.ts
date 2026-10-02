@@ -5,8 +5,10 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { DesktopService } from './services/desktop-service';
 import { CodexQuotaService } from './services/codex-quota';
 import { PetAssets } from './pet-assets';
-import { clampToArea, fitScale, petSize, snapToArea } from './geometry';
-import type { AppState, AppSettings, BuiltinPetId } from '../shared/types';
+import { characterOrigin, fitScale, petSize, placeCharacter } from './geometry';
+import type { Orientation, Point } from './geometry';
+import { contains, getPetLayout, PET_WIDTH } from '../shared/pet-layout';
+import type { AppState, AppSettings, BuiltinPetId, GptAppearance, BubblePlacement } from '../shared/types';
 
 app.setName('DesktopPlay');
 // Isolated profiles are supported only by development/test builds.
@@ -23,10 +25,12 @@ let assets: PetAssets;
 let codex: CodexQuotaService;
 let codexTimer: ReturnType<typeof setInterval> | null = null;
 let flipped = false, bubbleVisible = false, quitting = false;
+let verticalFlipped = false;
+let bubblePlacement: BubblePlacement = 'above';
 let windowSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let dragTimer: ReturnType<typeof setInterval> | null = null;
 let hitTimer: ReturnType<typeof setInterval> | null = null;
-let dragStart: { mouse: Electron.Point; window: Electron.Rectangle } | null = null;
+let dragStart: { mouse: Electron.Point; character: Point; moved: boolean } | null = null;
 let geometryWrites = Promise.resolve();
 const profileFile = path.join(dataDir, 'window.json');
 let lastSettings: AppSettings | null = null;
@@ -46,7 +50,8 @@ app.on('before-quit', () => {
   tray?.destroy();
 });
 
-function getState(): AppState { return { ...service.getState(), pet: assets.get(), activePet: assets.getSelected(), codex: codex.getState(), flipped, effectiveScale: petWindow && !petWindow.isDestroyed() ? petWindow.getBounds().width / 360 : service.getState().settings.scale }; }
+function orientation(): Orientation { return { flipped, verticalFlipped, bubblePlacement }; }
+function getState(): AppState { return { ...service.getState(), pet: assets.get(), activePet: assets.getSelected(), gptAppearance: assets.getGptAppearance(), hasCustomGpt: assets.hasCustomGpt(), codex: codex.getState(), ...orientation(), effectiveScale: petWindow && !petWindow.isDestroyed() ? petWindow.getBounds().width / PET_WIDTH : service.getState().settings.scale }; }
 function publish(): void {
   const state = getState();
   for (const win of [petWindow, settingsWindow]) if (win && !win.isDestroyed() && !win.webContents.isLoadingMainFrame()) win.webContents.send('desktopplay:state', state);
@@ -98,14 +103,22 @@ async function loadWindow(win: BrowserWindow, view: string): Promise<void> {
 async function createPet(): Promise<void> {
   const area = screen.getPrimaryDisplay().workArea, size = petSize(fitScale(service.getState().settings.scale, area));
   let bounds = { ...size, x: area.x + area.width - size.width - 16, y: area.y + area.height - size.height - 8 };
+  let savedCharacter: Point | null = null;
   try {
     const saved = JSON.parse(await readFile(profileFile, 'utf8'));
+    const validPoint = (point: any) => Number.isFinite(point?.x) && Number.isFinite(point?.y) && Math.abs(point.x) < 100000 && Math.abs(point.y) < 100000;
+    if (saved.version === 2 && validPoint(saved.character)) {
+      savedCharacter = saved.character; flipped = saved.flipped === true;
+      verticalFlipped = saved.verticalFlipped === true; bubblePlacement = saved.bubblePlacement === 'below' ? 'below' : 'above';
+    }
     if (Number.isFinite(saved.x) && Number.isFinite(saved.y) && Math.abs(saved.x) < 100000 && Math.abs(saved.y) < 100000) {
       bounds = { ...bounds, x: Math.round(saved.x), y: Math.round(saved.y) }; flipped = saved.flipped === true;
     }
   } catch { /* First launch uses the lower right corner. */ }
-  const selectedArea = screen.getDisplayMatching(bounds).workArea;
-  bounds = clampToArea({ ...bounds, ...petSize(fitScale(service.getState().settings.scale, selectedArea)) }, selectedArea);
+  const anchor = savedCharacter ?? characterOrigin(bounds, orientation());
+  const selectedArea = screen.getDisplayNearestPoint({ x: Math.round(anchor.x + 110 * size.width / PET_WIDTH), y: Math.round(anchor.y + 110 * size.width / PET_WIDTH) }).workArea;
+  const placed = placeCharacter(anchor, selectedArea, service.getState().settings.scale, orientation(), false);
+  bounds = placed.bounds; flipped = placed.flipped; verticalFlipped = placed.verticalFlipped; bubblePlacement = placed.bubblePlacement;
   petWindow = securedWindow({ ...bounds, frame: false, transparent: true, resizable: false, maximizable: false, minimizable: false, skipTaskbar: true, hasShadow: false, alwaysOnTop: service.getState().settings.alwaysOnTop, show: false, backgroundColor: '#00000000', title: 'DesktopPlay · 小鲸鱼' });
   petWindow.on('close', (event) => { if (!quitting) { event.preventDefault(); petWindow?.hide(); } });
   petWindow.on('move', scheduleWindowSave);
@@ -130,12 +143,18 @@ async function selectPet(id: BuiltinPetId): Promise<void> {
   await assets.select(id); updateTray(); publish();
   if (id === 'gpt') void codex.refresh();
 }
+async function selectGptAppearance(id: GptAppearance): Promise<void> {
+  await assets.selectGptAppearance(id); updateTray(); publish();
+}
 function refreshCurrent(): void { if (assets.getSelected() === 'gpt') void codex.refresh(); else void service.refresh(); }
 function petMenu(): Electron.MenuItemConstructorOptions[] {
   return [
     { label: 'DeepSeek · 小鲸鱼', type: 'radio', checked: assets.getSelected() === 'deepseek', click: () => { void selectPet('deepseek').catch(() => {}); } },
     { label: 'GPT · Codex 小伙伴', type: 'radio', checked: assets.getSelected() === 'gpt', click: () => { void selectPet('gpt').catch(() => {}); } },
   ];
+}
+function appearanceMenu(): Electron.MenuItemConstructorOptions[] {
+  return ([['classic', 'GPT · 原版'], ['dragon', 'GPT · 白龙'], ...(assets.hasCustomGpt() ? [['custom', 'GPT · 自定义']] : [])] as [GptAppearance, string][]).map(([id, label]) => ({ label, type: 'radio', checked: assets.getGptAppearance() === id, click: () => { void selectGptAppearance(id).catch(() => {}); } }));
 }
 function createTray(): void {
   const icon = nativeImage.createFromPath(path.join(__dirname, '../dist/assets/whale.png')).resize({ width: 32, height: 32 });
@@ -145,11 +164,12 @@ function createTray(): void {
 function updateTray(): void {
   if (tray) {
     tray.setToolTip(`DesktopPlay · ${assets.get().name}`);
-    tray.setImage(nativeImage.createFromPath(path.join(__dirname, `../dist/assets/${assets.getSelected() === 'gpt' ? 'gpt' : 'whale'}.png`)).resize({ width: 32, height: 32 }));
+    tray.setImage(nativeImage.createFromPath(path.join(__dirname, `../dist/assets/${assets.getSelected() === 'gpt' ? assets.getGptAppearance() === 'dragon' ? 'gpt-dragon-v2' : 'gpt' : 'whale'}.png`)).resize({ width: 32, height: 32 }));
   }
   tray?.setContextMenu(Menu.buildFromTemplate([
     { label: '显示桌宠', click: showPet },
     { label: '切换桌宠', submenu: petMenu() },
+    { label: 'GPT 造型', submenu: appearanceMenu() },
     { label: '设置、余额与额度', click: () => { void openSettings(); } },
     { label: '刷新当前额度', click: refreshCurrent },
     { type: 'separator' },
@@ -163,9 +183,7 @@ function applySettings(): void {
   if (petWindow && !petWindow.isDestroyed()) {
     petWindow.setAlwaysOnTop(settings.alwaysOnTop);
     if (!lastSettings || settings.scale !== lastSettings.scale) {
-      const old = petWindow.getBounds(), size = petSize(fitScale(settings.scale, screen.getDisplayMatching(old).workArea));
-      const next = { ...size, x: flipped ? old.x : old.x + old.width - size.width, y: old.y + old.height - size.height };
-      petWindow.setBounds(clampToArea(next, screen.getDisplayMatching(old).workArea)); scheduleWindowSave();
+      positionPet(characterOrigin(petWindow.getBounds(), orientation()), false);
     }
   }
   if (app.isPackaged && (!lastSettings || lastSettings.launchAtLogin !== settings.launchAtLogin)) {
@@ -179,45 +197,50 @@ function scheduleWindowSave(): void {
   if (windowSaveTimer) clearTimeout(windowSaveTimer);
   windowSaveTimer = setTimeout(() => {
     if (!petWindow || petWindow.isDestroyed()) return;
-    const { x, y } = petWindow.getBounds(), saved = JSON.stringify({ x, y, flipped });
+    const saved = JSON.stringify({ version: 2, character: characterOrigin(petWindow.getBounds(), orientation()), ...orientation() });
     geometryWrites = geometryWrites.then(async () => { await writeFile(`${profileFile}.tmp`, saved); await rename(`${profileFile}.tmp`, profileFile); }).catch(() => {});
   }, 200);
 }
 function restoreToScreen(): void {
   if (!petWindow || petWindow.isDestroyed()) return;
-  const bounds = petWindow.getBounds(), area = screen.getDisplayMatching(bounds).workArea;
-  const size = petSize(fitScale(service.getState().settings.scale, area));
-  petWindow.setBounds(clampToArea({ ...bounds, ...size, x: flipped ? bounds.x : bounds.x + bounds.width - size.width, y: bounds.y + bounds.height - size.height }, area)); scheduleWindowSave(); publish();
+  positionPet(characterOrigin(petWindow.getBounds(), orientation()), false); publish();
+}
+function positionPet(anchor: Point, snap: boolean): void {
+  if (!petWindow || petWindow.isDestroyed()) return;
+  const old = petWindow.getBounds(), scale = old.width / PET_WIDTH;
+  const area = screen.getDisplayNearestPoint({ x: Math.round(anchor.x + 110 * scale), y: Math.round(anchor.y + 110 * scale) }).workArea;
+  const next = placeCharacter(anchor, area, service.getState().settings.scale, orientation(), snap);
+  const changed = flipped !== next.flipped || verticalFlipped !== next.verticalFlipped || bubblePlacement !== next.bubblePlacement || old.width !== next.bounds.width;
+  flipped = next.flipped; verticalFlipped = next.verticalFlipped; bubblePlacement = next.bubblePlacement;
+  petWindow.setBounds(next.bounds); scheduleWindowSave();
+  if (changed) publish();
 }
 function beginDrag(): void {
   if (!petWindow || dragStart) return;
   petWindow.setIgnoreMouseEvents(false);
-  dragStart = { mouse: screen.getCursorScreenPoint(), window: petWindow.getBounds() };
+  dragStart = { mouse: screen.getCursorScreenPoint(), character: characterOrigin(petWindow.getBounds(), orientation()), moved: false };
   dragTimer = setInterval(() => {
     if (!dragStart || !petWindow) return;
     const cursor = screen.getCursorScreenPoint();
     if (Math.hypot(cursor.x - dragStart.mouse.x, cursor.y - dragStart.mouse.y) < 5) return;
-    petWindow.setPosition(Math.round(dragStart.window.x + cursor.x - dragStart.mouse.x), Math.round(dragStart.window.y + cursor.y - dragStart.mouse.y));
+    dragStart.moved = true;
+    positionPet({ x: dragStart.character.x + cursor.x - dragStart.mouse.x, y: dragStart.character.y + cursor.y - dragStart.mouse.y }, false);
   }, 16);
 }
 function finishDrag(): void {
   if (dragTimer) clearInterval(dragTimer); dragTimer = null;
   if (!dragStart || !petWindow) return;
-  dragStart = null;
-  const bounds = petWindow.getBounds(), area = screen.getDisplayMatching(bounds).workArea;
-  const size = petSize(fitScale(service.getState().settings.scale, area));
-  const result = snapToArea({ ...bounds, ...size, x: flipped ? bounds.x : bounds.x + bounds.width - size.width, y: bounds.y + bounds.height - size.height }, area, service.getState().settings.snapToEdges, flipped);
-  flipped = result.flipped; petWindow.setBounds(result.bounds); scheduleWindowSave(); publish();
+  const moved = dragStart.moved; dragStart = null;
+  if (moved) positionPet(characterOrigin(petWindow.getBounds(), orientation()), service.getState().settings.snapToEdges);
+  updateHitRegion();
 }
 function updateHitRegion(): void {
   if (!petWindow || petWindow.isDestroyed() || !petWindow.isVisible() || dragStart) return;
-  const p = screen.getCursorScreenPoint(), b = petWindow.getBounds(), s = b.width / 360;
+  const p = screen.getCursorScreenPoint(), b = petWindow.getBounds(), s = b.width / PET_WIDTH;
   const x = (p.x - b.x) / s, y = (p.y - b.y) / s;
-  // The visible pet is anchored to the snapped side; blank space passes through.
-  const inPet = y >= 216 && y <= 440 && (flipped ? x >= 0 && x <= 220 : x >= 140 && x <= 360);
-  // Match the compact balloon's 236 × 180 maximum box and its short tail.
-  const bubbleLeft = flipped ? 0 : 124;
-  const inBubble = bubbleVisible && x >= bubbleLeft && x <= bubbleLeft + 236 && y >= 36 && y < 236;
+  const layout = getPetLayout(flipped, bubblePlacement);
+  const inPet = contains(layout.character, x, y);
+  const inBubble = bubbleVisible && contains(layout.bubbleHit, x, y);
   petWindow.setIgnoreMouseEvents(!(inPet || inBubble), { forward: true });
 }
 
@@ -235,6 +258,7 @@ function registerIpc(): void {
   handle('clear-key', async () => { await service.clearApiKey(); return getState(); });
   handle('refresh', async () => { await service.refresh(); return getState(); });
   handle('select-pet', async (_event, id) => { await selectPet(id); return getState(); });
+  handle('select-gpt-appearance', async (_event, id) => { await selectGptAppearance(id); return getState(); });
   handle('refresh-codex', async () => { await codex.refresh(); return getState(); });
   handle('open-codex-usage', async () => { await shell.openExternal('https://chatgpt.com/codex/settings/usage'); });
   handle('choose-codex', async (event) => {
@@ -252,13 +276,13 @@ function registerIpc(): void {
   handle('choose-pet', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender)!;
     const selection = await dialog.showOpenDialog(win, { title: '选择桌宠图片', properties: ['openFile'], filters: [{ name: '角色图片', extensions: ['png', 'webp', 'gif'] }] });
-    if (!selection.canceled && selection.filePaths[0]) { await assets.import(selection.filePaths[0]); publish(); }
+    if (!selection.canceled && selection.filePaths[0]) { await assets.import(selection.filePaths[0]); updateTray(); publish(); }
     return getState();
   });
-  handle('reset-pet', async () => { await assets.reset(); publish(); return getState(); });
+  handle('reset-pet', async () => { await assets.reset(); updateTray(); publish(); return getState(); });
   handle('open-settings', openSettings);
   handle('show-menu', () => {
-    Menu.buildFromTemplate([{ label: '切换桌宠', submenu: petMenu() }, { label: '设置、余额与额度', click: () => { void openSettings(); } }, { label: '刷新当前额度', click: refreshCurrent }, { type: 'separator' }, { label: '隐藏桌宠', click: () => petWindow?.hide() }, { label: '退出', click: () => app.quit() }]).popup({ window: petWindow ?? undefined });
+    Menu.buildFromTemplate([{ label: '切换桌宠', submenu: petMenu() }, { label: 'GPT 造型', submenu: appearanceMenu() }, { label: '设置、余额与额度', click: () => { void openSettings(); } }, { label: '刷新当前额度', click: refreshCurrent }, { type: 'separator' }, { label: '隐藏桌宠', click: () => petWindow?.hide() }, { label: '退出', click: () => app.quit() }]).popup({ window: petWindow ?? undefined });
   });
   handle('hide-pet', () => { finishDrag(); petWindow?.hide(); });
   handle('quit', () => { app.quit(); });

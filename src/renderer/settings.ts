@@ -1,6 +1,7 @@
 import type { AppSettings, AppState, DesktopApi } from '../shared/types';
 import { beijingTime, decimalSetting, money, updateMoney } from './format';
 import { localTime, quotaStatus, renderQuota } from './quota';
+import { GPT_DRAGON_PET, GPT_PET } from '../shared/defaults';
 
 export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppState, demo: boolean) {
   let state = initial;
@@ -9,7 +10,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     <div class="settings-shell">
       <aside class="sidebar"><a class="brand" href="#overview"><span class="brand-mark">≈</span><span>DesktopPlay<small>让桌面多一点陪伴</small></span></a>
         <nav aria-label="设置分区"><a href="#overview">◉ <span>余额概览</span></a><a href="#codex">◈ <span>Codex 额度</span></a><a href="#appearance">◌ <span>外观与陪伴</span></a><a href="#reminders">◇ <span>余额提醒</span></a><a href="#records">≡ <span>观测记录</span></a></nav>
-        <div class="sidebar-footer">两个小伙伴 · v0.2<small>每一份专注，都值得被陪伴。</small></div>
+        <div class="sidebar-footer">两个小伙伴 · v0.3<small>每一份专注，都值得被陪伴。</small></div>
       </aside>
       <main class="settings-main">
         <header><div class="eyebrow">YOUR LITTLE DESKTOP COMPANION</div><h1>桌宠的栖息地<span>✦</span></h1><p>看看余额与额度，调整心情，继续今天的小冒险。</p></header>
@@ -24,7 +25,9 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
         <section id="codex" class="section codex-section"><div class="section-heading"><h2>Codex 编程额度</h2><span id="codex-status" class="status-chip"></span></div><div class="panel"><div id="codex-quotas" class="quota-cards"></div><div class="codex-actions"><span id="codex-updated" class="hint"></span><div class="button-row"><button id="refresh-codex" type="button" class="secondary-button">↻ 刷新额度</button><button id="choose-codex" type="button" class="text-button">选择 codex.exe</button><button id="codex-usage" type="button" class="text-button">查看使用量 ↗</button></div></div><p class="hint">读取本机已登录的 Codex；未连接时请安装并登录 Codex，也可选择 codex.exe。</p></div></section>
         <form id="settings-form">
           <section id="appearance" class="section"><div class="section-heading"><h2>外观与陪伴</h2><span class="section-note">按你喜欢的方式待着</span></div>
-            <div class="panel"><div class="pet-selector" role="group" aria-label="切换内置桌宠"><button id="select-deepseek" type="button" class="pet-option" aria-pressed="false"><img src="./assets/whale.png" alt=""><span>DeepSeek 小鲸鱼<small>账户余额与消费</small></span></button><button id="select-gpt" type="button" class="pet-option" aria-pressed="false"><img src="./assets/gpt.png" alt=""><span>GPT 小伙伴<small>Codex 额度与重置时间</small></span></button></div><div class="pet-preview-row"><div class="pet-preview"><img id="pet-preview-image" alt="当前桌宠角色"></div><div><h3 id="pet-name"></h3><p>点击桌宠查看余额或 Codex 额度，拖动它换个位置。<br>右键打开快捷菜单。</p><div class="button-row"><button id="choose-pet" type="button" class="secondary-button">换一张图片</button><button id="reset-pet" type="button" class="text-button">恢复当前角色</button></div></div></div>
+            <div class="panel"><div class="pet-selector" role="group" aria-label="切换内置桌宠"><button id="select-deepseek" type="button" class="pet-option" aria-pressed="false"><img src="./assets/whale.png" alt=""><span>DeepSeek 小鲸鱼<small>账户余额与消费</small></span></button><button id="select-gpt" type="button" class="pet-option" aria-pressed="false"><img src="./assets/gpt.png" alt=""><span>GPT 小伙伴<small>Codex 额度与重置时间</small></span></button></div>
+            <div id="gpt-appearance-options"><p class="hint">GPT 造型切换不影响 Codex 额度，两种内置造型共用同一份额度。</p><div class="pet-selector" role="group" aria-label="GPT 造型"><button id="appearance-classic" type="button" class="pet-option" aria-pressed="false"><img src="${GPT_PET.url}" alt=""><span>原版 GPT<small>薄荷绿小伙伴</small></span></button><button id="appearance-dragon" type="button" class="pet-option" aria-pressed="false"><img src="${GPT_DRAGON_PET.url}" alt=""><span>GPT 白龙<small>淡紫色小伙伴</small></span></button><button id="appearance-custom" type="button" class="pet-option" aria-pressed="false"><span>自定义图片<small>保留已导入的造型</small></span></button></div></div>
+            <div class="pet-preview-row"><div class="pet-preview"><img id="pet-preview-image" alt="当前桌宠角色"></div><div><h3 id="pet-name"></h3><p>点击桌宠查看余额或 Codex 额度，拖动它换个位置。<br>右键打开快捷菜单。</p><div class="button-row"><button id="choose-pet" type="button" class="secondary-button">换一张图片</button><button id="reset-pet" type="button" class="text-button">恢复当前角色</button></div></div></div>
             <div class="setting-row"><label for="scale">角色大小<small>屏幕空间不足时自动缩小，保留所选比例</small></label><div class="range-control"><input id="scale" name="scale" type="range" min="0.5" max="2" step="0.05"><output id="scale-output" for="scale"></output></div></div>
             <div class="setting-row"><label for="volume">音效音量<small>按下与松开时的一点小声音</small></label><div class="range-control"><input id="volume" name="volume" type="range" min="0" max="1" step="0.05"><output id="volume-output" for="volume"></output></div></div>
             <div class="toggle-grid"><label class="toggle-label"><span>启用点击音效</span><input name="soundEnabled" type="checkbox"></label><label class="toggle-label"><span>始终置于顶层</span><input name="alwaysOnTop" type="checkbox"></label><label class="toggle-label"><span>贴近边缘时自动吸附</span><input name="snapToEdges" type="checkbox"></label><label class="toggle-label"><span>开机自动启动</span><input name="launchAtLogin" type="checkbox"></label></div>
@@ -52,7 +55,12 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const update = (next: AppState) => {
     state = next;
     root.classList.toggle('gpt-theme', state.activePet === 'gpt');
+    root.classList.toggle('dragon-theme', state.activePet === 'gpt' && state.gptAppearance === 'dragon');
     for (const id of ['deepseek', 'gpt'] as const) element(`select-${id}`).setAttribute('aria-pressed', String(state.activePet === id));
+    element('gpt-appearance-options').hidden = state.activePet !== 'gpt';
+    element('appearance-custom').hidden = !state.hasCustomGpt;
+    element('appearance-custom').style.display = state.hasCustomGpt ? '' : 'none';
+    for (const id of ['classic', 'dragon', 'custom'] as const) element(`appearance-${id}`).setAttribute('aria-pressed', String(state.gptAppearance === id));
     renderQuota(element('codex-quotas'), state.codex, false, demo);
     element('codex-status').textContent = quotaStatus(state.codex, demo); element('codex-status').dataset.status = state.codex.status;
     element('codex-updated').textContent = `更新于 ${localTime(state.codex.updatedAt)} · 本地时间`;
@@ -86,6 +94,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     finally { button.disabled = button.id === 'clear-key' ? !state.hasApiKey : button.id === 'refresh' ? state.status === 'loading' : button.id === 'refresh-codex' ? state.codex.status === 'loading' : false; }
   };
   for (const id of ['deepseek', 'gpt'] as const) element(`select-${id}`).addEventListener('click', () => void run(element(`select-${id}`), () => api.selectPet(id), `已切换到${id === 'gpt' ? ' GPT 小伙伴' : '小鲸鱼'}。`));
+  for (const id of ['classic', 'dragon', 'custom'] as const) element(`appearance-${id}`).addEventListener('click', () => void run(element(`appearance-${id}`), () => api.selectGptAppearance(id), 'GPT 造型已切换，Codex 额度保持共用。'));
   element('refresh-codex').addEventListener('click', () => void run(element('refresh-codex'), () => api.refreshCodexQuota(), 'Codex 额度已刷新。'));
   element('choose-codex').addEventListener('click', () => void run(element('choose-codex'), () => api.chooseCodexExecutable(), 'Codex 路径已更新。'));
   element('codex-usage').addEventListener('click', () => { void api.openCodexUsage().catch(() => notify('无法打开使用量页面，请重试。', true)); });
