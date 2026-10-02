@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { UninstallManager, uninstallPaths } from '../../src/main/uninstall';
 import type { UninstallOptions } from '../../src/main/uninstall';
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { EventEmitter } from 'node:events';
@@ -75,7 +75,9 @@ describe('uninstall target planning without deleting files', () => {
 
 describe('two-phase helper handshake in disposable fixtures', () => {
   it('starts prepared, creates no commit until called, and supports cancellation', async () => {
-    const fixture = await mkdtemp(path.join(os.tmpdir(), 'desktoppet-handshake-'));
+    // Windows CI may expose TEMP through RUNNER~1. Production requires resolved
+    // paths, so normalize this freshly created fixture rather than relax checks.
+    const fixture = await realpath(await mkdtemp(path.join(os.tmpdir(), 'desktoppet-handshake-')));
     try {
       const helper = path.join(fixture, 'fixture-helper.ps1');
       await writeFile(helper, '# Non-executable fixture. Tests simulate the helper protocol.', 'utf8');
