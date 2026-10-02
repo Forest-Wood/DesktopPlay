@@ -34,6 +34,10 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Uninstall helper filesystem fixtures
+        shell: powershell
+        run: powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tests/helper-fixtures.ps1
+
       - name: Build
         run: npm run build
 

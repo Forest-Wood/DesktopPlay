@@ -1,13 +1,19 @@
 import './settings.css';
-import type { AppSettings, AppState, DesktopApi, PetPersona } from '../shared/types';
+import type { AppSettings, AppState, DesktopApi, PetPersona, SoundSlot } from '../shared/types';
 import { beijingTime, decimalSetting, money, updateMoney } from './format';
 import { localTime, quotaStatus, renderQuota } from './quota';
 import { APP_VERSION, GPT_DRAGON_PET, GPT_PET } from '../shared/defaults';
+import { PersonaSoundPlayer } from './sounds';
 
 export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppState, demo: boolean) {
   let state = initial;
   let dirty = false;
   let draftRevision = 0;
+  let disposed = false;
+  let soundPersona: PetPersona = initial.activePet === 'deepseek' ? 'whale' : initial.gptAppearance === 'dragon' ? 'dragon' : 'gpt';
+  const soundWarnings = new Map<string, string>();
+  const warningKey = (slot: SoundSlot) => `${soundPersona}:${slot}:${state.sounds[soundPersona][slot].revision}`;
+  const preview = new PersonaSoundPlayer(api, (slot, text) => { if (!disposed) { soundWarnings.set(warningKey(slot), text); root.querySelector<HTMLElement>(`#sound-warning-${slot}`)!.textContent = text; } });
   root.innerHTML = `
     <div class="settings-shell">
       <aside class="sidebar"><a class="brand" href="#overview"><span class="brand-mark">≈</span><span>DesktopPet<small>让桌面多一点陪伴</small></span></a>
@@ -54,7 +60,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     { category: 'pet', label: '桌宠与陪伴', icon: '✧', children: [['appearance', '角色造型'], ['companionship', '陪伴短句']] },
     { category: 'preferences', label: '应用偏好', icon: '⌘', children: [['behavior', '桌面行为'], ['sound', '声音']] },
     { category: 'reminders', label: '提醒与记录', icon: '◇', children: [['reminders', '余额提醒'], ['records', '消费记录']] },
-    { category: 'about', label: '关于', icon: 'ⓘ', children: [['version', '版本'], ['guide', '使用说明'], ['licenses', '素材与许可证']] },
+    { category: 'about', label: '关于', icon: 'ⓘ', children: [['version', '版本'], ['guide', '使用说明'], ['licenses', '素材与许可证'], ['uninstall', '卸载']] },
   ];
   const makePage = (id: string, title: string, html: string) => {
     const section = document.createElement('section'); section.id = id; section.className = 'section'; section.innerHTML = `<div class="section-heading"><h2>${title}</h2></div><div class="panel">${html}</div>`; content.append(section); return section;
@@ -69,9 +75,13 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   for (const name of ['alwaysOnTop', 'snapToEdges', 'launchAtLogin']) behavior.querySelector('.panel')!.append(root.querySelector(`input[name="${name}"]`)!.closest('label')!);
   sound.querySelector('.panel')!.append(root.querySelector('input[name="soundEnabled"]')!.closest('label')!);
   sound.querySelector('.panel')!.append(element('volume').closest('.setting-row')!); toggles.remove();
+  const soundProfiles = document.createElement('div'); soundProfiles.className = 'sound-profiles';
+  soundProfiles.innerHTML = `<p class="hint">三个角色的按下与松开音效独立保存。更换与恢复立即生效，音量及开关需保存设置。</p><div class="persona-tabs" role="group" aria-label="音效角色"><button type="button" data-sound-persona="whale">小鲸鱼</button><button type="button" data-sound-persona="gpt">原版 GPT</button><button type="button" data-sound-persona="dragon">白龙</button></div>${(['press', 'release'] as const).map(slot => `<article class="sound-file"><div class="sound-file-heading"><h3>${slot === 'press' ? '按下音效' : '松开音效'}</h3><span id="sound-kind-${slot}" class="sound-kind"></span></div><p id="sound-name-${slot}" class="sound-filename"></p><div class="button-row"><button id="sound-choose-${slot}" type="button" class="secondary-button">更换音频</button><button id="sound-preview-${slot}" type="button" class="secondary-button">试听</button><button id="sound-stop-${slot}" type="button" class="text-button">停止</button><button id="sound-reset-${slot}" type="button" class="text-button">恢复内置音效</button></div><p id="sound-warning-${slot}" class="sound-warning" role="status"></p></article>`).join('')}<p class="hint">试听使用当前音量草稿；即使关闭点击音效，也可以试听。音量为零时不会播放。</p>`;
+  sound.querySelector('.panel')!.append(soundProfiles);
   makePage('version', '关于 DesktopPet', `<div class="about-hero"><span class="brand-mark">≈</span><div><h3>DesktopPet <span class="version-chip">v${APP_VERSION}</span></h3><p>让桌面多一点陪伴。</p></div></div><p>小鲸鱼陪你关注余额，GPT 小伙伴与白龙陪你照顾编程节奏。</p><p class="hint">原有账户、图片、记录和桌面位置会继续保留。</p><div class="about-detail">项目仓库 · Forest-Wood / DesktopPlay<br>代码许可证 · MIT</div>`);
   makePage('guide', '使用说明', '<div class="guide-list"><article><h3>轻点一下，看看近况</h3><p>点击桌宠翻阅余额、额度与陪伴短句；点击气泡关闭按钮收起。</p></article><article><h3>拖到喜欢的位置</h3><p>按住桌宠拖动，可在桌面行为中启用贴边吸附。靠近屏幕上方时，小伙伴会倒挂陪着你。</p></article><article><h3>连接你的账户</h3><p>DeepSeek 使用 API Key 查询余额；Codex 读取本机登录状态与官方返回的额度。没有返回的窗口显示“未提供”。</p></article><article><h3>保存你的小习惯</h3><p>切换页面会保留草稿。完成后点击底部“保存设置”。角色与账户操作即时生效。</p></article></div>');
   makePage('licenses', '素材与许可证', '<div class="guide-list"><article><h3>代码与开源来源</h3><p>代码采用 MIT 许可证。部分代码参考 MeteorNOX / DeepSeek-Balance-Whale-Widget，并保留上游署名与许可证。</p></article><article><h3>小鲸鱼与音效</h3><p>源自上游项目，维护者确认获得独立分发授权。美术与声音素材不随代码转为 MIT 授权。</p></article><article><h3>GPT 与白龙</h3><p>根据用户参考生成的非官方二创形象，不代表 OpenAI 的官方吉祥物、合作或认可。第三方商标权归原权利人。</p></article><article><h3>完整声明</h3><p>随应用分发的 LICENSE 与 THIRD_PARTY_NOTICES.md 包含完整许可证、素材来源与授权边界。</p></article></div>');
+  makePage('uninstall', '卸载 DesktopPet', '<p class="page-description">移除程序，并按你的选择清理本机数据。</p><dl class="uninstall-paths"><dt>运行模式</dt><dd id="uninstall-kind">正在检查…</dd><dt>程序位置</dt><dd id="uninstall-program">正在检查…</dd><dt>用户数据位置</dt><dd id="uninstall-data">正在检查…</dd></dl><label class="toggle-label uninstall-delete-label" for="uninstall-remove-data"><span>同时删除本机用户数据<small>默认开启，可关闭以保留设置与素材。</small></span><input id="uninstall-remove-data" type="checkbox" checked></label><p class="hint">清理范围：API Key、设置、余额与消费记录、自定义图片、自定义音频和缓存。同一用户运行的安装版与免安装版可能共用这些数据，清理会同时影响它们。</p><p id="uninstall-reason" class="sound-warning" role="status"></p><button id="uninstall-start" class="uninstall-button" type="button" disabled>卸载 DesktopPet</button><p class="hint">点击后会显示系统确认对话框，取消即可返回。</p>');
   const saveBar = root.querySelector<HTMLElement>('.save-bar')!;
   main.append(content, saveBar);
   main.querySelector('header')!.after(tabs);
@@ -83,6 +93,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const pageMemory = new Map<string, string>();
   let activeCategory = 'account';
   const showPage = (id: string) => {
+    preview.stop();
     pageMemory.set(activeCategory, id);
     for (const section of content.querySelectorAll<HTMLElement>(':scope > section')) section.hidden = section.id !== id;
     for (const tab of tabs.querySelectorAll<HTMLButtonElement>('button')) { const selected = tab.dataset.page === id; tab.setAttribute('aria-selected', String(selected)); tab.tabIndex = selected ? 0 : -1; }
@@ -114,6 +125,56 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const form = element<HTMLFormElement>('settings-form');
   const input = (name: string) => form.elements.namedItem(name) as HTMLInputElement;
   const notify = (message: string, error = false) => { const el = element('operation-status'); el.textContent = message; el.classList.toggle('error', error); };
+  const soundSlots: SoundSlot[] = ['press', 'release'];
+  const renderSounds = () => {
+    for (const button of root.querySelectorAll<HTMLButtonElement>('[data-sound-persona]')) button.setAttribute('aria-pressed', String(button.dataset.soundPersona === soundPersona));
+    for (const slot of soundSlots) {
+      const metadata = state.sounds[soundPersona][slot];
+      element(`sound-name-${slot}`).textContent = metadata.name;
+      element(`sound-kind-${slot}`).textContent = metadata.isCustom ? '自定义' : '内置';
+      element(`sound-warning-${slot}`).textContent = metadata.warning ?? soundWarnings.get(warningKey(slot)) ?? '';
+      element<HTMLButtonElement>(`sound-reset-${slot}`).disabled = !metadata.isCustom;
+      element<HTMLButtonElement>(`sound-choose-${slot}`).disabled = demo;
+    }
+    preview.sync(soundPersona, state.sounds);
+  };
+  for (const button of root.querySelectorAll<HTMLButtonElement>('[data-sound-persona]')) button.addEventListener('click', () => { preview.stop(); soundPersona = button.dataset.soundPersona as PetPersona; renderSounds(); });
+  for (const slot of soundSlots) {
+    element(`sound-preview-${slot}`).addEventListener('click', () => {
+      preview.stop(); const volume = Number(input('volume').value);
+      if (volume <= 0) { element(`sound-warning-${slot}`).textContent = '当前音量为零，请调高音量后试听。'; return; }
+      element(`sound-warning-${slot}`).textContent = state.sounds[soundPersona][slot].warning ?? soundWarnings.get(warningKey(slot)) ?? '';
+      void preview.play(slot, volume);
+    });
+    element(`sound-stop-${slot}`).addEventListener('click', () => preview.stop());
+    for (const action of ['choose', 'reset'] as const) element(`sound-${action}-${slot}`).addEventListener('click', () => {
+      preview.stop(); const selectedPersona = soundPersona;
+      const previous = state.sounds[selectedPersona][slot].revision;
+      const button = element<HTMLButtonElement>(`sound-${action}-${slot}`); button.disabled = true;
+      void (action === 'choose' ? api.chooseSound(selectedPersona, slot) : api.resetSound(selectedPersona, slot)).then(next => {
+        if (disposed) return; update(next);
+        notify(next.sounds[selectedPersona][slot].revision === previous ? '音效设置未更改。' : action === 'choose' ? '音效已更换，立即生效。' : '已恢复内置音效，立即生效。');
+      }).catch(error => { if (!disposed) notify(error instanceof Error ? error.message : '音效操作失败，请重试。', true); }).finally(() => { if (!disposed) renderSounds(); });
+    });
+  }
+  let uninstallAvailable = false;
+  void api.getUninstallInfo().then(info => {
+    if (disposed) return;
+    element('uninstall-kind').textContent = { installed: '安装版', portable: '免安装版', unsupported: '当前运行方式不支持卸载' }[info.kind];
+    element('uninstall-program').textContent = info.programPath ?? '未提供';
+    element('uninstall-data').textContent = info.dataPath;
+    element('uninstall-reason').textContent = demo ? '本地演示无法卸载程序。' : info.reason ?? '';
+    uninstallAvailable = info.available && !demo;
+    element<HTMLButtonElement>('uninstall-start').disabled = !uninstallAvailable;
+    element('uninstall-start').textContent = info.kind === 'portable' ? '移除免安装程序' : '卸载 DesktopPet';
+  }).catch(() => { if (!disposed) element('uninstall-reason').textContent = '无法读取卸载信息，请重新打开应用。'; });
+  element('uninstall-start').addEventListener('click', () => {
+    if (!uninstallAvailable) return;
+    preview.stop(); const button = element<HTMLButtonElement>('uninstall-start'); button.disabled = true;
+    void api.requestUninstall(element<HTMLInputElement>('uninstall-remove-data').checked).then(result => {
+      if (!disposed) notify(result.started ? '卸载已启动，程序即将退出。' : '已取消卸载。');
+    }).catch(error => { if (!disposed) notify(error instanceof Error ? error.message : '无法启动卸载，请重试。', true); }).finally(() => { if (!disposed) button.disabled = !uninstallAvailable; });
+  });
   const fill = (settings: AppSettings) => {
     for (const name of ['soundEnabled', 'alwaysOnTop', 'snapToEdges', 'launchAtLogin'] as const) input(name).checked = settings[name];
     input('scale').value = String(settings.scale); input('volume').value = String(settings.volume);
@@ -123,7 +184,9 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const ranges = () => { element('scale-output').textContent = `${Number(input('scale').value).toFixed(2)}×`; element('volume-output').textContent = `${Math.round(Number(input('volume').value) * 100)}%`; };
   content.addEventListener('input', event => { if ((event.target as HTMLInputElement).form !== form) return; dirty = true; draftRevision++; ranges(); element('save-hint').textContent = '有尚未保存的调整'; });
   const update = (next: AppState) => {
+    if (disposed) return;
     state = next;
+    renderSounds();
     root.classList.toggle('gpt-theme', state.activePet === 'gpt');
     root.classList.toggle('dragon-theme', state.activePet === 'gpt' && state.gptAppearance === 'dragon');
     for (const id of ['deepseek', 'gpt'] as const) element(`select-${id}`).setAttribute('aria-pressed', String(state.activePet === id));
@@ -187,5 +250,5 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   });
   update(initial); fill(initial.settings);
   const countdown = setInterval(() => { renderQuota(element('codex-quotas'), state.codex, false, demo); element('codex-status').textContent = quotaStatus(state.codex, demo); }, 30000);
-  return { update, dispose: () => { clearInterval(countdown); } };
+  return { update, dispose: () => { disposed = true; preview.dispose(); clearInterval(countdown); } };
 }

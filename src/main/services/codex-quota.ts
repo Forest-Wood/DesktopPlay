@@ -195,7 +195,7 @@ export class CodexQuotaService {
   }
   refresh(): Promise<CodexQuotaState> {
     if (this.inFlight) return this.inFlight;
-    if (this.disposed || !this.executable) return Promise.resolve(this.getState());
+    if (this.disposed || this.paused || !this.executable) return Promise.resolve(this.getState());
     const executable = this.executable;
     const controller = new AbortController(); this.controller = controller;
     this.update({ status: 'loading', error: null });
@@ -218,6 +218,10 @@ export class CodexQuotaService {
     })();
     return this.inFlight;
   }
-  dispose(): void { this.disposed = true; this.controller?.abort(); this.listeners.clear(); }
+  private paused = false;
+  pause(): void { this.paused = true; this.controller?.abort(); }
+  resume(): void { this.paused = false; if (!this.disposed && this.state.status === 'loading') this.update({ status: this.state.buckets.length ? 'ready' : this.executable ? 'idle' : 'unavailable' }); }
+  async drain(): Promise<void> { await this.inFlight?.catch(() => {}); }
+  dispose(): void { this.disposed = true; this.pause(); this.listeners.clear(); }
   private update(patch: Partial<CodexQuotaState>): void { this.state = { ...this.state, ...patch }; for (const fn of this.listeners) { try { fn(this.getState()); } catch { /* A subscriber cannot disrupt quota cleanup. */ } } }
 }

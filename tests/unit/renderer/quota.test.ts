@@ -11,8 +11,12 @@ describe('Codex quota time and availability', () => {
     const window = (windowMinutes: number) => ({ windowMinutes, usedPercent: 25, remainingPercent: 75, resetsAt: null });
     const base = { id: 'codex', name: 'Codex', planType: 'pro', creditsRemaining: null, unlimitedCredits: false };
     const slots = quotaSlots({ ...base, primary: window(10080), secondary: window(300) }, true);
-    expect(slots.map(slot => [slot.label, slot.window?.windowMinutes])).toEqual([['5H', 300], ['每周', 10080]]);
-    expect(quotaSlots({ ...base, primary: window(120), secondary: window(10080) }, true).map(slot => [slot.label, slot.window?.windowMinutes ?? null])).toEqual([['5H', null], ['每周', 10080], ['2 小时', 120]]);
+    expect(slots.map(slot => [slot.label, slot.window?.windowMinutes])).toEqual([['每周', 10080], ['5H', 300]]);
+    expect(quotaSlots({ ...base, primary: window(120), secondary: window(10080) }, true).map(slot => [slot.label, slot.window?.windowMinutes ?? null])).toEqual([['每周', 10080], ['2 小时', 120]]);
+    for (const planType of ['pro', 'plus', null]) {
+      expect(quotaSlots({ ...base, planType, primary: window(10080), secondary: null }, true).map(slot => slot.label)).toEqual(['每周']);
+    }
+    expect(quotaSlots({ ...base, primary: window(300), secondary: null }, true).map(slot => [slot.label, slot.window?.windowMinutes ?? null])).toEqual([['每周', null], ['5H', 300]]);
   });
   const now = Date.parse('2026-10-02T08:00:00Z');
   it('uses the reported window duration rather than assuming a five-hour window', () => {

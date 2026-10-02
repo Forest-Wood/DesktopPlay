@@ -3,6 +3,7 @@ import { getPetLayout } from '../shared/pet-layout';
 import { money } from './format';
 import { localTime, quotaStatus, renderQuota } from './quota';
 import { pageCount, nextPage, summaryText, usageStatus } from './bubble-pages';
+import { PersonaSoundPlayer } from './sounds';
 
 export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, demo: boolean) {
   let state = initial, page = 0, visible = false, retention = false, hovered = false, disposed = false;
@@ -17,8 +18,9 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const canvas = query('.pet-canvas'), character = query<HTMLButtonElement>('.pet-character'), image = query<HTMLImageElement>('.pet-image');
   const bubble = query('.pet-bubble'), message = query('.bubble-message'), quota = query('.bubble-quota'), status = query('.pet-status');
   const refresh = query<HTMLButtonElement>('.bubble-refresh'), confirm = query<HTMLButtonElement>('.bubble-confirm');
-  const sounds = { press: new Audio('./assets/press.mp3'), release: new Audio('./assets/release.mp3') };
-  const play = (name: keyof typeof sounds) => { if (state.settings.soundEnabled && state.settings.volume > 0) { const sound = sounds[name]; sound.volume = state.settings.volume; sound.currentTime = 0; void sound.play().catch(() => {}); } };
+  let soundWarning = '';
+  const sounds = new PersonaSoundPlayer(api, (_slot, text) => { soundWarning = text; status.textContent = text; status.title = text; });
+  const play = (name: 'press' | 'release') => { if (state.settings.soundEnabled && state.settings.volume > 0) void sounds.play(name, state.settings.volume); };
   const setInteractive = (value: boolean) => { if (interactive !== value) { interactive = value; api.setInteractive(value); } };
   const close = () => { clearTimeout(timer); visible = false; retention = false; notice = ''; bubble.hidden = true; api.setBubbleVisible(false); };
   const schedule = (duration = 12000) => { clearTimeout(timer); if (visible && !retention && !hovered) timer = setTimeout(close, duration); };
@@ -34,7 +36,8 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     query('.pet-balance').textContent = money(state.balance?.total, state.balance?.currency);
     query('.pet-spent').textContent = money(state.ledger.today?.spent, state.ledger.today?.currency);
     status.textContent = isGpt ? `${quotaStatus(state.codex, demo)} · ${localTime(state.codex.updatedAt)} 更新` : usageStatus(state, demo);
-    status.title = (isGpt ? state.codex.error : state.error) || status.textContent;
+    if (soundWarning) status.textContent = soundWarning;
+    status.title = soundWarning || (isGpt ? state.codex.error : state.error) || status.textContent;
     query('.bubble-footer').hidden = retention; query('.bubble-retention-actions').hidden = !retention;
     query('.bubble-appearance').hidden = !isGpt;
     refresh.disabled = refreshing || (isGpt ? state.codex.status === 'loading' : state.status === 'loading');
@@ -46,7 +49,10 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const show = () => { visible = true; bubble.hidden = false; api.setBubbleVisible(true); render(); schedule(); };
   const update = (next: AppState) => {
     if (disposed) return;
-    revision++; const changedPet = persona(state) !== persona(next); state = next;
+    revision++; const changedPet = persona(state) !== persona(next);
+    if (changedPet || state.sounds[persona(state)].press.revision !== next.sounds[persona(next)].press.revision || state.sounds[persona(state)].release.revision !== next.sounds[persona(next)].release.revision) soundWarning = '';
+    state = next; sounds.sync(persona(state), state.sounds);
+    if (!state.settings.soundEnabled || state.settings.volume <= 0) sounds.stop();
     if (changedPet) { page = 0; retention = false; notice = ''; }
     const scale = state.effectiveScale ?? state.settings.scale, layout = getPetLayout(state.flipped, state.bubblePlacement, state.pet);
     canvas.style.transform = `scale(${scale})`; root.style.width = `${360 * scale}px`; root.style.height = `${440 * scale}px`;
@@ -89,5 +95,5 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   document.addEventListener('pointermove', pointerMove); document.addEventListener('pointerleave', pointerLeave); root.addEventListener('focusin', focusChange); root.addEventListener('focusout', focusChange);
   api.setBubbleVisible(false); api.setInteractive(false); update(initial);
   const countdown = setInterval(() => { if (visible) render(); }, 30000);
-  return { update, dispose: () => { disposed = true; clearInterval(countdown); clearTimeout(timer); if (drag) api.endDrag(); api.setBubbleVisible(false); api.setInteractive(false); document.removeEventListener('pointermove', pointerMove); document.removeEventListener('pointerleave', pointerLeave); root.removeEventListener('focusin', focusChange); root.removeEventListener('focusout', focusChange); Object.values(sounds).forEach(sound => sound.pause()); } };
+  return { update, dispose: () => { disposed = true; sounds.dispose(); clearInterval(countdown); clearTimeout(timer); if (drag) api.endDrag(); api.setBubbleVisible(false); api.setInteractive(false); document.removeEventListener('pointermove', pointerMove); document.removeEventListener('pointerleave', pointerLeave); root.removeEventListener('focusin', focusChange); root.removeEventListener('focusout', focusChange); } };
 }

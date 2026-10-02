@@ -1,10 +1,11 @@
-import { BUILTIN_PETS, DEFAULT_SETTINGS, GPT_DRAGON_PET } from '../shared/defaults';
+import { BUILTIN_PETS, DEFAULT_SETTINGS, GPT_DRAGON_PET, DEFAULT_SOUNDS } from '../shared/defaults';
 import type { AppState, DesktopApi } from '../shared/types';
 
 export function createDemoApi(): DesktopApi {
   const activePet = localStorage.getItem('desktopplay-demo-pet') === 'gpt' ? 'gpt' : 'deepseek';
   const gptAppearance = localStorage.getItem('desktopplay-demo-appearance') === 'dragon' ? 'dragon' : 'classic';
   let state: AppState = {
+    sounds: structuredClone(DEFAULT_SOUNDS),
     settings: { ...DEFAULT_SETTINGS }, hasApiKey: false, balance: { currency: 'CNY', total: '28.36000000', granted: '0.00000000', toppedUp: '28.36000000', observedAt: new Date().toISOString(), isAvailable: true },
     ledger: { today: { date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date()), currency: 'CNY', spent: '1.24000000', increased: '0.00000000', startedAt: new Date().toISOString() }, history: [] },
     status: 'ready', error: null, warning: null, alert: null, pet: { ...(activePet === 'gpt' && gptAppearance === 'dragon' ? GPT_DRAGON_PET : BUILTIN_PETS[activePet]) }, activePet, gptAppearance, hasCustomGpt: false, flipped: false, verticalFlipped: false, bubblePlacement: 'above',
@@ -19,6 +20,11 @@ export function createDemoApi(): DesktopApi {
     clearApiKey: async () => { state = { ...state, hasApiKey: false }; return emit(); },
     refreshBalance: async () => { state = { ...state, balance: { ...state.balance!, observedAt: new Date().toISOString() } }; return emit(); },
     choosePet: async () => { throw new Error('本地演示模式无法导入文件，请在桌面应用中使用。'); },
+    chooseSound: async () => { throw new Error('请在桌面应用中导入音效。'); },
+    resetSound: async (persona, slot) => { state.sounds[persona][slot] = { ...DEFAULT_SOUNDS[persona][slot], revision: String(Date.now()) }; return emit(); },
+    getSoundData: async (persona, slot) => ({ url: `./assets/${slot}.mp3`, revision: state.sounds[persona][slot].revision, warning: null }),
+    getUninstallInfo: async () => ({ kind: 'unsupported', programPath: null, dataPath: '%APPDATA%\\DesktopPlay', available: false, reason: '浏览器演示不提供卸载，请在桌面应用中使用。' }),
+    requestUninstall: async () => ({ started: false }),
     resetPet: async () => { if (state.activePet === 'gpt') localStorage.setItem('desktopplay-demo-appearance', 'classic'); state = { ...state, gptAppearance: state.activePet === 'gpt' ? 'classic' : state.gptAppearance, pet: { ...BUILTIN_PETS[state.activePet] } }; return emit(); },
     selectPet: async id => { localStorage.setItem('desktopplay-demo-pet', id); state = { ...state, activePet: id, pet: { ...(id === 'gpt' && state.gptAppearance === 'dragon' ? GPT_DRAGON_PET : BUILTIN_PETS[id]) } }; return emit(); },
     selectGptAppearance: async id => {

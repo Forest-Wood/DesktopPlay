@@ -12,6 +12,8 @@ DesktopPet 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek �
 - 本地加密保存 API Key，开机启动默认关闭。
 - 设置或右键菜单切换 DeepSeek / GPT 角色并记住选择；GPT 的原版、白龙和自定义图片作为独立造型保存，切换造型不影响 Codex 额度。
 - GPT 小伙伴显示 Codex 剩余百分比、额度窗口、重置时间及倒计时，支持自动和手动刷新。
+- 小鲸鱼、原版 GPT、白龙分别设置按下／松开音效；支持导入音频、试听和恢复内置音效。
+- 在“关于 → 卸载与数据”卸载当前安装版或当前运行的免安装版，并选择是否清理共享的本地数据。
 
 ![漫画对白气泡](docs/screenshots/v030-deepseek-usage.png)
 
@@ -29,6 +31,21 @@ DesktopPet 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek �
 
 ![GPT 白龙造型预览](docs/screenshots/gpt-dragon-v2-preview.png)
 
+## v0.5.0 升级说明
+
+- 沿用 `Forest-Wood/DesktopPlay` 仓库、安装身份和 `%APPDATA%\DesktopPlay` 数据目录；覆盖升级继续使用已有密钥、设置、账本、图片和位置。旧版本升级后，三个人设的六个音效槽位均使用现有内置音效。
+- “应用偏好 → 声音”可为小鲸鱼、原版 GPT、白龙分别选择按下和松开音效；自定义 GPT 图片使用原版 GPT 的音效。支持 MP3、WAV、OGG，单文件不超过 5 MiB。导入后复制到用户数据目录，删除原始文件不会影响播放；无效文件不会覆盖原音效，损坏或播放失败时提示并回退内置音效。
+- 更换和恢复音效立即生效；总音效开关与音量仍随“保存设置”提交。试听使用当前音量草稿，总开关关闭时也可主动试听；切换设置页面、人设或开始新的试听会停止上一段。
+- GPT 主额度统一为每周在左；仅当接口实际返回 300 分钟窗口时，右侧显示 5H。缺少 5H 时隐藏右侧项目，每周保持左侧位置；缺少每周但有其他有效额度时，左侧显示“未提供”。按窗口时长识别，不依赖返回顺序或套餐名称，其他窗口和分组继续展示。刷新失败保留最近成功数据。
+- “关于 → 卸载与数据”显示版本类型和当前程序位置，默认勾选“同时删除本地数据”，可取消勾选。安装版在 NSIS 卸载成功后才清理所选数据；免安装版只删除当前启动的 EXE，不删除所在文件夹。最终确认列明共享数据范围，并默认聚焦取消；卸载完成或失败由系统对话框反馈。
+- 完整发行说明与验证限制见 [v0.5.0](docs/releases/v0.5.0.md)。
+
+![声音设置（演示数据）](docs/previews/v0.5.0/sounds-light.png)
+
+![卸载确认页（演示数据）](docs/previews/v0.5.0/uninstall-light.png)
+
+![GPT 单周额度（演示数据）](docs/previews/v0.5.0/quota-weekly-light.png)
+
 ## v0.4.0 升级说明
 
 - 应用由 DesktopPlay 改名为 **DesktopPet**，仓库仍为 `Forest-Wood/DesktopPlay`，数据继续保存在 `%APPDATA%\DesktopPlay`。安装版可覆盖升级，原有密钥、账本、自定义图片与位置继续使用。
@@ -36,7 +53,7 @@ DesktopPet 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek �
 - 浅色／深色跟随 Windows 即时切换，内容区独立滚动。设计规范见 [DESIGN.md](DESIGN.md)。
 - 小鲸鱼、原版 GPT、白龙分别保存陪伴短句。旧版本短句原样迁移到小鲸鱼；自定义 GPT 图片使用原版 GPT 的短句。
 - 点击按压与人物镜像分别处理，修复左下角点击时反向的问题；白龙依据原图可见边界贴边，不修改原始 PNG。
-- Codex 显示 Plus／Pro 或实际套餐名称，未知则明确提示。主额度固定列出 5H 与每周，按实际窗口时长归类；服务未返回的窗口显示“未提供”，其他窗口仍保留。
+- Codex 增加 Plus／Pro 或实际套餐名称识别，未知则明确提示；v0.5.0 的窗口排列和缺失窗口展示规则见上方升级说明。
 
 ## 获取与运行
 
@@ -45,7 +62,7 @@ DesktopPet 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek �
 - `DesktopPet-<版本>-Setup-x64.exe`：交互式安装，可选择安装目录并创建桌面快捷方式。
 - `DesktopPet-<版本>-Portable-x64.exe`：单文件免安装版，直接运行。
 
-两种版本都把应用设置、加密保存的 API Key、账本和用户导入的图片放在 `%APPDATA%\DesktopPlay`。Portable 版也使用这个目录；删除 portable exe 不会自动删除这些数据。卸载安装版时默认保留数据。
+两种版本都把应用设置、加密保存的 API Key、账本、用户导入的图片和音效放在 `%APPDATA%\DesktopPlay`。Portable 版也使用这个目录；手动删除 portable exe 不会自动删除这些数据。应用内卸载默认清理共享数据，可取消勾选保留；从 Windows 设置或独立 NSIS 卸载器卸载安装版时默认保留数据，覆盖升级也不清理数据。
 
 首次运行后，在应用设置中输入 DeepSeek API Key。密钥由 Windows 加密后保存在当前 Windows 用户的数据目录中；不要把密钥提交到仓库、截图或问题报告里。应用通过 DeepSeek API 查询余额。余额数值和用量记录是应用观测值，不是 DeepSeek 官方账单；同一账户通过其他 API Key 或客户端产生的余额变化也可能反映在这些观测值中。
 
@@ -60,6 +77,8 @@ DesktopPet 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek �
 GPT 角色中可直接切换原版与白龙造型，或选择自定义图片。点击“换角色”后可在挽留页面确认切换，也可选择再陪一会儿；DeepSeek 与 GPT 账户角色仍可从设置或托盘菜单直接切换。
 
 额度来自官方 Codex App Server 的 [`account/rateLimits/read`](https://learn.chatgpt.com/docs/app-server#6-rate-limits-chatgpt) 只读接口。程序按服务返回的窗口长度识别 5H、每周和其他窗口。套餐优先来自额度响应，缺失时通过 `account/read`（`refreshToken:false`）补充；仅提取套餐字段，不向界面传递邮箱或凭据。套餐查询失败不会丢弃成功取得的额度，不根据 Plus／Pro 身份推测未返回的限额。剩余百分比由 `100 - usedPercent` 计算，重置时间来自服务端 Unix 时间戳，界面按电脑本地时区显示。它不是 ChatGPT 网页对话额度，也不是 OpenAI API 余额。
+
+气泡与设置页使用相同排列：每周固定在左，实际返回的 300 分钟窗口显示为右侧 5H。没有 5H 时不显示占位，也不将每周移到中央；没有任何有效额度时继续显示未知或连接状态。其他时长和额外额度分组位于后续区域。
 
 离线或查询失败时保留最近成功数据并标记错误和更新时间。倒计时归零只表示到达服务上次报告的时间，需要重新查询才能确认恢复；未知窗口或重置时间显示“未知”，不会虚构余额或恢复时间。没有登录或没有安装 Codex 时，两个桌宠和 DeepSeek 功能仍可使用。
 
@@ -85,7 +104,7 @@ npm run test:smoke
 npm run dist
 ```
 
-`npm run dev` 启动 Vite 和 Electron 开发版；`npm test` 运行单元测试；`npm run build` 先做 TypeScript 类型检查，再构建界面和 Electron 主进程；`npm run test:smoke` 运行 Playwright Electron 冒烟流程，不需要额外安装浏览器；`npm run dist` 在 Windows x64 上生成 NSIS 和 portable 安装包到 `release/`。发布包不包含账本、API Key 或用户导入图片。
+`npm run dev` 启动 Vite 和 Electron 开发版；`npm test` 运行单元测试；`npm run build` 先做 TypeScript 类型检查，再构建界面和 Electron 主进程；`npm run test:smoke` 运行 Playwright Electron 冒烟流程，不需要额外安装浏览器；`npm run dist` 在 Windows x64 上生成 NSIS 和 portable 安装包到 `release/`。发布包不包含账本、API Key 或用户导入的图片和音效。源码开发版不提供应用内卸载。
 
 ## CI 与发布
 
@@ -93,7 +112,7 @@ npm run dist
 
 ## 常见问题
 
-**启动时提示 Windows 已保护你的电脑或未知发布者？** 首版安装包未进行代码签名，Windows SmartScreen 可能显示警告。请只从本仓库的 Releases 下载，并在运行前核对发布页提供的 SHA-256 校验和。
+**启动时提示 Windows 已保护你的电脑或未知发布者？** 当前安装包仍未进行代码签名，Windows SmartScreen 可能显示警告。请只从本仓库的 Releases 下载，并在运行前核对发布页提供的 SHA-256 校验和。
 
 **Portable 版是否把数据保存在 exe 旁边？** 否。为了让两个版本行为一致，portable 版也使用 `%APPDATA%\DesktopPlay`；将 exe 移到其他位置不会移动设置、密钥或账本。
 
@@ -101,10 +120,10 @@ npm run dist
 
 **余额没有更新怎么办？** 检查网络和 API Key，稍后重试。请求失败时应用保留上一次成功的余额，直到后续请求成功。
 
-**卸载后数据还在吗？** 安装版卸载默认保留 `%APPDATA%\DesktopPlay`。如果确实要清除本机数据，请先退出应用，再由当前 Windows 用户自行删除该目录。
+**卸载后数据还在吗？** 应用内“关于 → 卸载与数据”默认勾选清理 `%APPDATA%\DesktopPlay`，取消勾选即可保留。从 Windows 设置或独立 NSIS 卸载器卸载时默认保留数据。安装版、免安装版和其他版本共享这个目录，清理会同时删除其中的密钥、设置、账本、图片、音效和缓存；其他下载副本、源码仓库及官方 Codex 登录数据不在删除范围内。
 
 ## 许可与素材
 
 本仓库原创代码由 Forest-Wood 按 MIT License 发布，见 [LICENSE](LICENSE)。部分实现参考 MeteorNOX 的 [DeepSeek-Balance-Whale-Widget](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)，保留其 MIT 许可证全文和来源说明，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-鲸鱼图片与音效来自该上游仓库 commit [`49d688d46673fbf4221b458afc943276c68a0839`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/tree/49d688d46673fbf4221b458afc943276c68a0839) 的 `assets/DSniang1.png`、`assets/Ya1.mp3`、`assets/Ya2.mp3`，在本项目中分别重命名为 `whale.png`、`press.mp3`、`release.mp3`。它们不属于本仓库代码的 MIT 授权范围，也不宣称为 MIT 素材。仓库维护者确认已取得独立分发这些素材的授权；此确认由维护者提供，仓库没有随附另行制作的书面授权文件。来源记录见该版本的上游 [PROVENANCE.md](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/blob/49d688d46673fbf4221b458afc943276c68a0839/PROVENANCE.md)。
+鲸鱼图片与音效来自该上游仓库 commit [`49d688d46673fbf4221b458afc943276c68a0839`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/tree/49d688d46673fbf4221b458afc943276c68a0839) 的 `assets/DSniang1.png`、`assets/Ya1.mp3`、`assets/Ya2.mp3`，在本项目中分别重命名为 `whale.png`、`press.mp3`、`release.mp3`。它们不属于本仓库代码的 MIT 授权范围，也不宣称为 MIT 素材。来源记录见该版本的上游 [PROVENANCE.md](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/blob/49d688d46673fbf4221b458afc943276c68a0839/PROVENANCE.md)。

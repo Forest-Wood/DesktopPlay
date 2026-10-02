@@ -3,6 +3,7 @@
 .quota-bucket-name { font-size: 13px; font-weight: 600; margin: 0 0 10px; color: var(--muted, #65716e); overflow-wrap: anywhere; }
 .quota-windows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .quota-window { min-width: 0; }
+.quota-extra-windows { margin-top: 10px; }
 .quota-window-title { display: flex; align-items: center; justify-content: flex-start; gap: 4px; font-size: 12px; color: var(--muted, #65716e); }
 .quota-percentage { display: block; font-size: 34px; line-height: 1.25; letter-spacing: -1px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .quota-window progress { width: 100%; height: 6px; accent-color: var(--accent, #378a76); }

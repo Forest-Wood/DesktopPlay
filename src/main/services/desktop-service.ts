@@ -86,6 +86,7 @@ export class DesktopService {
   private inflight?: Promise<void>;
   private generation = 0;
   private disposed = false;
+  private paused = false;
   private mutations: Promise<void> = Promise.resolve();
   private file: string;
   private fetchFn: typeof fetch;
@@ -109,7 +110,7 @@ export class DesktopService {
       catch { this.warning = '无法解密已保存的密钥，请重新设置。'; }
     }
     if (!recovered && this.warning) this.status = 'unconfigured';
-    this.timer = setInterval(() => { this.emit(); void this.refresh(); }, 60000); this.timer.unref?.();
+    this.startTimer();
     this.emit(); if (this.key) void this.refresh();
   }
   private fingerprint(key: string): string { return createHash('sha256').update(key).digest('hex'); }
@@ -173,7 +174,7 @@ export class DesktopService {
     });
   }
   refresh(): Promise<void> {
-    if (this.disposed || !this.key || !this.id) return Promise.resolve();
+    if (this.disposed || this.paused || !this.key || !this.id) return Promise.resolve();
     if (this.inflight) return this.inflight;
     const generation = this.generation; const key = this.key; const id = this.id; const controller = new AbortController(); this.controller = controller;
     this.status = 'loading'; this.error = null; this.emit();
@@ -232,5 +233,17 @@ export class DesktopService {
     if (summary && budget !== null && amount(summary.spent) >= amount(budget) && !account.budgetDays.includes(today)) { account.budgetDays.push(today); alert = { id: randomUUID(), kind: 'daily-budget', message: '今日已观测消费达到预算。' }; }
     return alert;
   }
-  dispose(): void { this.disposed = true; this.generation++; this.controller?.abort(); if (this.timer) clearInterval(this.timer); this.listeners.clear(); }
+  private startTimer(): void {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = setInterval(() => { this.emit(); void this.refresh(); }, 60000); this.timer.unref?.();
+  }
+  pause(): void { this.paused = true; this.generation++; this.controller?.abort(); if (this.timer) clearInterval(this.timer); }
+  resume(): void {
+    if (this.disposed) return;
+    this.paused = false;
+    if (this.status === 'loading') this.status = this.key ? 'ready' : 'unconfigured';
+    this.startTimer(); this.emit();
+  }
+  async drain(): Promise<void> { await this.inflight?.catch(() => {}); await this.mutations.catch(() => {}); }
+  dispose(): void { this.disposed = true; this.pause(); this.listeners.clear(); }
 }

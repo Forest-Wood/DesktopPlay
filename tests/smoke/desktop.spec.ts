@@ -2,13 +2,144 @@ import { test, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import electronPath from 'electron';
 import path from 'node:path';
-import { mkdir, mkdtemp } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { fitScale } from '../../src/main/geometry';
 
 async function settingsPage(page: Page, category: string, tab: string) {
   await page.locator(`[data-category="${category}"]`).click();
   await page.locator(`#tab-${tab}`).click();
 }
+
+function soundFixture(seed: number): Buffer {
+  const rate = 8000, samples = rate * 6, bytes = Buffer.alloc(44 + samples * 2);
+  bytes.write('RIFF', 0); bytes.writeUInt32LE(bytes.length - 8, 4); bytes.write('WAVEfmt ', 8);
+  bytes.writeUInt32LE(16, 16); bytes.writeUInt16LE(1, 20); bytes.writeUInt16LE(1, 22);
+  bytes.writeUInt32LE(rate, 24); bytes.writeUInt32LE(rate * 2, 28); bytes.writeUInt16LE(2, 32); bytes.writeUInt16LE(16, 34);
+  bytes.write('data', 36); bytes.writeUInt32LE(samples * 2, 40);
+  for (let i = 0; i < samples; i++) bytes.writeInt16LE(Math.round(Math.sin(i * (210 + seed * 25) / rate * Math.PI * 2) * 600), 44 + i * 2);
+  return bytes;
+}
+
+test('v0.5.0 independent audio slots, stopped previews, uninstall safeguards and weekly-only quota', async () => {
+  test.setTimeout(120000);
+  await mkdir('.tmp', { recursive: true });
+  const profile = await mkdtemp(path.resolve('.tmp/smoke-v050-'));
+  const screenshots = path.resolve('docs/previews/v0.5.0'); await mkdir(screenshots, { recursive: true });
+  const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1' };
+  delete env.ELECTRON_RUN_AS_NODE;
+  const application = await electron.launch({ executablePath: electronPath as unknown as string, args: ['.'], cwd: process.cwd(), env });
+  try {
+    await expect.poll(() => application.windows().some(page => page.url().includes('view=settings'))).toBe(true);
+    const settings = application.windows().find(page => page.url().includes('view=settings'))!;
+    const pet = application.windows().find(page => page.url().includes('view=pet'))!;
+    const errors: string[] = []; for (const page of [settings, pet]) page.on('pageerror', error => errors.push(error.message));
+    await settings.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
+    await settingsPage(settings, 'preferences', 'sound');
+    await settings.locator('input[name="soundEnabled"]').uncheck();
+    await settings.locator('#volume').fill('0.45');
+    let state = await settings.evaluate(() => window.desktopPlay.getState());
+    let seed = 0;
+    for (const persona of ['whale', 'gpt', 'dragon'] as const) {
+      await settings.locator(`[data-sound-persona="${persona}"]`).click();
+      for (const slot of ['press', 'release'] as const) {
+        const filename = path.join(profile, `${persona}-${slot}.wav`); await writeFile(filename, soundFixture(++seed));
+        await application.evaluate(({ dialog }, filename) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filename] }); }, filename);
+        await settings.locator(`#sound-choose-${slot}`).click();
+        await expect.poll(async () => (await settings.evaluate(() => window.desktopPlay.getState())).sounds[persona][slot].isCustom).toBe(true);
+        await expect(settings.locator(`#sound-name-${slot}`)).toHaveText(path.basename(filename));
+        const next = await settings.evaluate(() => window.desktopPlay.getState());
+        for (const otherPersona of ['whale', 'gpt', 'dragon'] as const) for (const otherSlot of ['press', 'release'] as const) if (otherPersona !== persona || otherSlot !== slot) expect(next.sounds[otherPersona][otherSlot]).toEqual(state.sounds[otherPersona][otherSlot]);
+        state = next;
+      }
+    }
+    // Recording native HTMLMediaElement activity lets us verify real stop behavior, without muting the preview contract.
+    await settings.evaluate(() => {
+      const media: { played: HTMLMediaElement[]; pauses: number } = { played: [], pauses: 0 };
+      (window as unknown as { smokeMedia: typeof media }).smokeMedia = media;
+      const play = HTMLMediaElement.prototype.play, pause = HTMLMediaElement.prototype.pause;
+      HTMLMediaElement.prototype.play = function () { media.played.push(this); return play.call(this); };
+      HTMLMediaElement.prototype.pause = function () { media.pauses++; return pause.call(this); };
+    });
+    const audioSnapshot = () => settings.evaluate(() => {
+      const media = (window as unknown as { smokeMedia: { played: HTMLMediaElement[]; pauses: number } }).smokeMedia;
+      return { plays: media.played.length, pauses: media.pauses, volume: media.played.at(-1)?.volume, allStopped: media.played.every(audio => audio.paused) };
+    });
+    await settings.locator('#volume').fill('0'); await settings.locator('#sound-preview-press').click();
+    await expect(settings.locator('#sound-warning-press')).toContainText('音量为零');
+    expect((await audioSnapshot()).plays).toBe(0);
+    await settings.locator('#volume').fill('0.45'); await settings.locator('#sound-preview-press').click();
+    await expect.poll(async () => (await audioSnapshot()).plays).toBe(1);
+    expect((await audioSnapshot()).volume).toBe(.45);
+    await expect.poll(async () => (await audioSnapshot()).allStopped).toBe(false);
+    await settingsPage(settings, 'preferences', 'behavior');
+    await expect.poll(async () => (await audioSnapshot()).allStopped).toBe(true);
+    await settingsPage(settings, 'preferences', 'sound');
+    await settings.locator('#sound-preview-press').click();
+    await expect.poll(async () => (await audioSnapshot()).plays).toBe(2);
+    await settings.locator('[data-sound-persona="gpt"]').click();
+    await expect.poll(async () => (await audioSnapshot()).allStopped).toBe(true);
+    await settings.locator('#sound-preview-release').click();
+    await expect.poll(async () => (await audioSnapshot()).plays).toBe(3);
+    await settings.locator('#sound-stop-release').click();
+    await expect.poll(async () => (await audioSnapshot()).allStopped).toBe(true);
+    await expect(settings.locator('input[name="soundEnabled"]')).not.toBeChecked();
+    // Imported sound metadata updates immediately; draft volume and master switch remain unsaved.
+    expect((await settings.evaluate(() => window.desktopPlay.getState())).settings.soundEnabled).toBe(true);
+    await settings.locator('.settings-content').evaluate(element => { element.scrollTop = 0; });
+    await expect(settings.locator('#volume')).toBeInViewport();
+    await expect(settings.locator('#sound-reset-release')).toBeInViewport();
+    await settings.screenshot({ path: path.join(screenshots, 'sounds-light.png') });
+    await settings.locator('#sound-reset-press').click();
+    await expect.poll(async () => (await settings.evaluate(() => window.desktopPlay.getState())).sounds.gpt.press.isCustom).toBe(false);
+    expect((await settings.evaluate(() => window.desktopPlay.getState())).sounds.gpt.release.isCustom).toBe(true);
+    expect((await settings.evaluate(() => window.desktopPlay.getState())).sounds.dragon.press.isCustom).toBe(true);
+    // Cancellation from the file picker does not replace the current metadata.
+    const beforeCancel = (await settings.evaluate(() => window.desktopPlay.getState())).sounds.gpt.release;
+    await application.evaluate(({ dialog }) => { dialog.showOpenDialog = async () => ({ canceled: true, filePaths: [] }); });
+    await settings.locator('#sound-choose-release').click();
+    await expect(settings.locator('#operation-status')).toHaveText('音效设置未更改。');
+    expect((await settings.evaluate(() => window.desktopPlay.getState())).sounds.gpt.release).toEqual(beforeCancel);
+    expect(await pet.evaluate(async () => { try { await window.desktopPlay.requestUninstall(false); return false; } catch { return true; } })).toBe(true);
+    expect(await pet.evaluate(async () => { try { await window.desktopPlay.getUninstallInfo(); return false; } catch { return true; } })).toBe(true);
+    await application.evaluate(({ dialog }) => {
+      const confirmations: { cancelId: number | undefined; defaultId: number | undefined }[] = [];
+      (globalThis as unknown as { smokeUninstallConfirmations: typeof confirmations }).smokeUninstallConfirmations = confirmations;
+      dialog.showMessageBox = async (...args: unknown[]) => {
+        const options = args.find(value => value && typeof value === 'object' && 'message' in value) as { cancelId?: number; defaultId?: number };
+        confirmations.push({ cancelId: options.cancelId, defaultId: options.defaultId });
+        return { response: options.cancelId ?? 0, checkboxChecked: false };
+      };
+    });
+    for (const removeData of [false, true]) expect(await settings.evaluate(value => window.desktopPlay.requestUninstall(value), removeData)).toEqual({ started: false });
+    const confirmations = await application.evaluate(() => (globalThis as unknown as { smokeUninstallConfirmations: { cancelId: number; defaultId: number }[] }).smokeUninstallConfirmations);
+    expect(confirmations).toEqual([{ cancelId: 0, defaultId: 0 }, { cancelId: 0, defaultId: 0 }]);
+    expect(application.windows()).toHaveLength(2); await expect(settings.getByRole('heading', { name: '桌宠的栖息地' })).toBeVisible();
+    await settingsPage(settings, 'about', 'uninstall');
+    await expect(settings.locator('#uninstall-remove-data')).toBeChecked();
+    await settings.locator('#uninstall-remove-data').uncheck();
+    await settingsPage(settings, 'about', 'version'); await settingsPage(settings, 'about', 'uninstall');
+    await expect(settings.locator('#uninstall-remove-data')).not.toBeChecked();
+    await expect(settings.locator('#uninstall-data')).toHaveText(profile);
+    await settings.locator('#uninstall-remove-data').check();
+    await settings.locator('.settings-content').evaluate(element => { element.scrollTop = 0; });
+    await settings.screenshot({ path: path.join(screenshots, 'uninstall-light.png') });
+    await settingsPage(settings, 'pet', 'appearance'); await settings.locator('#select-gpt').click();
+    await settingsPage(settings, 'account', 'codex');
+    const fixture = await settings.evaluate(() => window.desktopPlay.getState());
+    fixture.codex = { ...fixture.codex, status: 'ready', planType: 'plus', updatedAt: new Date().toISOString(), error: null, buckets: [{ id: 'codex', name: 'Codex · 演示数据', planType: 'plus', primary: { usedPercent: 23.4, remainingPercent: 76.6, windowMinutes: 10080, resetsAt: new Date(Date.now() + 345600000).toISOString() }, secondary: null, creditsRemaining: null, unlimitedCredits: false }] };
+    await application.evaluate(({ BrowserWindow }, state) => { for (const win of BrowserWindow.getAllWindows()) win.webContents.send('desktopplay:state', state); }, fixture);
+    await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
+    for (const page of [settings, pet]) {
+      await expect(page.locator('.quota-window')).toHaveCount(1);
+      await expect(page.locator('.quota-window-title')).toHaveText('每周剩余');
+      await expect(page.locator('.quota-percentage')).toHaveText('76.6%');
+      await expect(page.getByText('5H', { exact: true })).toHaveCount(0);
+    }
+    await settings.screenshot({ path: path.join(screenshots, 'quota-weekly-light.png') });
+    await pet.screenshot({ path: path.join(screenshots, 'pet-weekly.png'), omitBackground: true });
+    expect(errors).toEqual([]);
+  } finally { await application.close(); }
+});
 
 test('packaged renderer, secure bridge and persistent desktop settings', async () => {
   await mkdir('.tmp', { recursive: true });
@@ -91,14 +222,17 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
       const label = planType === null ? '套餐未知' : planType === 'team' ? 'team' : planType === 'plus' ? 'Plus' : 'Pro';
       for (const page of [settings, pet]) {
         await expect(page.locator('.quota-plan-badge')).toHaveText(label);
-        await expect(page.locator('.quota-window').nth(0).locator('.quota-percentage')).toHaveText(planType === null ? '未提供' : '100%');
-        await expect(page.locator('.quota-window').nth(1).locator('.quota-percentage')).toHaveText('99.9%');
+        await expect(page.locator('.quota-window').nth(0).locator('.quota-percentage')).toHaveText('99.9%');
+        await expect(page.locator('.quota-window-title').first()).toHaveText('每周剩余');
+        await expect(page.locator('.quota-window')).toHaveCount(planType === null ? 1 : 2);
+        if (planType !== null) await expect(page.locator('.quota-window').nth(1).locator('.quota-percentage')).toHaveText('100%');
+        else await expect(page.getByText('5H', { exact: true })).toHaveCount(0);
         const title = page.locator('.quota-window-title').first();
         expect(await title.evaluate(el => getComputedStyle(el).gap)).toBe('4px');
       }
       fixture.codex.status = 'error'; fixture.codex.error = 'smoke-refresh-failed';
       await application.evaluate(({ BrowserWindow }, state) => { for (const win of BrowserWindow.getAllWindows()) win.webContents.send('desktopplay:state', state); }, fixture);
-      await expect(settings.locator('.quota-percentage').nth(1)).toHaveText('99.9%');
+      await expect(settings.locator('.quota-percentage').first()).toHaveText('99.9%');
       await expect(settings.locator('.quota-stale')).toBeVisible();
     }
     await application.evaluate(({ BrowserWindow }, state) => { for (const win of BrowserWindow.getAllWindows()) win.webContents.send('desktopplay:state', state); }, quotaState);
@@ -117,7 +251,7 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
       for (let click = 0; click < 2; click++) await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
       await expect(pet.locator('.bubble-message')).toHaveText(`smoke-${appearance === 'dragon' ? 'dragon' : 'gpt'}`);
     }
-    for (const [category, tabs] of Object.entries({ account: ['overview', 'codex'], pet: ['appearance', 'companionship'], preferences: ['behavior', 'sound'], reminders: ['reminders', 'records'], about: ['version', 'guide', 'licenses'] })) {
+    for (const [category, tabs] of Object.entries({ account: ['overview', 'codex'], pet: ['appearance', 'companionship'], preferences: ['behavior', 'sound'], reminders: ['reminders', 'records'], about: ['version', 'guide', 'licenses', 'uninstall'] })) {
       for (const tab of tabs) {
         await settingsPage(settings, category, tab);
         await expect(settings.locator(`#${tab}`)).toBeVisible();

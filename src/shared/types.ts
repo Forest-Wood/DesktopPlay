@@ -1,4 +1,15 @@
 export type PetPersona = 'whale' | 'gpt' | 'dragon';
+export type SoundSlot = 'press' | 'release';
+export interface SoundMetadata { name: string; isCustom: boolean; revision: string; warning: string | null }
+export type SoundMetadataMap = Record<PetPersona, Record<SoundSlot, SoundMetadata>>;
+export interface SoundData { url: string; revision: string; warning: string | null }
+export interface UninstallInfo {
+  kind: 'installed' | 'portable' | 'unsupported';
+  programPath: string | null;
+  dataPath: string;
+  available: boolean;
+  reason: string | null;
+}
 export interface AppSettings {
   alwaysOnTop: boolean;
   launchAtLogin: boolean;
@@ -91,6 +102,7 @@ export interface CodexQuotaState {
 }
 
 export interface AppState extends ServiceState {
+  sounds: SoundMetadataMap;
   pet: PetAsset;
   activePet: BuiltinPetId;
   gptAppearance: GptAppearance;
@@ -110,6 +122,11 @@ export interface DesktopApi {
   refreshBalance(): Promise<AppState>;
   choosePet(): Promise<AppState>;
   resetPet(): Promise<AppState>;
+  chooseSound(persona: PetPersona, slot: SoundSlot): Promise<AppState>;
+  resetSound(persona: PetPersona, slot: SoundSlot): Promise<AppState>;
+  getSoundData(persona: PetPersona, slot: SoundSlot): Promise<SoundData>;
+  getUninstallInfo(): Promise<UninstallInfo>;
+  requestUninstall(removeData: boolean): Promise<{ started: boolean }>;
   selectPet(id: BuiltinPetId): Promise<AppState>;
   selectGptAppearance(id: GptAppearance): Promise<AppState>;
   refreshCodexQuota(): Promise<AppState>;

@@ -70,6 +70,7 @@ export class PetAssets {
   getSelected(): BuiltinPetId { return this.selected; }
   getGptAppearance(): GptAppearance { return this.gptAppearance; }
   hasCustomGpt(): boolean { return this.pets.gpt.isCustom; }
+  async drain(): Promise<void> { await this.mutations.catch(() => {}); }
   private mutate(operation: () => Promise<void>): Promise<void> {
     const next = this.mutations.catch(() => {}).then(operation); this.mutations = next; return next;
   }

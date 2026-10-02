@@ -9,8 +9,9 @@ export function planLabel(plan: string | null): string {
 export function quotaSlots(bucket: CodexQuotaBucket, main: boolean): { label: string; window: CodexQuotaWindow | null }[] {
   const windows = [bucket.primary, bucket.secondary].filter((value): value is CodexQuotaWindow => value !== null);
   if (!main) return windows.map(window => ({ label: windowLabel(window.windowMinutes), window }));
-  return [{ label: '5H', window: windows.find(window => window.windowMinutes === 300) ?? null },
-    { label: '每周', window: windows.find(window => window.windowMinutes === 10080) ?? null },
+  const fiveHour = windows.find(window => window.windowMinutes === 300);
+  return [{ label: '每周', window: windows.find(window => window.windowMinutes === 10080) ?? null },
+    ...(fiveHour ? [{ label: '5H', window: fiveHour }] : []),
     ...windows.filter(window => window.windowMinutes !== 300 && window.windowMinutes !== 10080).map(window => ({ label: windowLabel(window.windowMinutes), window }))];
 }
 export function remainingLabel(value: number): string {
@@ -67,8 +68,12 @@ export function renderQuota(root: HTMLElement, quota: CodexQuotaState, compact: 
   for (const bucket of [main, ...quota.buckets.filter(bucket => bucket !== main)]) {
     const card = add(root, 'article', 'quota-bucket');
     add(card, 'h3', 'quota-bucket-name', bucket.name);
-    const windows = add(card, 'div', 'quota-windows');
+    let windows = add(card, 'div', 'quota-windows');
+    let extrasStarted = false;
     for (const slot of quotaSlots(bucket, bucket === main)) {
+      if (bucket === main && slot.label !== '每周' && slot.label !== '5H' && !extrasStarted) {
+        windows = add(card, 'div', 'quota-windows quota-extra-windows'); extrasStarted = true;
+      }
       const quotaWindow = slot.window;
       const row = add(windows, 'div', 'quota-window');
       const title = add(row, 'div', 'quota-window-title');
