@@ -1,13 +1,16 @@
 {
   "name": "desktopplay",
-  "version": "0.1.0",
-  "description": "一只住在 Windows 桌面上的 DeepSeek 余额小鲸鱼",
+  "version": "0.2.0",
+  "description": "Windows 双角色桌宠：DeepSeek 余额与 Codex 编程额度",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.cjs",
   "author": "Forest-Wood",
   "license": "MIT",
-  "repository": { "type": "git", "url": "https://github.com/Forest-Wood/DesktopPlay.git" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Forest-Wood/DesktopPlay.git"
+  },
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "typecheck": "tsc --noEmit",
@@ -30,12 +33,33 @@
   "build": {
     "appId": "io.github.forestwood.desktopplay",
     "productName": "DesktopPlay",
-    "directories": { "output": "release" },
-    "files": ["dist/**/*", "dist-electron/**/*", "package.json", "LICENSE", "THIRD_PARTY_NOTICES.md"],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json",
+      "LICENSE",
+      "THIRD_PARTY_NOTICES.md"
+    ],
     "asar": true,
     "win": {
       "icon": "build/icon.ico",
-      "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "signExecutable": false
     },
     "nsis": {
@@ -46,7 +70,15 @@
       "artifactName": "DesktopPlay-${version}-Setup-x64.exe",
       "deleteAppDataOnUninstall": false
     },
-    "portable": { "artifactName": "DesktopPlay-${version}-Portable-x64.exe" },
-    "publish": [{ "provider": "github", "owner": "Forest-Wood", "repo": "DesktopPlay" }]
+    "portable": {
+      "artifactName": "DesktopPlay-${version}-Portable-x64.exe"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Forest-Wood",
+        "repo": "DesktopPlay"
+      }
+    ]
   }
 }

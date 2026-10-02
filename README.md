@@ -1,6 +1,6 @@
 # DesktopPlay
 
-DesktopPlay 是 Windows 桌面上的 DeepSeek 余额小鲸鱼。首版面向 Windows 10/11 x64，提供 NSIS 安装版和 portable 免安装版。安装或启动后不需要 Node.js 或 DeepSeek Harness（DSH）。
+DesktopPlay 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek 余额，GPT 小伙伴查看 Codex 编程额度。面向 Windows 10/11 x64，提供 NSIS 安装版和 portable 免安装版。桌宠本身不需要 Node.js 或 DeepSeek Harness（DSH）；实时 Codex 额度需要本机已有原生 Codex 程序，并已使用 ChatGPT 账户登录。
 
 ## 桌宠与功能
 
@@ -9,10 +9,16 @@ DesktopPlay 是 Windows 桌面上的 DeepSeek 余额小鲸鱼。首版面向 Win
 - 导入 PNG、WebP、GIF，调整大小、短句和音量；小屏幕自动限制实际尺寸。
 - DeepSeek 余额自动刷新、今日已观测消费、余额增加记录、低余额和每日预算提醒。
 - 本地加密保存 API Key，开机启动默认关闭。
+- 设置或右键菜单切换小鲸鱼 / GPT 小伙伴，记住所选角色；两种角色分别保存自定义图片。
+- GPT 小伙伴显示 Codex 剩余百分比、额度窗口、重置时间及倒计时，支持自动和手动刷新。
 
 ![漫画对白气泡](docs/screenshots/pet.png)
 
 ![设置与余额概览](docs/screenshots/settings.png)
+
+![GPT 漫画气泡（明确标注的演示额度）](docs/screenshots/gpt-pet.png)
+
+![Codex 额度与重置时间（演示数据）](docs/screenshots/gpt-quota.png)
 
 ## 获取与运行
 
@@ -26,6 +32,20 @@ DesktopPlay 是 Windows 桌面上的 DeepSeek 余额小鲸鱼。首版面向 Win
 首次运行后，在应用设置中输入 DeepSeek API Key。密钥由 Windows 加密后保存在当前 Windows 用户的数据目录中；不要把密钥提交到仓库、截图或问题报告里。应用通过 DeepSeek API 查询余额。余额数值和用量记录是应用观测值，不是 DeepSeek 官方账单；同一账户通过其他 API Key 或客户端产生的余额变化也可能反映在这些观测值中。
 
 今日账本以 UTC+8 每天首次成功取得的余额快照建立当日基线；该跨日首个快照不会将它与前一天的余额差计入当天。当天后续成功快照按相邻快照计算：余额下降累计为已用量，余额增加单独累计，不抵扣已用量。因此无法从两个快照还原其间同时发生的消费和充值。网络请求失败时会保留最近一次成功取得的余额，并显示错误状态，不会把失败当成余额归零。
+
+## GPT 小伙伴与 Codex 额度
+
+1. 在设置中选择 **GPT 小伙伴**，或右键桌宠 → **切换桌宠**。
+2. 在官方 Codex CLI 或 VS Code 扩展中使用 ChatGPT 账户登录。DesktopPlay 自动寻找本机 `codex.exe`；未找到时可在设置中选择已安装的原生 `codex.exe`。
+3. 点击桌宠或设置中的刷新按钮查看额度。GPT 角色启用或设置窗口打开期间，每 60 秒自动刷新。
+
+额度来自官方 Codex App Server 的 [`account/rateLimits/read`](https://learn.chatgpt.com/docs/app-server#6-rate-limits-chatgpt) 只读接口。程序显示服务返回的实际窗口长度，例如 5 小时、每周；不会将所有账户硬编码为同一种额度。剩余百分比由 `100 - usedPercent` 计算，重置时间来自服务端 Unix 时间戳，界面按电脑本地时区显示。它不是 ChatGPT 网页对话额度，也不是 OpenAI API 余额。
+
+离线或查询失败时保留最近成功数据并标记错误和更新时间。倒计时归零只表示到达服务上次报告的时间，需要重新查询才能确认恢复；未知窗口或重置时间显示“未知”，不会虚构余额或恢复时间。没有登录或没有安装 Codex 时，两个桌宠和 DeepSeek 功能仍可使用。
+
+DesktopPlay 通过 Codex 原生程序读取额度，不读取或复制 `auth.json`，不要求在桌宠中粘贴 ChatGPT 登录令牌，不启动对话或消耗推理额度。登录凭据仍由官方 Codex 管理。若额度失效，请在 Codex 中重新登录后刷新。
+
+GPT 小伙伴为根据用户提供参考图生成的二创形象，不是 OpenAI 官方吉祥物。素材说明与生成提示词见 [GPT 素材记录](docs/gpt-art-prompt.md)。
 
 ## 从源码运行
 

@@ -55,8 +55,38 @@ export interface PetAsset {
   isCustom: boolean;
 }
 
+export type BuiltinPetId = 'deepseek' | 'gpt';
+
+export interface CodexQuotaWindow {
+  usedPercent: number;
+  remainingPercent: number;
+  windowMinutes: number | null;
+  resetsAt: string | null;
+}
+
+export interface CodexQuotaBucket {
+  id: string;
+  name: string;
+  planType: string | null;
+  primary: CodexQuotaWindow | null;
+  secondary: CodexQuotaWindow | null;
+  creditsRemaining: string | null;
+  unlimitedCredits: boolean;
+}
+
+export interface CodexQuotaState {
+  status: 'idle' | 'loading' | 'ready' | 'unavailable' | 'error';
+  buckets: CodexQuotaBucket[];
+  updatedAt: string | null;
+  error: string | null;
+  source: 'codex-app-server';
+  available: boolean;
+}
+
 export interface AppState extends ServiceState {
   pet: PetAsset;
+  activePet: BuiltinPetId;
+  codex: CodexQuotaState;
   flipped: boolean;
   effectiveScale?: number;
 }
@@ -69,6 +99,10 @@ export interface DesktopApi {
   refreshBalance(): Promise<AppState>;
   choosePet(): Promise<AppState>;
   resetPet(): Promise<AppState>;
+  selectPet(id: BuiltinPetId): Promise<AppState>;
+  refreshCodexQuota(): Promise<AppState>;
+  chooseCodexExecutable(): Promise<AppState>;
+  openCodexUsage(): Promise<void>;
   openSettings(): Promise<void>;
   showMenu(): Promise<void>;
   hidePet(): Promise<void>;

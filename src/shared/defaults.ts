@@ -1,4 +1,4 @@
-import type { AppSettings } from './types';
+import type { AppSettings, BuiltinPetId, PetAsset } from './types';
 export const DEFAULT_SETTINGS: AppSettings = {
   alwaysOnTop: true,
   launchAtLogin: false,
@@ -11,3 +11,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   dailyBudget: null,
 };
 export const DEFAULT_PET = { name: '小鲸鱼', url: './assets/whale.png', isCustom: false };
+export const GPT_PET = { name: 'GPT 小伙伴', url: './assets/gpt.png', isCustom: false };
+export const BUILTIN_PETS: Record<BuiltinPetId, PetAsset> = { deepseek: DEFAULT_PET, gpt: GPT_PET };

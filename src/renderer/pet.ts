@@ -1,5 +1,7 @@
 import type { AppState, DesktopApi } from '../shared/types';
+import { DEFAULT_SETTINGS } from '../shared/defaults';
 import { updateMoney } from './format';
+import { localTime, quotaStatus, renderQuota } from './quota';
 
 export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, demo: boolean) {
   let state = initial;
@@ -15,6 +17,10 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const bubble = root.querySelector<HTMLElement>('.pet-bubble')!;
   const message = root.querySelector<HTMLElement>('.bubble-message')!;
   const status = root.querySelector<HTMLElement>('.pet-status')!;
+  const quota = document.createElement('div'); quota.className = 'bubble-quota';
+  root.querySelector('.bubble-balances')!.after(quota);
+  const switchPet = document.createElement('button'); switchPet.className = 'bubble-switch'; switchPet.type = 'button';
+  root.querySelector('.bubble-footer')!.insertBefore(switchPet, root.querySelector('.bubble-settings'));
   const sounds = { press: new Audio('./assets/press.mp3'), release: new Audio('./assets/release.mp3') };
   const play = (name: keyof typeof sounds) => {
     if (!state.settings.soundEnabled || state.settings.volume <= 0) return;
@@ -32,16 +38,24 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     canvas.style.transform = `scale(${scale})`;
     root.style.width = `${360 * scale}px`; root.style.height = `${440 * scale}px`;
     canvas.classList.toggle('flipped', state.flipped); image.src = state.pet.url;
-    character.setAttribute('aria-label', `${state.pet.name}，点击查看余额，拖动调整位置，右键打开菜单`);
+    canvas.classList.toggle('gpt-theme', state.activePet === 'gpt');
+    const isGpt = state.activePet === 'gpt';
+    character.setAttribute('aria-label', `${state.pet.name}，点击查看${isGpt ? 'Codex 额度' : '余额'}，拖动调整位置，右键打开菜单`);
+    root.querySelector<HTMLElement>('.bubble-label')!.textContent = isGpt ? 'GPT 的 Codex 小报告' : '小鲸鱼的小报告';
+    root.querySelector<HTMLElement>('.bubble-balances')!.hidden = isGpt; quota.hidden = !isGpt;
+    switchPet.textContent = isGpt ? '换小鲸鱼' : '换 GPT';
+    if (isGpt) renderQuota(quota, state.codex, true, demo);
     updateMoney(root.querySelector<HTMLElement>('.pet-balance')!, state.balance?.total, state.balance?.currency);
     updateMoney(root.querySelector<HTMLElement>('.pet-spent')!, state.ledger.today?.spent, state.ledger.today?.currency);
     status.textContent = demo ? '演示余额' : state.status === 'loading' ? '正在查看余额…' : state.status === 'error' ? '连接异常 · 请查看设置' : state.status === 'unconfigured' ? '先在设置中连接账户' : '今日消费为已观测变化';
-    if (state.alert && state.alert.id !== lastAlertId) { lastAlertId = state.alert.id; show(state.alert.message, 18000); }
+    if (isGpt) { status.textContent = `${quotaStatus(state.codex, demo)} · ${localTime(state.codex.updatedAt)} 更新`; status.title = state.codex.error ?? status.textContent; }
+    if (!isGpt && state.alert && state.alert.id !== lastAlertId) { lastAlertId = state.alert.id; show(state.alert.message, 18000); }
   };
   const clicked = () => {
     const phrases = state.settings.phrases;
-    show(phrases.length ? phrases[Math.floor(Math.random() * phrases.length)]! : '工作一会儿，记得照顾自己呀。');
-    void api.refreshBalance().then(update).catch(error => { show(error instanceof Error ? error.message : '暂时无法查看余额，请稍后再试。'); });
+    const defaults = JSON.stringify(phrases) === JSON.stringify(DEFAULT_SETTINGS.phrases);
+    show(state.activePet === 'gpt' && (defaults || !phrases.length) ? '专注写代码，也记得休息一下呀。' : phrases.length ? phrases[Math.floor(Math.random() * phrases.length)]! : '工作一会儿，记得照顾自己呀。');
+    void (state.activePet === 'gpt' ? api.refreshCodexQuota() : api.refreshBalance()).then(update).catch(error => { show(error instanceof Error ? error.message : '暂时无法更新，请稍后再试。'); });
   };
   character.addEventListener('pointerdown', event => {
     if (event.button !== 0) return;
@@ -65,6 +79,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   character.addEventListener('contextmenu', menu);
   character.addEventListener('keydown', event => { if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) menu(event); });
   root.querySelector('.bubble-close')!.addEventListener('click', close);
+  switchPet.addEventListener('click', () => { void api.selectPet(state.activePet === 'gpt' ? 'deepseek' : 'gpt').then(next => { update(next); show(next.activePet === 'gpt' ? 'GPT 小伙伴来啦，帮你看看 Codex 额度。' : '小鲸鱼回来陪你啦。'); }).catch(() => show('切换失败，请重试。')); });
   root.querySelector('.bubble-settings')!.addEventListener('click', () => { void api.openSettings().catch(() => show('无法打开设置，请重试。')); });
   bubble.addEventListener('pointerenter', () => clearTimeout(timer));
   bubble.addEventListener('pointerleave', () => { if (bubbleVisible) timer = setTimeout(close, 8000); });
@@ -79,5 +94,6 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   api.setBubbleVisible(false);
   api.setInteractive(false);
   update(initial);
-  return { update, dispose: () => { clearTimeout(timer); if (drag) api.endDrag(); api.setBubbleVisible(false); api.setInteractive(false); document.removeEventListener('pointermove', pointerMove); document.removeEventListener('pointerleave', pointerLeave); Object.values(sounds).forEach(sound => sound.pause()); } };
+  const countdown = setInterval(() => { if (bubbleVisible && state.activePet === 'gpt') update(state); }, 30000);
+  return { update, dispose: () => { clearInterval(countdown); clearTimeout(timer); if (drag) api.endDrag(); api.setBubbleVisible(false); api.setInteractive(false); document.removeEventListener('pointermove', pointerMove); document.removeEventListener('pointerleave', pointerLeave); Object.values(sounds).forEach(sound => sound.pause()); } };
 }

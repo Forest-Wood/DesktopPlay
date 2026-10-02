@@ -1,7 +1,8 @@
 import { readFile, mkdir, writeFile, rename, unlink } from 'node:fs/promises';
 import path from 'node:path';
-import type { PetAsset } from '../shared/types';
-import { DEFAULT_PET } from '../shared/defaults';
+import { randomUUID } from 'node:crypto';
+import type { BuiltinPetId, PetAsset } from '../shared/types';
+import { BUILTIN_PETS } from '../shared/defaults';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 export function inspectImage(bytes: Buffer): { mime: string; width: number; height: number } {
@@ -32,31 +33,57 @@ export function inspectImage(bytes: Buffer): { mime: string; width: number; heig
 }
 
 export class PetAssets {
-  private pet: PetAsset = { ...DEFAULT_PET };
-  private filename: string;
-  constructor(private dataDir: string) { this.filename = path.join(dataDir, 'pet.json'); }
+  private selected: BuiltinPetId = 'deepseek';
+  private pets: Record<BuiltinPetId, PetAsset> = structuredClone(BUILTIN_PETS);
+  private mutations: Promise<void> = Promise.resolve();
+  constructor(private dataDir: string) {}
+  private filename(id: BuiltinPetId): string { return path.join(this.dataDir, id === 'deepseek' ? 'pet.json' : 'gpt-pet.json'); }
   async init(): Promise<void> {
     try {
-      const raw = await readFile(this.filename, 'utf8');
+      const choice = JSON.parse(await readFile(path.join(this.dataDir, 'pet-selection.json'), 'utf8'));
+      if (choice.activePet === 'gpt' || choice.activePet === 'deepseek') this.selected = choice.activePet;
+    } catch { /* Existing installations keep their original character. */ }
+    await Promise.all((['deepseek', 'gpt'] as const).map(async id => {
+      try {
+      const raw = await readFile(this.filename(id), 'utf8');
       if (raw.length > MAX_BYTES * 1.5) return;
       const stored = JSON.parse(raw) as { name?: unknown; data?: unknown };
       if (typeof stored.name !== 'string' || typeof stored.data !== 'string') return;
       const bytes = Buffer.from(stored.data, 'base64');
       const image = inspectImage(bytes);
-      this.pet = { name: stored.name.slice(0, 100), url: `data:${image.mime};base64,${stored.data}`, isCustom: true };
+      this.pets[id] = { name: stored.name.slice(0, 100), url: `data:${image.mime};base64,${stored.data}`, isCustom: true };
     } catch { /* A missing or damaged user asset falls back to the packaged pet. */ }
+    }));
   }
-  get(): PetAsset { return { ...this.pet }; }
-  async import(filename: string): Promise<void> {
-    const bytes = await readFile(filename);
-    const image = inspectImage(bytes), data = bytes.toString('base64'), name = path.basename(filename).slice(0, 100);
+  get(): PetAsset { return { ...this.pets[this.selected] }; }
+  getSelected(): BuiltinPetId { return this.selected; }
+  private mutate(operation: () => Promise<void>): Promise<void> {
+    const next = this.mutations.catch(() => {}).then(operation); this.mutations = next; return next;
+  }
+  private async save(filename: string, value: unknown): Promise<void> {
     await mkdir(this.dataDir, { recursive: true });
-    await writeFile(`${this.filename}.tmp`, JSON.stringify({ name, data }), { mode: 0o600 });
-    await rename(`${this.filename}.tmp`, this.filename);
-    this.pet = { name, url: `data:${image.mime};base64,${data}`, isCustom: true };
+    const temporary = `${filename}.${randomUUID()}.tmp`;
+    try { await writeFile(temporary, JSON.stringify(value), { mode: 0o600 }); await rename(temporary, filename); }
+    finally { await unlink(temporary).catch(() => {}); }
   }
-  async reset(): Promise<void> {
-    await unlink(this.filename).catch((error: NodeJS.ErrnoException) => { if (error.code !== 'ENOENT') throw error; });
-    this.pet = { ...DEFAULT_PET };
+  select(id: unknown): Promise<void> {
+    if (id !== 'deepseek' && id !== 'gpt') return Promise.reject(new Error('未知的桌宠角色。'));
+    return this.mutate(async () => { await this.save(path.join(this.dataDir, 'pet-selection.json'), { activePet: id }); this.selected = id; });
+  }
+  import(filename: string): Promise<void> {
+    const id = this.selected;
+    return this.mutate(async () => {
+      const bytes = await readFile(filename);
+      const image = inspectImage(bytes), data = bytes.toString('base64'), name = path.basename(filename).slice(0, 100);
+      await this.save(this.filename(id), { name, data });
+      this.pets[id] = { name, url: `data:${image.mime};base64,${data}`, isCustom: true };
+    });
+  }
+  reset(): Promise<void> {
+    const id = this.selected;
+    return this.mutate(async () => {
+      await unlink(this.filename(id)).catch((error: NodeJS.ErrnoException) => { if (error.code !== 'ENOENT') throw error; });
+      this.pets[id] = { ...BUILTIN_PETS[id] };
+    });
   }
 }

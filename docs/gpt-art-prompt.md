@@ -1,0 +1,10 @@
+﻿# GPT desktop pet artwork
+
+- Asset: `public/assets/gpt.png`
+- Source: generated with the built-in OpenAI image generation tool on 2026-10-02, then copied unchanged into the project with its transparency preserved.
+- Reference roles: the user-provided GPT-inspired chibi image guided white hair, mint accents, dark teal headset and knot motif; `public/assets/whale.png` guided close framing, chibi proportions and clean cel-shaded presentation.
+- Provenance: original AI-generated fan-style desktop-pet artwork inspired by the user's reference; it is not an official OpenAI mascot or official logo artwork.
+
+## Generation prompt
+
+Use case: game-character. Asset type: transparent PNG desktop pet for DesktopPlay. Primary request: create an original GPT-inspired chibi desktop companion that echoes the established pet proportions and the user's attached reference design. Input images: Image 1, the user's reference: white-haired chibi, mint-green hair streaks, dark teal headphones, black oval eyes, pink cheeks, emerald interwoven knot hairclip; borrow its design cues. Image 2, existing DesktopPlay whale: use its large-head upper-body close framing, clean thick dark outlines, flat soft cel shading, and transparent cutout style only. Scene/backdrop: fully transparent, no scene. Subject: adorable calm friendly chibi assistant with layered white hair, mint streaks, full curved ahoge, deep teal over-ear headphones, emerald interwoven-knot rosette hairclip, simple white outfit with teal accents, black oval eyes, blush pink cheeks. Style: polished anime chibi, thick clean outlines, soft simple cel shading, cohesive with whale reference. Composition: square, centered close framed head and upper body occupying about 90% canvas; keep full ahoge, hair silhouette, shoulders and outfit inside frame. Soft even lighting. Palette white/pale gray, mint and emerald, deep teal, warm cream skin, pink blush. Smooth clean illustration. No text. Original character, not the whale. Avoid any background, checkerboard, shadow, glow, frame, border, lettering, watermark, extra characters, cropped ahoge/head, detached objects.

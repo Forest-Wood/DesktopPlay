@@ -1,11 +1,12 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, safeStorage, screen, Tray } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, safeStorage, screen, shell, Tray } from 'electron';
 import type { IpcMainEvent, IpcMainInvokeEvent } from 'electron';
 import path from 'node:path';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { DesktopService } from './services/desktop-service';
+import { CodexQuotaService } from './services/codex-quota';
 import { PetAssets } from './pet-assets';
 import { clampToArea, fitScale, petSize, snapToArea } from './geometry';
-import type { AppState, AppSettings } from '../shared/types';
+import type { AppState, AppSettings, BuiltinPetId } from '../shared/types';
 
 app.setName('DesktopPlay');
 // Isolated profiles are supported only by development/test builds.
@@ -19,6 +20,8 @@ let settingsWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let service: DesktopService;
 let assets: PetAssets;
+let codex: CodexQuotaService;
+let codexTimer: ReturnType<typeof setInterval> | null = null;
 let flipped = false, bubbleVisible = false, quitting = false;
 let windowSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let dragTimer: ReturnType<typeof setInterval> | null = null;
@@ -35,14 +38,15 @@ else {
 }
 app.on('window-all-closed', () => { /* The tray keeps the desktop pet alive. */ });
 app.on('before-quit', () => {
-  quitting = true; service?.dispose();
+  quitting = true; service?.dispose(); codex?.dispose();
+  if (codexTimer) clearInterval(codexTimer);
   if (dragTimer) clearInterval(dragTimer);
   if (hitTimer) clearInterval(hitTimer);
   if (windowSaveTimer) clearTimeout(windowSaveTimer);
   tray?.destroy();
 });
 
-function getState(): AppState { return { ...service.getState(), pet: assets.get(), flipped, effectiveScale: petWindow && !petWindow.isDestroyed() ? petWindow.getBounds().width / 360 : service.getState().settings.scale }; }
+function getState(): AppState { return { ...service.getState(), pet: assets.get(), activePet: assets.getSelected(), codex: codex.getState(), flipped, effectiveScale: petWindow && !petWindow.isDestroyed() ? petWindow.getBounds().width / 360 : service.getState().settings.scale }; }
 function publish(): void {
   const state = getState();
   for (const win of [petWindow, settingsWindow]) if (win && !win.isDestroyed() && !win.webContents.isLoadingMainFrame()) win.webContents.send('desktopplay:state', state);
@@ -53,11 +57,22 @@ async function start(): Promise<void> {
   assets = new PetAssets(dataDir); await assets.init();
   service = new DesktopService({ dataDir, secrets: safeStorage });
   await service.init();
+  let executablePath: string | undefined;
+  try {
+    const preference = JSON.parse(await readFile(path.join(dataDir, 'codex-executable.json'), 'utf8'));
+    if (typeof preference.executablePath === 'string') executablePath = preference.executablePath;
+  } catch { /* Default to native Codex discovery. */ }
+  const noCodex = !app.isPackaged && process.env.DESKTOPPLAY_TEST_NO_CODEX === '1';
+  codex = new CodexQuotaService({ cwd: dataDir, ...(noCodex ? { discoverExecutable: async () => null } : { executablePath }) });
+  await codex.init();
+  codex.subscribe(publish);
   service.subscribe(() => { applySettings(); publish(); });
   registerIpc();
   await createPet();
   createTray();
   applySettings();
+  codexTimer = setInterval(() => { if (assets.getSelected() === 'gpt' || settingsWindow?.isVisible()) void codex.refresh(); }, 60000);
+  if (assets.getSelected() === 'gpt') void codex.refresh();
   screen.on('display-added', restoreToScreen);
   screen.on('display-removed', restoreToScreen);
   screen.on('display-metrics-changed', restoreToScreen);
@@ -111,19 +126,35 @@ async function openSettings(): Promise<void> {
 }
 
 function showPet(): void { petWindow?.showInactive(); restoreToScreen(); }
+async function selectPet(id: BuiltinPetId): Promise<void> {
+  await assets.select(id); updateTray(); publish();
+  if (id === 'gpt') void codex.refresh();
+}
+function refreshCurrent(): void { if (assets.getSelected() === 'gpt') void codex.refresh(); else void service.refresh(); }
+function petMenu(): Electron.MenuItemConstructorOptions[] {
+  return [
+    { label: 'DeepSeek · 小鲸鱼', type: 'radio', checked: assets.getSelected() === 'deepseek', click: () => { void selectPet('deepseek').catch(() => {}); } },
+    { label: 'GPT · Codex 小伙伴', type: 'radio', checked: assets.getSelected() === 'gpt', click: () => { void selectPet('gpt').catch(() => {}); } },
+  ];
+}
 function createTray(): void {
   const icon = nativeImage.createFromPath(path.join(__dirname, '../dist/assets/whale.png')).resize({ width: 32, height: 32 });
-  tray = new Tray(icon); tray.setToolTip('DesktopPlay · 小鲸鱼桌宠');
+  tray = new Tray(icon);
   tray.on('double-click', showPet); updateTray();
 }
 function updateTray(): void {
+  if (tray) {
+    tray.setToolTip(`DesktopPlay · ${assets.get().name}`);
+    tray.setImage(nativeImage.createFromPath(path.join(__dirname, `../dist/assets/${assets.getSelected() === 'gpt' ? 'gpt' : 'whale'}.png`)).resize({ width: 32, height: 32 }));
+  }
   tray?.setContextMenu(Menu.buildFromTemplate([
-    { label: '显示小鲸鱼', click: showPet },
-    { label: '设置与账本', click: () => { void openSettings(); } },
-    { label: '刷新余额', click: () => { void service.refresh(); } },
+    { label: '显示桌宠', click: showPet },
+    { label: '切换桌宠', submenu: petMenu() },
+    { label: '设置、余额与额度', click: () => { void openSettings(); } },
+    { label: '刷新当前额度', click: refreshCurrent },
     { type: 'separator' },
     { label: '总在最前', type: 'checkbox', checked: service.getState().settings.alwaysOnTop, click: () => { void service.updateSettings({ alwaysOnTop: !service.getState().settings.alwaysOnTop }).catch(() => {}); } },
-    { label: '隐藏小鲸鱼', click: () => petWindow?.hide() },
+    { label: '隐藏桌宠', click: () => petWindow?.hide() },
     { type: 'separator' }, { label: '退出 DesktopPlay', click: () => app.quit() },
   ]));
 }
@@ -201,6 +232,21 @@ function registerIpc(): void {
   handle('set-key', async (_event, key) => { await service.setApiKey(key); return getState(); });
   handle('clear-key', async () => { await service.clearApiKey(); return getState(); });
   handle('refresh', async () => { await service.refresh(); return getState(); });
+  handle('select-pet', async (_event, id) => { await selectPet(id); return getState(); });
+  handle('refresh-codex', async () => { await codex.refresh(); return getState(); });
+  handle('open-codex-usage', async () => { await shell.openExternal('https://chatgpt.com/codex/settings/usage'); });
+  handle('choose-codex', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)!;
+    const selection = await dialog.showOpenDialog(win, { title: '选择已安装的 codex.exe', properties: ['openFile'], filters: [{ name: 'Codex 原生程序', extensions: ['exe'] }] });
+    if (!selection.canceled && selection.filePaths[0]) {
+      const executablePath = selection.filePaths[0];
+      await codex.setExecutablePath(executablePath);
+      const filename = path.join(dataDir, 'codex-executable.json');
+      await writeFile(`${filename}.tmp`, JSON.stringify({ executablePath })); await rename(`${filename}.tmp`, filename);
+      await codex.refresh();
+    }
+    return getState();
+  });
   handle('choose-pet', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender)!;
     const selection = await dialog.showOpenDialog(win, { title: '选择桌宠图片', properties: ['openFile'], filters: [{ name: '角色图片', extensions: ['png', 'webp', 'gif'] }] });
@@ -210,7 +256,7 @@ function registerIpc(): void {
   handle('reset-pet', async () => { await assets.reset(); publish(); return getState(); });
   handle('open-settings', openSettings);
   handle('show-menu', () => {
-    Menu.buildFromTemplate([{ label: '设置与账本', click: () => { void openSettings(); } }, { label: '刷新余额', click: () => { void service.refresh(); } }, { type: 'separator' }, { label: '隐藏小鲸鱼', click: () => petWindow?.hide() }, { label: '退出', click: () => app.quit() }]).popup({ window: petWindow ?? undefined });
+    Menu.buildFromTemplate([{ label: '切换桌宠', submenu: petMenu() }, { label: '设置、余额与额度', click: () => { void openSettings(); } }, { label: '刷新当前额度', click: refreshCurrent }, { type: 'separator' }, { label: '隐藏桌宠', click: () => petWindow?.hide() }, { label: '退出', click: () => app.quit() }]).popup({ window: petWindow ?? undefined });
   });
   handle('hide-pet', () => { finishDrag(); petWindow?.hide(); });
   handle('quit', () => { app.quit(); });

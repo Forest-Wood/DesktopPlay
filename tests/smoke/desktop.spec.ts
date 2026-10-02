@@ -7,7 +7,7 @@ import { mkdir, mkdtemp } from 'node:fs/promises';
 test('packaged renderer, secure bridge and persistent desktop settings', async () => {
   await mkdir('.tmp', { recursive: true });
   const profile = await mkdtemp(path.resolve('.tmp/smoke-'));
-  const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), DESKTOPPLAY_USER_DATA: profile };
+  const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1' };
   delete env.ELECTRON_RUN_AS_NODE;
   let application: ElectronApplication | undefined;
   try {
@@ -18,7 +18,7 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
     const pet = application.windows().find(page => page.url().includes('view=pet'))!;
     const errors: string[] = [];
     for (const page of [settings, pet]) page.on('pageerror', error => errors.push(error.message));
-    await expect(settings.getByRole('heading', { name: '小鲸鱼的栖息地' })).toBeVisible();
+    await expect(settings.getByRole('heading', { name: '桌宠的栖息地' })).toBeVisible();
     await expect(settings.locator('#network-status')).toHaveText('尚未连接');
     await expect(pet.locator('.pet-image')).toBeVisible();
     expect(await settings.evaluate(() => typeof (window as unknown as { require?: unknown }).require)).toBe('undefined');
@@ -51,6 +51,15 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
     await expect(pet.locator('.pet-bubble')).toBeVisible();
     await pet.screenshot({ path: 'test-results/pet.png', omitBackground: true });
     expect(errors).toEqual([]);
+    await settings.locator('#select-gpt').click();
+    await expect.poll(async () => (await settings.evaluate(() => window.desktopPlay.getState())).activePet).toBe('gpt');
+    await expect(pet.locator('.pet-image')).toHaveAttribute('src', './assets/gpt.png');
+    await expect.poll(async () => pet.locator('.pet-image').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+    expect(await settings.evaluate(async () => { try { await window.desktopPlay.selectPet('invalid' as 'gpt'); return false; } catch { return true; } })).toBe(true);
+    expect((await settings.evaluate(() => window.desktopPlay.getState())).codex.buckets).toEqual([]);
+    await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
+    await expect(pet.locator('.pet-bubble')).toBeVisible();
+    await pet.screenshot({ path: 'test-results/gpt-pet.png', omitBackground: true });
     await application.close(); application = undefined;
 
     application = await electron.launch({ executablePath: electronPath as unknown as string, args: ['.'], cwd: process.cwd(), env });
@@ -59,5 +68,29 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
     const restarted = application.windows().find(page => page.url().includes('view=settings'))!;
     await expect(restarted.locator('#network-status')).toBeVisible();
     expect((await restarted.evaluate(() => window.desktopPlay.getState())).settings).toMatchObject({ scale: 1.25, soundEnabled: false, lowBalanceThreshold: '10.12345678' });
+    expect((await restarted.evaluate(() => window.desktopPlay.getState())).activePet).toBe('gpt');
+    await restarted.evaluate(() => window.desktopPlay.selectPet('deepseek'));
+    expect((await restarted.evaluate(() => window.desktopPlay.getState())).activePet).toBe('deepseek');
   } finally { await application?.close(); }
+});
+
+test('comic bubble switches characters without opening settings', async () => {
+  await mkdir('.tmp', { recursive: true });
+  const profile = await mkdtemp(path.resolve('.tmp/smoke-switch-'));
+  const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1', DESKTOPPLAY_TEST_NO_ONBOARDING: '1' };
+  delete env.ELECTRON_RUN_AS_NODE;
+  const application = await electron.launch({ executablePath: electronPath as unknown as string, args: ['.'], cwd: process.cwd(), env });
+  try {
+    const pet = await application.firstWindow();
+    await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
+    await pet.locator('.bubble-switch').click();
+    await expect(pet.locator('.pet-image')).toHaveAttribute('src', './assets/gpt.png');
+    expect(application.windows()).toHaveLength(1);
+    await pet.locator('.bubble-settings').click();
+    await expect.poll(() => application.windows().some(page => page.url().includes('view=settings'))).toBe(true);
+    const settings = application.windows().find(page => page.url().includes('view=settings'))!;
+    await expect(settings.locator('#codex-status')).toHaveText('未连接 Codex');
+    await settings.locator('#select-deepseek').click();
+    await expect(pet.locator('.pet-image')).toHaveAttribute('src', './assets/whale.png');
+  } finally { await application.close(); }
 });
