@@ -128,7 +128,7 @@ export function requestCodexQuota(executable: string, cwd: string, signal: Abort
         else { complete(new Error('invalid-protocol')); return; }
       }
     });
-    send({ id: 1, method: 'initialize', params: { clientInfo: { name: 'desktopplay', title: 'DesktopPlay', version: '0.2.0' }, capabilities: { experimentalApi: false } } });
+    send({ id: 1, method: 'initialize', params: { clientInfo: { name: 'desktopplay', title: 'DesktopPlay', version: '0.2.1' }, capabilities: { experimentalApi: false } } });
   });
 }
 

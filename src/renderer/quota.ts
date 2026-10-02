@@ -54,7 +54,8 @@ export function renderQuota(root: HTMLElement, quota: CodexQuotaState, compact: 
       const title = add(row, 'div', 'quota-window-title');
       add(title, 'span', '', windowLabel(quotaWindow.windowMinutes));
       const remaining = Number.isFinite(quotaWindow.remainingPercent) ? Math.max(0, Math.min(100, quotaWindow.remainingPercent)) : null;
-      add(title, 'strong', '', remaining == null ? '未知' : `${Number(remaining.toFixed(1))}% 剩余`);
+      const remainingLabel = add(title, 'strong', '', remaining == null ? '未知' : `${Number(remaining.toFixed(1))}%${compact ? '' : ' 剩余'}`);
+      if (compact && remaining !== null) add(remainingLabel, 'span', 'quota-remaining-suffix', '剩余');
       if (!compact && remaining !== null) {
         const bar = document.createElement('progress'); bar.max = 100; bar.value = remaining;
         bar.setAttribute('aria-label', `${windowLabel(quotaWindow.windowMinutes)}剩余额度`); row.append(bar);

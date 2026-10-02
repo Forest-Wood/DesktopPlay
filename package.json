@@ -1,6 +1,6 @@
 {
   "name": "desktopplay",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Windows 双角色桌宠：DeepSeek 余额与 Codex 编程额度",
   "private": true,
   "type": "module",

@@ -215,7 +215,9 @@ function updateHitRegion(): void {
   const x = (p.x - b.x) / s, y = (p.y - b.y) / s;
   // The visible pet is anchored to the snapped side; blank space passes through.
   const inPet = y >= 216 && y <= 440 && (flipped ? x >= 0 && x <= 220 : x >= 140 && x <= 360);
-  const inBubble = bubbleVisible && x >= 0 && x <= 360 && y >= 0 && y < 230;
+  // Match the compact balloon's 236 × 180 maximum box and its short tail.
+  const bubbleLeft = flipped ? 0 : 124;
+  const inBubble = bubbleVisible && x >= bubbleLeft && x <= bubbleLeft + 236 && y >= 36 && y < 236;
   petWindow.setIgnoreMouseEvents(!(inPet || inBubble), { forward: true });
 }
 
