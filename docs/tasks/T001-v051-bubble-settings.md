@@ -5,9 +5,10 @@
 | 日期 | 2026-10-15（Asia/Shanghai） |
 | 负责人 | Codex（本会话实现）；审查人待指定 |
 | 关联需求 | [R001–R004](../REQUIREMENTS.md) |
-| 状态 | 待审查；实现及本地验证通过，未提交、未合并、未远程发布 |
+| 状态 | 待审查；实现及本轮复验通过，已提交推送并创建 PR，未合并、未发布 Release |
 | 基准提交 | 原业务基准 `b7ed57f9b8558a8569fade14b3feb27a40039825`（v0.5.0）；功能分支基准 `7ac1192094636ac09334d79c40412bc64598b2bb`（已合并 T002） |
-| 实现提交 | 未提交；不能以基准提交代表 v0.5.1 实现 |
+| 实现提交 | `f5a78fac3d5d982afc4edb69721fe98af142d753`；后续交接同步提交见本文件 Git 历史 |
+| PR | [#2：v0.5.1 气泡时间设置与界面调整](https://github.com/Forest-Wood/DesktopPlay/pull/2)，open，目标 main |
 | 分支 | `feat/T001-bubble-settings`，从最新 `origin/main` 创建；原实现曾在 main／T002 工作区保留，本轮已独立整理 |
 | 目标合并分支／目录 | `main`／`D:\desktop1\DesktopPlay` |
 | 依赖 | 现有 v0.5.0 应用、已安装依赖与本地打包工具缓存；T002 的管理规范已通过 PR #1 合并到主线 |
@@ -39,6 +40,7 @@
 | 通过 | 设置 `DESKTOPPLAY_TEST_SOFTWARE_RENDERING=1` 后运行 `npm.cmd run test:smoke` | 本轮 7 项 Electron 测试通过；含三个人设计时、悬浮、草稿与持久化、完整倒计时及白色页面；沙箱外、独立配置、禁用真实 Codex |
 | 通过 | 截图与包内容核对 | 已查看新截图；`app.asar` 包版本为 0.5.1，含界面和 main/preload，没有用户配置 |
 | 通过 | 使用下方本地缓存命令打包及 SHA-256 | 生成 Setup、Portable 及 `release/SHA256SUMS-0.5.1.txt`，同步 `SHA256SUMS.txt` |
+| 通过 | 提交、推送和功能 PR 创建 | 26 个任务文件经暂存范围、版本一致性和提交树链接检查后提交；分支已推送，PR #2 已创建；安装包未进入 Git |
 | 失败 | 直接运行 `npm`；沙箱内 smoke | 分别受 `npm.ps1` 执行策略、Electron AppContainer ACL 限制；改用 `npm.cmd`、沙箱外隔离数据测试后通过，未关闭应用沙箱 |
 | 失败 | 默认 `npm.cmd run dist` 下载／缓存路径 | 当前网络／缓存写权限限制；复用既有本地工具后打包通过，未更改生产打包配置 |
 | 失败（替代方式通过） | 本轮默认 GPU 下完整 smoke | 多个原有用例等待点击稳定或截图时超时，初次运行中止；隔离诊断观察到帧停止，仅增加测试用 `--disable-gpu` 后点击诊断与 7 项完整回归通过 |
@@ -66,6 +68,6 @@ npm.cmd run build
 
 ## 下一步
 
-1. 完成分支复验与提交范围检查，按用户授权提交、推送并创建面向 main 的功能 PR；后续同步对应提交与 PR 链接。
-2. 功能 PR 待审查、CI 与合并；本次不自动合并、不创建发行标签或发布 Release。
+1. 等待 [PR #2](https://github.com/Forest-Wood/DesktopPlay/pull/2) 审查和 CI，后续修订继续使用 feat/T001-bubble-settings。
+2. 未获得合并或发布授权，本次不自动合并、不创建发行标签或发布 Release；CI 结论以 PR 最新检查为准，未据本地通过推定远程通过。
 3. 若后续涉及安装、卸载或额度协议，再安排对应的隔离环境与真实场景验证；现有历史卸载缺口见 [v0.5.0 说明](../releases/v0.5.0.md)。
