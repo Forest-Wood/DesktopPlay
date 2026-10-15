@@ -1,50 +1,47 @@
 # DesktopPet 当前项目状态
 
-更新日期：2026-10-15（Asia/Shanghai）。本文件仅保留当前有效状态；约定见 [AGENTS.md](../AGENTS.md)，验收见 [需求登记](REQUIREMENTS.md)，实施细节见任务记录。
+更新日期：2026-10-15（Asia/Shanghai）。**v0.5.1 已正式发布并成为最新 Release**。约定见 [AGENTS.md](../AGENTS.md)，验收见 [需求登记](REQUIREMENTS.md)，详细证据见任务记录。
 
-## 仓库与任务
+## 仓库与发布
 
 | 项目 | 当前事实 |
 | --- | --- |
-| 工作目录 | `D:\desktop1\DesktopPlay` |
-| 当前分支／目标 | `feat/T001-bubble-settings` → `main` |
-| 本轮分支基准 | `7ac1192094636ac09334d79c40412bc64598b2bb`；已 fetch 并核实为 origin/main，包含 PR #1 合并；当前 HEAD 以 Git 为准 |
-| 源码版本 | package、锁文件根包与 APP_VERSION 均为 0.5.1 |
-| T001 提交／PR | 业务提交 `f5a78fac3d5d982afc4edb69721fe98af142d753` 已推送，[PR #2](https://github.com/Forest-Wood/DesktopPlay/pull/2) 已创建，待审查／CI，未合并；交接同步提交见 Git 历史 |
-| T002 提交／PR | [PR #1](https://github.com/Forest-Wood/DesktopPlay/pull/1) 已合并；主提交 66eef1a、交接 c00a87f，合并提交为上述基准 |
+| 工作目录／本地记录分支 | `D:\desktop1\DesktopPlay`／`release/T003-v051` |
+| 发布提交 | `979764a596e3c4f639d09db53ce8f0f879104981`，PR #2 合并提交；版本三处均为 0.5.1 |
+| 标签 | annotated v0.5.1 已推送，解析到发布提交；没有移动或覆盖已有标签 |
+| 主线验证 | [main CI #15](https://github.com/Forest-Wood/DesktopPlay/actions/runs/38716301473) completed／success |
+| 发布验证 | [Release #8](https://github.com/Forest-Wood/DesktopPlay/actions/runs/38716954486) completed／success，测试、打包、校验和与发布步骤全部通过 |
+| 发布页面 | [DesktopPet v0.5.1](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v0.5.1)，公开、非草稿、非预发布，latest API 已返回本版本 |
 
-| 任务 | 状态 | 范围 |
+| 任务 | 状态 | 结果 |
 | --- | --- | --- |
-| [T001：v0.5.1 气泡与页面调整](tasks/T001-v051-bubble-settings.md) | 待审查 | R001–R004；本轮复验通过，独立功能提交已推送，PR #2 已开启；尚未合并 |
-| [T002：项目协作与交接规范](tasks/T002-project-guidance.md) | 已合并 | R005；远程 PR 状态与 origin/main 已核实，未据此推定独立审查结论 |
+| [T001：气泡与页面调整](tasks/T001-v051-bubble-settings.md) | 已合并 | R001–R004；[PR #2](https://github.com/Forest-Wood/DesktopPlay/pull/2) 已合并，0.5.1 功能进入 main |
+| [T002：协作与交接规范](tasks/T002-project-guidance.md) | 已合并 | R005；[PR #1](https://github.com/Forest-Wood/DesktopPlay/pull/1) 已合并 |
+| [T003：发布 v0.5.1](tasks/T003-release-v051.md) | 待审查（发布已完成） | R006；标签、正式 Release、三个附件及校验记录均已核实；仅本地交接记录待审查 |
 
-本轮继续原有 T001，未新建重复任务。创建功能分支前核对了 21 个既有文件的 SHA-256，完整保留了功能实现，再从已合并 T002 的最新主线创建分支；不重写共享历史。下一个可分配编号仍为 T003／R006，分配前须检查占用。
+下一编号为 T004／R007，分配前核实占用。T003 没有业务代码或工作流修改；发布记录保存在本地 release/T003-v051 分支，记录提交见 Git 历史，该记录分支未推送、未创建额外 PR。已发布标签始终指向通过 CI 的合并提交；不为同步文档向 main 直接推送。
 
-## 当前改动与定位
+## 已核实的正式附件
 
-- T001 范围为气泡／设置／额度样式、共享设置类型及默认值、主进程设置校验和窗口底色、版本文件、unit／smoke 测试、README／设计／发行说明及 v0.5.1 预览图。同步交接、需求与任务状态；T002 记录仅修正为已合并，不修改已合并的指南或 PR 模板。
-- 气泡计时见 `src/renderer/pet.ts`；设置跨 `src/shared/`、`src/main/services/desktop-service.ts`、`src/renderer/settings.ts`。GPT 排版见 `quota.css`，白色页面见 `settings.css` 与设置窗口配置。
-- 本机测试可选 `DESKTOPPLAY_TEST_SOFTWARE_RENDERING=1`，仅向测试进程增加 `--disable-gpu`；正常应用和默认 CI 不变。复现命令见 T001。
-- 环境和常用命令统一见 AGENTS.md；实际定义以 [package.json](../package.json)、[开发脚本](../scripts/dev.mjs)和 [CI](../.github/workflows/ci.yml)为准。Node.js 24、npm；PowerShell 使用 npm.cmd。
-- 产品名为 DesktopPet，兼容标识与数据目录保持 `io.github.forestwood.desktopplay`／`%APPDATA%\DesktopPlay`。新增设置有默认值、主进程校验及旧配置兼容；没有新 IPC 或持久化格式版本迁移。
-- 安装版和免安装版 0.5.1 已在本地生成，连同 SHA256SUMS-0.5.1.txt 保存在被忽略的 `release/`。本轮不重复打包；未创建发行标签或 GitHub Release。说明与截图见 [v0.5.1](releases/v0.5.1.md)。
+- `DesktopPet-0.5.1-Setup-x64.exe`：114742420 字节。
+- `DesktopPet-0.5.1-Portable-x64.exe`：114420691 字节。
+- `SHA256SUMS.txt`：199 字节。
 
-## 本轮验证
+三个公开下载地址均返回 HTTP 200，Content-Length 与 GitHub 元数据一致。已实际下载校验文件，计算并核对其摘要；两条 EXE 校验记录与 GitHub 上传摘要一致。完整 SHA-256 和验证范围见 T003。此前本地 release/ 的预构建文件仅为历史验证样本，正式下载与校验使用 GitHub 附件。
 
-| 结果 | 检查 | 说明 |
+## 当前有效定位与限制
+
+- 气泡默认 3 秒；显示／悬浮延长时间可保存；GPT 倒计时单行、设置页白色。实现和本地验证见 T001，发行变化见 [v0.5.1](releases/v0.5.1.md)。
+- 产品名 DesktopPet，兼容 appId 与 `%APPDATA%\DesktopPlay` 数据目录沿用。主进程设置校验、旧配置默认值和持久化测试已覆盖本次改动。
+- 环境和命令统一维护在 AGENTS.md。此前本机 Electron GPU／AppContainer 限制及测试软件渲染替代方式见 T001，不据本机限制推断远程 CI 失败。
+
+## 验证结果与下一步
+
+| 结果 | 范围 | 说明 |
 | --- | --- | --- |
-| 通过 | 远程与分支检查 | 已核实 PR #1 合并、最新主线、任务分支与原有文件保护 |
-| 通过 | `npm.cmd run build`、`npm.cmd run typecheck` | 生产构建及新增测试辅助文件类型检查 |
-| 通过 | `npm.cmd test` | 119 项单元测试通过 |
-| 通过 | 设置软件渲染变量后 `npm.cmd run test:smoke` | 本轮 7 项通过，使用隔离配置且不读真实 Codex；包含两种 GPT 造型、完整倒计时、气泡计时、设置保存与重启 |
-| 通过 | 新预览图检查 | 软件渲染结果中白龙完整倒计时保持单行；此前同一业务实现的安装包版本与校验和核对已通过 |
-| 通过 | 提交范围与推送／PR | 恰为 26 个任务文件，版本统一为 0.5.1，提交树文档链接通过；功能分支已推送，PR #2 已创建，未将本地安装包加入 Git |
-| 失败（替代通过） | 默认 GPU 下完整 smoke | 点击稳定／截图等待超时；隔离帧诊断后仅对测试启用软件渲染，完整回归通过；保留环境限制，不修改正式运行设置 |
-| 失败（已有替代方式） | 沙箱内 Electron、默认工具下载／缓存路径 | 本机已有 ACL 与网络／缓存限制；测试在沙箱外执行，前次使用本地缓存打包；详见 T001 |
-| 未运行 | 本轮重新打包、真实账户、真实安装升级／完整卸载、helper fixtures | 本轮提交未改变此前打包的业务实现；不把界面或单测结果当作真实安装卸载验收 |
+| 通过 | 发布前检查 | PR #2 merged、main、版本三处、验证树与精确标签提交均一致 |
+| 通过 | 远程 CI／Release | CI #15 与 Release #8 成功；公开最新版本和三个附件均核实 |
+| 通过 | 下载响应与校验记录 | 三个附件 HTTP 200／大小匹配；校验文件实际下载且摘要匹配，EXE 记录与 GitHub digest 一致 |
+| 未运行 | 本轮重复本地 build／smoke／打包、EXE 全文下载后重算摘要、真实账户／安装卸载 | 本轮无业务代码修改；未将公开附件或 CI 通过表述为真实安装卸载验收 |
 
-## 下一步
-
-1. 审查 [功能 PR #2](https://github.com/Forest-Wood/DesktopPlay/pull/2) 并查看最新 CI；远程结果未据本地测试推定通过。
-2. 后续修改继续原分支；本次未授权自动合并或发布。工作区状态与远程提交一致性以 Git 最终检查为准。
-3. 若后续发布 v0.5.1，另行核实发布授权、标签版本、CI 与下载附件；真实安装／卸载及账户验证缺口保持待确认，见 [v0.5.0 历史限制](releases/v0.5.0.md)。
+发布操作已完成；下一步仅为审查本地发布交接记录。新的业务功能或修复另建任务，不移动 v0.5.1 标签。历史真实账户／安装卸载限制继续按相关任务记录保留。
