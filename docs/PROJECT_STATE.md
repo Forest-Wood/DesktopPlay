@@ -10,21 +10,21 @@
 | 当前分支／目标合并分支 | `docs/T002-project-guidance` → `main` |
 | T002 基准提交 | `b7ed57f9b8558a8569fade14b3feb27a40039825`，`test: resolve Windows runner short paths in uninstall fixtures`；当前 HEAD 以 `git rev-parse HEAD` 为准 |
 | 对应业务版本 | 目标 `main` 基准的本地标签为 `v0.5.0`；本次文档提交不包含 v0.5.1 业务实现 |
-| 远程核实 | 2026-10-15 已成功 `git fetch origin`；当次 `origin/main` 与 HEAD 相同，双方提交差 0／0；不代表以后仍相同 |
+| 远程核实 | 2026-10-15 提交前已重新 `git fetch origin`，目标 `origin/main` 为上述基准；提交前双方差 0／0，不代表以后仍相同 |
 | 原工作区源码版本 | package、锁文件根包及 `APP_VERSION` 均为 `0.5.1`，属于 T001 未提交修改；本次文档分支的已提交业务树仍为 `0.5.0` |
-| 暂存与提交 | 暂存区为空；T001、T002 均未形成实现提交，未推送、创建 PR、合并或发布新标签 |
+| 提交与 PR | T002 主提交 `66eef1ac69e5c323cb777d797f5f27512deb8f9b` 已推送，[PR #1](https://github.com/Forest-Wood/DesktopPlay/pull/1) 已创建，待审查且未合并；交接同步提交以 Git 历史为准。T001 业务实现仍未提交，未创建发行标签 |
 
-工作区保留 T001 的源码、版本、测试、文档及截图修改，并新增 T002 管理文件。T002 分支创建时保留了原来位于 `main` 的 T001 未提交修改，不能将整个工作区视作 T002 产出；后续提交前须按任务整理。
+T002 的 6 个管理文件已独立提交并推送；工作区继续保留 T001 的源码、版本、测试、文档及截图修改。T002 分支创建时保留了原来位于 `main` 的 T001 未提交修改，不能将整个工作区视作 T002 产出；后续整理 T001 时继续按任务划分。
 
 ## 当前任务与未提交工作
 
 | 任务 | 状态 | 范围与定位 |
 | --- | --- | --- |
 | [T001：v0.5.1 气泡与页面调整](tasks/T001-v051-bubble-settings.md) | 待审查 | R001–R004；默认 3 秒气泡、可保存的显示／悬浮延长时间、完整 GPT 倒计时单行、白色设置页；已实现并本地验证，未提交 |
-| [T002：项目协作与交接规范](tasks/T002-project-guidance.md) | 待审查 | R005；6 个管理文件的内容、链接与范围检查通过，21 个既有文件保持原样，未提交 |
+| [T002：项目协作与交接规范](tasks/T002-project-guidance.md) | 待审查 | R005；6 个管理文件已提交推送，[PR #1](https://github.com/Forest-Wood/DesktopPlay/pull/1) 已开启；21 个既有文件保持原样，未合并 |
 
 - **T001 未提交文件**：`src/main/` 的窗口／设置服务，`src/renderer/` 的气泡／额度样式／设置，`src/shared/` 类型及默认值，package 与锁文件，相关 unit／smoke 测试；`README.md`、`DESIGN.md`、`docs/release.md`、`docs/releases/v0.5.1.md` 和 `docs/previews/v0.5.1/`。精确清单见 T001，实时差异以 Git 为准。
-- **T002 文件**：`AGENTS.md`、`.github/pull_request_template.md`、`docs/REQUIREMENTS.md`、本文件和 `docs/tasks/` 下的 T001／T002 记录。已有 T001 文件应保持原样；本文件按本次授权重写过时状态。
+- **T002 已提交范围**：`AGENTS.md`、`.github/pull_request_template.md`、`docs/REQUIREMENTS.md`、本文件和 `docs/tasks/` 下的 T001／T002 记录。T001 业务文件保持原样；交接跟进仍限于本任务管理文件。
 - **被忽略的本地产物**：`release/DesktopPet-0.5.1-Setup-x64.exe`、`release/DesktopPet-0.5.1-Portable-x64.exe`、`release/SHA256SUMS-0.5.1.txt` 与当前 `SHA256SUMS.txt` 已生成。忽略目录不等于 Git 已提交或远程已发布。
 - 下一个可分配任务编号为 `T003`，需求编号为 `R006`；分配前仍须检查其他并行工作是否已经占用。
 
@@ -46,13 +46,15 @@
 | 失败（已重试通过） | T002 沙箱内 `git fetch origin` | github.com:443 连接失败；沙箱外重试成功，无当前 fetch 阻塞 |
 | 失败（替代方式通过） | T001 原始环境下的 npm／Electron／默认打包 | 执行策略、AppContainer ACL 及工具下载／缓存权限问题；改用 `npm.cmd`、沙箱外测试与本地工具后完成；复现方式见 T001 |
 | 通过 | T002 管理文档与范围验证 | 6 个文档的链接／锚点、六组约定、需求与任务关联、命令及必需字段通过；21 个既有文件 SHA-256 一致；`git diff --check` 通过，暂存区为空 |
+| 通过 | T002 提交与 PR 独立性检查 | 暂存内容恰为 6 个管理文件；链接按暂存树及基准 HEAD 解析，不依赖 T001 未提交发行说明；主提交已推送并核实 PR 为 open、目标 main、6 个文件 |
+| 失败（替代方式通过） | GitHub 连接器创建 PR | 返回 403，集成缺少 PR 写权限；使用本机 Git 已配置的认证通过 GitHub API 创建 PR #1，未输出或保存凭据 |
 | 失败（已修正并通过） | T002 初次内联文档校验 | PowerShell 管道编码导致脚本中的中文被替换；设置 UTF-8 后重跑通过，细节见 T002 |
 | 未运行 | T002 类型检查、单测、构建与 smoke | 仅修改 Markdown，不重跑业务验证 |
 | 未运行 | 本次真实账户、真实安装覆盖升级／完整卸载及 helper fixtures | 不能由单测或加载构建产物的 Electron 测试推定已通过；历史限制见 [v0.5.0](releases/v0.5.0.md) |
 
 ## 下一步与待确认
 
-1. 审查 T002 的管理文档与任务约定，按明确授权仅提交本任务文件；提交后记录真实提交编号与审查结果。
+1. 审查 T002 的 [PR #1](https://github.com/Forest-Wood/DesktopPlay/pull/1) 并检查 CI；后续修订继续使用原分支。尚无审查或合并结论，不自动合并。
 2. 安全整理 T001 的独立实现分支与提交范围，保留当前所有修改；后续同步或解决冲突后重跑受影响的验证。
-3. 若需要远端交付，再核实发布授权、远程状态、CI、标签版本和下载附件；当前仅有本地产物。[发布流程](release.md)与 [Release 工作流](../.github/workflows/release.yml)分别描述操作与实际自动化行为。
-4. 真实账户协议兼容、安装／卸载完整验收、两项任务的审查人及最终提交编号均待后续确认。本轮没有以文档初始化扩大这些验证或发布范围。
+3. 若需要发布 v0.5.1，再核实业务提交、发布授权、远程状态、CI、标签版本和下载附件；当前仅有本地安装包。[发布流程](release.md)与 [Release 工作流](../.github/workflows/release.yml)分别描述操作与实际自动化行为。
+4. 真实账户协议兼容、安装／卸载完整验收、两项任务的审查人及 T001 实现提交均待后续确认。本轮授权为 T002 提交、推送和 PR，没有执行合并或发布。
