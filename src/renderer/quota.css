@@ -11,8 +11,8 @@
 .quota-stale .quota-percentage { opacity: .75; }
 .quota-compact .quota-bucket { padding: 1px 0; border: 0; background: transparent; margin-bottom: 0; color: var(--bubble-ink, inherit); }
 .quota-compact .quota-bucket-name { font-size: 9px; line-height: 12px; margin-bottom: 1px; color: inherit; }
-.quota-compact .quota-windows { gap: 10px; }
+.quota-compact .quota-windows { gap: 6px; }
 .quota-compact .quota-window-title { font-size: 9px; line-height: 12px; gap: 4px; color: inherit; }
 .quota-compact .quota-percentage { font-size: 34px; line-height: 1.15; color: inherit; }
-.quota-compact .quota-countdown { font-size: 9px; line-height: 1.35; margin: 1px 0 0; color: inherit; }
+.quota-compact .quota-countdown { font-size: 8.5px; line-height: 1.35; margin: 1px 0 0; color: inherit; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .quota-compact .quota-plan-badge { font-size: 9px; line-height: 12px; padding: 1px 6px; margin-bottom: 1px; color: var(--bubble-ink, inherit); background: color-mix(in srgb, var(--bubble-ink, #378a76) 10%, transparent); }

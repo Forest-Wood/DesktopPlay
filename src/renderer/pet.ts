@@ -22,8 +22,8 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const sounds = new PersonaSoundPlayer(api, (_slot, text) => { soundWarning = text; status.textContent = text; status.title = text; });
   const play = (name: 'press' | 'release') => { if (state.settings.soundEnabled && state.settings.volume > 0) void sounds.play(name, state.settings.volume); };
   const setInteractive = (value: boolean) => { if (interactive !== value) { interactive = value; api.setInteractive(value); } };
-  const close = () => { clearTimeout(timer); visible = false; retention = false; notice = ''; bubble.hidden = true; api.setBubbleVisible(false); };
-  const schedule = (duration = 12000) => { clearTimeout(timer); if (visible && !retention && !hovered) timer = setTimeout(close, duration); };
+  const close = () => { clearTimeout(timer); visible = false; retention = false; hovered = false; notice = ''; bubble.hidden = true; api.setBubbleVisible(false); };
+  const schedule = (duration = state.settings.bubbleDurationSeconds * 1000) => { clearTimeout(timer); if (visible && !retention && !(hovered && state.settings.bubbleHoverDelaySeconds > 0)) timer = setTimeout(close, duration); };
   const render = () => {
     const isGpt = state.activePet === 'gpt', total = pageCount(phrases());
     if (page >= total) page = 0;
@@ -50,6 +50,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const update = (next: AppState) => {
     if (disposed) return;
     revision++; const changedPet = persona(state) !== persona(next);
+    const timingChanged = state.settings.bubbleDurationSeconds !== next.settings.bubbleDurationSeconds || state.settings.bubbleHoverDelaySeconds !== next.settings.bubbleHoverDelaySeconds;
     if (changedPet || state.sounds[persona(state)].press.revision !== next.sounds[persona(next)].press.revision || state.sounds[persona(state)].release.revision !== next.sounds[persona(next)].release.revision) soundWarning = '';
     state = next; sounds.sync(persona(state), state.sounds);
     if (!state.settings.soundEnabled || state.settings.volume <= 0) sounds.stop();
@@ -63,7 +64,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     character.setAttribute('aria-label', `${state.pet.name}，点击切换用量、小报告和陪伴短句，拖动调整位置，右键打开菜单`);
     render();
     if (state.activePet !== 'gpt' && state.alert && state.alert.id !== lastAlertId && !retention) { lastAlertId = state.alert.id; notice = state.alert.message; show(); }
-    if (changedPet) schedule();
+    if (changedPet || timingChanged) schedule();
   };
   // Broadcasts may precede IPC resolution; an older response must not overwrite them.
   const run = async (action: () => Promise<AppState>, kind: 'refresh' | 'switch' | 'appearance') => {
@@ -88,7 +89,8 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   query('.bubble-cancel').addEventListener('click', () => { retention = false; render(); schedule(); });
   query('.bubble-appearance').addEventListener('click', () => { void run(() => api.selectGptAppearance(state.gptAppearance === 'dragon' ? 'classic' : 'dragon'), 'appearance'); });
   query('.bubble-settings').addEventListener('click', () => { void api.openSettings().catch(() => { status.textContent = '无法打开设置，请重试。'; }); });
-  bubble.addEventListener('pointerenter', () => { hovered = true; clearTimeout(timer); }); bubble.addEventListener('pointerleave', () => { hovered = false; schedule(8000); });
+  bubble.addEventListener('pointerenter', () => { hovered = true; if (state.settings.bubbleHoverDelaySeconds > 0) clearTimeout(timer); });
+  bubble.addEventListener('pointerleave', () => { hovered = false; if (state.settings.bubbleHoverDelaySeconds > 0) schedule(state.settings.bubbleHoverDelaySeconds * 1000); });
   const pointerMove = (event: PointerEvent) => { if (!drag) setInteractive(Boolean(event.target instanceof Element && event.target.closest('.pet-character, .pet-bubble'))); };
   const pointerLeave = () => { if (!drag) setInteractive(false); };
   const focusChange = () => setInteractive(Boolean(root.contains(document.activeElement) && document.activeElement !== document.body));

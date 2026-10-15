@@ -33,6 +33,8 @@ function settings(patch: unknown, base = DEFAULT_SETTINGS): AppSettings {
       if (typeof value !== 'boolean') throw new Error('开关设置无效');
     } else if (key === 'scale' || key === 'volume') {
       if (typeof value !== 'number' || !Number.isFinite(value) || value < (key === 'scale' ? 0.5 : 0) || value > (key === 'scale' ? 2 : 1)) throw new Error('数值设置无效');
+    } else if (key === 'bubbleDurationSeconds' || key === 'bubbleHoverDelaySeconds') {
+      if (typeof value !== 'number' || !Number.isInteger(value) || value < (key === 'bubbleDurationSeconds' ? 1 : 0) || value > 60) throw new Error('气泡时间设置无效');
     } else if (key === 'phrases') {
       if (!validPhrases(value)) throw new Error('短句设置无效');
     } else if (key === 'phrasesByPersona') {

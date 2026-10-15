@@ -5,12 +5,12 @@
 | 日期 | 2026-10-15（Asia/Shanghai） |
 | 负责人 | Codex（本会话）；审查人待指定 |
 | 关联需求 | [R005](../REQUIREMENTS.md#r005项目管理与交接规范) |
-| 状态 | 待审查；文档与范围检查通过，已提交推送并创建 PR，未合并 |
+| 状态 | 已合并；2026-10-15 从 GitHub PR 状态和 origin/main 核实；独立审查结论未另行核实 |
 | 分支／目标 | `docs/T002-project-guidance` → `main` |
 | 工作目录 | `D:\desktop1\DesktopPlay` |
 | 基准提交 | `b7ed57f9b8558a8569fade14b3feb27a40039825` |
-| 结果提交 | 主提交 `66eef1ac69e5c323cb777d797f5f27512deb8f9b`；后续交接同步提交见本文件 Git 历史 |
-| PR | [#1：建立项目协作规范与交接记录](https://github.com/Forest-Wood/DesktopPlay/pull/1)，open，目标 `main`；尚无审查或合并结论 |
+| 结果提交 | 主提交 `66eef1ac69e5c323cb777d797f5f27512deb8f9b`，交接同步 `c00a87ff35d058f2e6d7d55c606c60830155c0c0`；合并提交 `7ac1192094636ac09334d79c40412bc64598b2bb` |
+| PR | [#1：建立项目协作规范与交接记录](https://github.com/Forest-Wood/DesktopPlay/pull/1)，closed／merged，已进入 `main` |
 | 依赖 | 已有交接文档与 T001 实际实施记录；无需修改业务或安装依赖 |
 
 ## 目标、范围和验收
@@ -52,4 +52,4 @@
 
 ## 下一步
 
-等待 PR #1 的审查与 CI，后续修订继续使用本分支。整理 T001 的独立分支与提交时，不混入本任务文件或丢弃现有工作。本次未合并、未创建标签或发布 Release，不标记为已审查或已合并。
+本任务已合并；新的实质修改另建任务与分支。T001 继续在独立功能分支整理与提交。本条状态更新仅同步已核实的远程事实，不代表创建发行标签或发布 Release。

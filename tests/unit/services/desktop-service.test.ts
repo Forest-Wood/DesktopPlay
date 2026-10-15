@@ -45,6 +45,32 @@ describe('persona phrase storage', () => {
   });
 });
 
+describe('bubble timing settings', () => {
+  it('restores legacy profiles with three-second defaults and persists custom times', async () => {
+    const { service, dataDir } = await fixture();
+    await service.updateSettings({ volume: 0.2 }); service.dispose();
+    const file = path.join(dataDir, 'desktopplay.json');
+    const legacy = JSON.parse(await fs.readFile(file, 'utf8'));
+    delete legacy.settings.bubbleDurationSeconds; delete legacy.settings.bubbleHoverDelaySeconds;
+    await fs.writeFile(file, JSON.stringify(legacy));
+    const restored = (await fixture([], { dataDir })).service;
+    expect(restored.getState().settings).toMatchObject({ volume: 0.2, bubbleDurationSeconds: 3, bubbleHoverDelaySeconds: 0 });
+    await restored.updateSettings({ bubbleDurationSeconds: 7, bubbleHoverDelaySeconds: 4 }); restored.dispose();
+    const restarted = (await fixture([], { dataDir })).service;
+    expect(restarted.getState().settings).toMatchObject({ volume: 0.2, bubbleDurationSeconds: 7, bubbleHoverDelaySeconds: 4 });
+  });
+  it('accepts whole-second bounds and rejects invalid times without changing saved settings', async () => {
+    const { service } = await fixture();
+    for (const bubbleDurationSeconds of [1, 60]) for (const bubbleHoverDelaySeconds of [0, 60]) await service.updateSettings({ bubbleDurationSeconds, bubbleHoverDelaySeconds });
+    const before = service.getState().settings;
+    for (const key of ['bubbleDurationSeconds', 'bubbleHoverDelaySeconds'] as const) {
+      for (const value of [-1, 61, 1.5, NaN, Infinity, '3', null]) await expect(service.updateSettings({ [key]: value })).rejects.toThrow('气泡时间');
+    }
+    await expect(service.updateSettings({ bubbleDurationSeconds: 0 })).rejects.toThrow('气泡时间');
+    expect(service.getState().settings).toEqual(before);
+  });
+});
+
 describe('DesktopService ledger', () => {
   it('counts decreases and increases independently with eight decimal places', async () => {
     const { service } = await configured(['100', '99', '101', '100', '100']);

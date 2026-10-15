@@ -6,19 +6,19 @@
 | 负责人 | Codex（本会话实现）；审查人待指定 |
 | 关联需求 | [R001–R004](../REQUIREMENTS.md) |
 | 状态 | 待审查；实现及本地验证通过，未提交、未合并、未远程发布 |
-| 基准提交 | `b7ed57f9b8558a8569fade14b3feb27a40039825`（本地标签 `v0.5.0`） |
+| 基准提交 | 原业务基准 `b7ed57f9b8558a8569fade14b3feb27a40039825`（v0.5.0）；功能分支基准 `7ac1192094636ac09334d79c40412bc64598b2bb`（已合并 T002） |
 | 实现提交 | 未提交；不能以基准提交代表 v0.5.1 实现 |
-| 分支 | 原实现发生于 `main`，早于本轮任务分支规范；T002 建分支时保留的修改目前同处 `docs/T002-project-guidance` 工作区，尚无独立 T001 实现分支 |
+| 分支 | `feat/T001-bubble-settings`，从最新 `origin/main` 创建；原实现曾在 main／T002 工作区保留，本轮已独立整理 |
 | 目标合并分支／目录 | `main`／`D:\desktop1\DesktopPlay` |
-| 依赖 | 现有 v0.5.0 应用、已安装依赖与本地打包工具缓存；后续提交前需整理独立分支与变更归属 |
+| 依赖 | 现有 v0.5.0 应用、已安装依赖与本地打包工具缓存；T002 的管理规范已通过 PR #1 合并到主线 |
 
 ## 目标、范围和验收
 
 实现气泡默认 3 秒收起、可保存的显示／悬浮延长时间、GPT 每周倒计时单行，以及白色设置页；验收条件见 R001–R004。
 
-本记录由 T002 补建，仅保存原工作区中仍有效的实施事实；T002 的文档提交不包含或证明 T001 业务实现已经提交。下述 v0.5.1 文件与产物仍仅存在于原工作区。
+本记录由 T002 补建，本轮随 T001 功能实现同步。T002 的文档 PR 不包含本任务的业务实现；本任务单独提交、推送和创建功能 PR。安装包保持为被忽略的本地产物。
 
-已有未提交工作包括：`src/main/main.ts`、`src/main/services/desktop-service.ts`、`src/renderer/pet.ts`、`quota.css`、`settings.css`、`settings.ts`、`src/shared/defaults.ts`、`types.ts`，版本文件 `package.json`／`package-lock.json`，相关单元和 smoke 测试，`README.md`、`DESIGN.md`、`docs/release.md`、`docs/releases/v0.5.1.md` 及 `docs/previews/v0.5.1/`。`docs/PROJECT_STATE.md` 的当前状态整理与本任务记录由 T002 负责，不重复计入 T001 提交。
+本次范围包括：`src/main/main.ts`、`src/main/services/desktop-service.ts`、`src/renderer/pet.ts`、`quota.css`、`settings.css`、`settings.ts`、`src/shared/defaults.ts`、`types.ts`，版本文件 `package.json`／`package-lock.json`，相关单元和 smoke 测试，`README.md`、`DESIGN.md`、`docs/release.md`、[v0.5.1 发行说明](../releases/v0.5.1.md)及 `docs/previews/v0.5.1/`。同步更新需求、当前交接和任务记录，其中 T002 记录仅修正为已核实的合并状态，不修改已合并的指南或模板。
 
 ## 结果与重要决定
 
@@ -30,18 +30,26 @@
 
 ## 验证记录
 
-对应对象：2026-10-15 本会话的 v0.5.1 未提交工作区，不是当前 HEAD 的已提交代码。以下为上一任务实际运行结果，T002 仅整理记录，没有重新运行或重新归因。
+对应对象：2026-10-15 本任务的 v0.5.1 功能实现。同步最新主线后，本轮重新运行类型／生产构建、119 项单元测试及 7 项 Electron 测试通过。安装包验证沿用前次同一业务实现的实际结果，本轮不重复打包。
 
 | 结果 | 检查 | 证据与限制 |
 | --- | --- | --- |
 | 通过 | `npm.cmd test` | 119 项单元测试；含旧配置迁移、时间边界、保存和重启恢复 |
 | 通过 | `npm.cmd run build` | TypeScript、Vite、Electron main/preload 构建 |
-| 通过 | `npm.cmd run test:smoke` | 7 项 Electron 测试；含三个人设计时、悬浮、草稿与持久化、完整倒计时及白色页面；在沙箱外启动测试 |
+| 通过 | 设置 `DESKTOPPLAY_TEST_SOFTWARE_RENDERING=1` 后运行 `npm.cmd run test:smoke` | 本轮 7 项 Electron 测试通过；含三个人设计时、悬浮、草稿与持久化、完整倒计时及白色页面；沙箱外、独立配置、禁用真实 Codex |
 | 通过 | 截图与包内容核对 | 已查看新截图；`app.asar` 包版本为 0.5.1，含界面和 main/preload，没有用户配置 |
 | 通过 | 使用下方本地缓存命令打包及 SHA-256 | 生成 Setup、Portable 及 `release/SHA256SUMS-0.5.1.txt`，同步 `SHA256SUMS.txt` |
 | 失败 | 直接运行 `npm`；沙箱内 smoke | 分别受 `npm.ps1` 执行策略、Electron AppContainer ACL 限制；改用 `npm.cmd`、沙箱外隔离数据测试后通过，未关闭应用沙箱 |
 | 失败 | 默认 `npm.cmd run dist` 下载／缓存路径 | 当前网络／缓存写权限限制；复用既有本地工具后打包通过，未更改生产打包配置 |
+| 失败（替代方式通过） | 本轮默认 GPU 下完整 smoke | 多个原有用例等待点击稳定或截图时超时，初次运行中止；隔离诊断观察到帧停止，仅增加测试用 `--disable-gpu` 后点击诊断与 7 项完整回归通过 |
 | 未运行 | 真实账户、真实安装覆盖升级／卸载、卸载 helper fixtures | 不属于本轮复验范围；单元或 Electron 交互测试不能替代真实安装卸载验收 |
+
+本机 GPU 渲染异常时可使用测试专用选项；`tests/smoke/electron-args.ts` 仅在该变量为 1 时增加 `--disable-gpu`，正常应用与默认 CI 参数不变：
+
+```powershell
+$env:DESKTOPPLAY_TEST_SOFTWARE_RENDERING = '1'
+npm.cmd run test:smoke
+```
 
 本地缓存打包命令（先核实这些路径仍存在）：
 
@@ -58,6 +66,6 @@ npm.cmd run build
 
 ## 下一步
 
-1. 安全整理 T001 的独立实现分支和 T002 的文档变更，保留全部未提交文件；分别审查与提交，避免混合提交。
-2. 提交／同步后重新运行受影响的验证，再依据明确授权决定是否推送、创建 PR 或发布标签。
+1. 完成分支复验与提交范围检查，按用户授权提交、推送并创建面向 main 的功能 PR；后续同步对应提交与 PR 链接。
+2. 功能 PR 待审查、CI 与合并；本次不自动合并、不创建发行标签或发布 Release。
 3. 若后续涉及安装、卸载或额度协议，再安排对应的隔离环境与真实场景验证；现有历史卸载缺口见 [v0.5.0 说明](../releases/v0.5.0.md)。
