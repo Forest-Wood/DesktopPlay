@@ -17,6 +17,8 @@ export interface AppSettings {
   scale: number;
   soundEnabled: boolean;
   volume: number;
+  bubbleDurationSeconds: number;
+  bubbleHoverDelaySeconds: number;
   phrases: string[];
   phrasesByPersona: Record<PetPersona, string[]>;
   lowBalanceThreshold: string | null;

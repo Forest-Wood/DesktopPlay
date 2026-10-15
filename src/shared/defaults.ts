@@ -1,5 +1,5 @@
 import type { AppSettings, BuiltinPetId, PetAsset, PetPersona, SoundMetadataMap } from './types';
-export const APP_VERSION = '0.5.0';
+export const APP_VERSION = '0.5.1';
 export const DEFAULT_SOUNDS: SoundMetadataMap = Object.fromEntries(['whale', 'gpt', 'dragon'].map(persona => [persona, {
   press: { name: '内置按下音效', isCustom: false, revision: 'default', warning: null },
   release: { name: '内置松开音效', isCustom: false, revision: 'default', warning: null },
@@ -16,6 +16,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   scale: 1,
   soundEnabled: true,
   volume: 0.35,
+  bubbleDurationSeconds: 3,
+  bubbleHoverDelaySeconds: 0,
   phrases: ['今天也要照顾好自己呀。', '小鲸鱼正在替你看着余额～', '工作一会儿，记得眺望远方。'],
   phrasesByPersona: structuredClone(DEFAULT_PHRASES_BY_PERSONA),
   lowBalanceThreshold: null,

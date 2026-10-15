@@ -155,7 +155,7 @@ async function openSettings(): Promise<void> {
   if (shuttingDown) return;
   if (settingsWindow && !settingsWindow.isDestroyed()) { settingsWindow.show(); settingsWindow.focus(); return; }
   const area = screen.getPrimaryDisplay().workArea;
-  settingsWindow = securedWindow({ width: Math.min(1060, area.width), height: Math.min(800, area.height), minWidth: Math.min(760, area.width), minHeight: Math.min(560, area.height), show: false, autoHideMenuBar: true, backgroundColor: '#f5f7f9', title: 'DesktopPet · 设置', icon: path.join(__dirname, '../dist/assets/whale.png') });
+  settingsWindow = securedWindow({ width: Math.min(1060, area.width), height: Math.min(800, area.height), minWidth: Math.min(760, area.width), minHeight: Math.min(560, area.height), show: false, autoHideMenuBar: true, backgroundColor: '#ffffff', title: 'DesktopPet · 设置', icon: path.join(__dirname, '../dist/assets/whale.png') });
   settingsWindow.on('closed', () => { settingsWindow = null; });
   await loadWindow(settingsWindow, 'settings');
   settingsWindow.show();

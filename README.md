@@ -5,7 +5,7 @@ DesktopPet 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek �
 ## 桌宠与功能
 
 - 紧凑的漫画气泡、清晰的大字额度、按压弹性动画和音效；DeepSeek 使用蓝紫配色，GPT 原版使用薄荷绿，白龙使用淡紫配色。
-- 点击桌宠依次查看用量、用量总结和设置中的陪伴短句；翻页不触发网络请求。气泡带漫画尾巴，自动放在朝向一侧并避开屏幕顶部。
+- 点击桌宠依次查看用量、用量总结和设置中的陪伴短句，默认 3 秒后收起；显示时间与悬浮延长时间可在“应用偏好 → 桌面行为”调整。翻页不触发网络请求。气泡带漫画尾巴，自动放在朝向一侧并避开屏幕顶部。
 - 桌宠左右自动朝屏幕中央；靠近屏幕工作区顶部时人物上下倒挂，文字和控件保持正向。支持拖动、四边吸附、透明区域穿透、置顶与托盘管理。
 - 导入 PNG、WebP、GIF，调整大小、短句和音量；小屏幕自动限制实际尺寸。
 - DeepSeek 余额自动刷新、今日已观测消费、余额增加记录、低余额和每日预算提醒。
@@ -17,11 +17,9 @@ DesktopPet 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek �
 
 ![漫画对白气泡](docs/screenshots/v030-deepseek-usage.png)
 
-![浅色设置界面](docs/screenshots/v040-settings-light.png)
+![白色设置界面](docs/previews/v0.5.1/settings-white.png)
 
-![深色设置界面](docs/screenshots/v040-settings-dark.png)
-
-![GPT Plus 额度气泡（演示数据）](docs/screenshots/v040-gpt-quota.png)
+![GPT Plus 额度气泡，完整倒计时保持单行（演示数据）](docs/previews/v0.5.1/gpt-classic-countdown.png)
 
 ![GPT 白龙用量页（演示数据）](docs/screenshots/v040-dragon-bottom.png)
 
@@ -30,6 +28,15 @@ DesktopPet 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek �
 
 
 ![GPT 白龙造型预览](docs/screenshots/gpt-dragon-v2-preview.png)
+
+## v0.5.1 升级说明
+
+- 点击桌宠或翻页后，气泡默认显示 3 秒。设置中的“应用偏好 → 桌面行为”可将显示时间调整为 1–60 秒，将悬浮延长时间调整为 0–60 秒；0 秒表示关闭延长。开启延长时，鼠标悬停气泡会保持显示，移开后按所选秒数收起。两项随“保存设置”提交并在重启后保留。
+- GPT 原版与白龙的每周重置倒计时采用更紧凑的字号与列间距，包含天、小时、分钟的完整文字保持一行。
+- 应用设置页面统一使用白色背景；Windows 深色模式下也保持白色及配套的浅色控件。
+- 完整说明见 [v0.5.1](docs/releases/v0.5.1.md)。
+
+![气泡时间设置](docs/previews/v0.5.1/bubble-settings.png)
 
 ## v0.5.0 升级说明
 
@@ -50,7 +57,7 @@ DesktopPet 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek �
 
 - 应用由 DesktopPlay 改名为 **DesktopPet**，仓库仍为 `Forest-Wood/DesktopPlay`，数据继续保存在 `%APPDATA%\DesktopPlay`。安装版可覆盖升级，原有密钥、账本、自定义图片与位置继续使用。
 - 设置使用左侧分类和页内标签：账户与用量、桌宠与陪伴、应用偏好、提醒与记录、关于。切页保留草稿，点击底部“保存设置”才会提交；角色造型、导入图片和账户连接按钮即时生效。
-- 浅色／深色跟随 Windows 即时切换，内容区独立滚动。设计规范见 [DESIGN.md](DESIGN.md)。
+- 当时新增浅色／深色跟随 Windows 即时切换，v0.5.1 起统一为白色页面；内容区独立滚动。设计规范见 [DESIGN.md](DESIGN.md)。
 - 小鲸鱼、原版 GPT、白龙分别保存陪伴短句。旧版本短句原样迁移到小鲸鱼；自定义 GPT 图片使用原版 GPT 的短句。
 - 点击按压与人物镜像分别处理，修复左下角点击时反向的问题；白龙依据原图可见边界贴边，不修改原始 PNG。
 - Codex 增加 Plus／Pro 或实际套餐名称识别，未知则明确提示；v0.5.0 的窗口排列和缺失窗口展示规则见上方升级说明。

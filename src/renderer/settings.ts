@@ -73,6 +73,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   element('appearance').querySelector('label[for="phrases"]')!.remove();
   const toggles = element('appearance').querySelector('.toggle-grid')!;
   for (const name of ['alwaysOnTop', 'snapToEdges', 'launchAtLogin']) behavior.querySelector('.panel')!.append(root.querySelector(`input[name="${name}"]`)!.closest('label')!);
+  behavior.querySelector('.panel')!.insertAdjacentHTML('beforeend', '<div class="setting-row"><label for="bubble-duration">气泡显示时间<small>点击或翻页后自动收起，1–60 秒</small></label><div class="range-control"><input id="bubble-duration" name="bubbleDurationSeconds" type="range" min="1" max="60" step="1"><output id="bubble-duration-output" for="bubble-duration"></output></div></div><div class="setting-row"><label for="bubble-hover-delay">悬浮延长时间<small>0 秒为关闭；开启后悬停保留，移开后延迟收起</small></label><div class="range-control"><input id="bubble-hover-delay" name="bubbleHoverDelaySeconds" type="range" min="0" max="60" step="1"><output id="bubble-hover-delay-output" for="bubble-hover-delay"></output></div></div>');
   sound.querySelector('.panel')!.append(root.querySelector('input[name="soundEnabled"]')!.closest('label')!);
   sound.querySelector('.panel')!.append(element('volume').closest('.setting-row')!); toggles.remove();
   const soundProfiles = document.createElement('div'); soundProfiles.className = 'sound-profiles';
@@ -178,10 +179,11 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const fill = (settings: AppSettings) => {
     for (const name of ['soundEnabled', 'alwaysOnTop', 'snapToEdges', 'launchAtLogin'] as const) input(name).checked = settings[name];
     input('scale').value = String(settings.scale); input('volume').value = String(settings.volume);
+    input('bubbleDurationSeconds').value = String(settings.bubbleDurationSeconds); input('bubbleHoverDelaySeconds').value = String(settings.bubbleHoverDelaySeconds);
     input('lowBalanceThreshold').value = settings.lowBalanceThreshold ?? ''; input('dailyBudget').value = settings.dailyBudget ?? '';
     phraseDraft = structuredClone(settings.phrasesByPersona); phraseInput.value = phraseDraft[persona].join('\n'); previewPhrases(); ranges();
   };
-  const ranges = () => { element('scale-output').textContent = `${Number(input('scale').value).toFixed(2)}×`; element('volume-output').textContent = `${Math.round(Number(input('volume').value) * 100)}%`; };
+  const ranges = () => { element('scale-output').textContent = `${Number(input('scale').value).toFixed(2)}×`; element('volume-output').textContent = `${Math.round(Number(input('volume').value) * 100)}%`; element('bubble-duration-output').textContent = `${input('bubbleDurationSeconds').value} 秒`; element('bubble-hover-delay-output').textContent = Number(input('bubbleHoverDelaySeconds').value) === 0 ? '关闭' : `${input('bubbleHoverDelaySeconds').value} 秒`; };
   content.addEventListener('input', event => { if ((event.target as HTMLInputElement).form !== form) return; dirty = true; draftRevision++; ranges(); element('save-hint').textContent = '有尚未保存的调整'; });
   const update = (next: AppState) => {
     if (disposed) return;
@@ -243,7 +245,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   form.addEventListener('submit', event => {
     event.preventDefault();
     try {
-      const patch: AppSettings = { ...state.settings, scale: Math.max(0.5, Math.min(2, Number(input('scale').value))), volume: Math.max(0, Math.min(1, Number(input('volume').value))), lowBalanceThreshold: decimalSetting(input('lowBalanceThreshold').value), dailyBudget: decimalSetting(input('dailyBudget').value), phrasesByPersona: Object.fromEntries(Object.entries(phraseDraft).map(([key, lines]) => [key, lines.map(line => line.trim()).filter(Boolean)])) as Record<PetPersona, string[]>, soundEnabled: input('soundEnabled').checked, alwaysOnTop: input('alwaysOnTop').checked, snapToEdges: input('snapToEdges').checked, launchAtLogin: input('launchAtLogin').checked };
+      const patch: AppSettings = { ...state.settings, scale: Math.max(0.5, Math.min(2, Number(input('scale').value))), volume: Math.max(0, Math.min(1, Number(input('volume').value))), bubbleDurationSeconds: Number(input('bubbleDurationSeconds').value), bubbleHoverDelaySeconds: Number(input('bubbleHoverDelaySeconds').value), lowBalanceThreshold: decimalSetting(input('lowBalanceThreshold').value), dailyBudget: decimalSetting(input('dailyBudget').value), phrasesByPersona: Object.fromEntries(Object.entries(phraseDraft).map(([key, lines]) => [key, lines.map(line => line.trim()).filter(Boolean)])) as Record<PetPersona, string[]>, soundEnabled: input('soundEnabled').checked, alwaysOnTop: input('alwaysOnTop').checked, snapToEdges: input('snapToEdges').checked, launchAtLogin: input('launchAtLogin').checked };
       const savingRevision = draftRevision;
       void run(element('save-settings'), async () => { const next = await api.updateSettings(patch); if (savingRevision === draftRevision) { dirty = false; fill(next.settings); element('save-hint').textContent = '设置已保存'; } else { element('save-hint').textContent = '已保存先前调整；新草稿尚未保存'; } return next; }, '设置已保存，桌宠已经收到啦。');
     } catch (error) { notify(error instanceof Error ? error.message : '请检查输入。', true); }

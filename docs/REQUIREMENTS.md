@@ -10,7 +10,7 @@
 | R002 | 气泡显示时间和悬浮延长时间加入设置 | 待审查 | [T001](tasks/T001-v051-bubble-settings.md) |
 | R003 | GPT 每周剩余用量的重置倒计时保持单行 | 待审查 | [T001](tasks/T001-v051-bubble-settings.md) |
 | R004 | 应用设置页面背景改为白色 | 待审查 | [T001](tasks/T001-v051-bubble-settings.md) |
-| R005 | 建立项目协作、需求、任务、PR 和交接约定 | 待审查 | [T002](tasks/T002-project-guidance.md) |
+| R005 | 建立项目协作、需求、任务、PR 和交接约定 | 已合并 | [T002](tasks/T002-project-guidance.md) |
 
 ## R001：默认气泡显示时间
 

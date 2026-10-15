@@ -4,6 +4,7 @@ import electronPath from 'electron';
 import path from 'node:path';
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { fitScale } from '../../src/main/geometry';
+import { electronArgs } from './electron-args';
 
 async function settingsPage(page: Page, category: string, tab: string) {
   await page.locator(`[data-category="${category}"]`).click();
@@ -24,10 +25,10 @@ test('v0.5.0 independent audio slots, stopped previews, uninstall safeguards and
   test.setTimeout(120000);
   await mkdir('.tmp', { recursive: true });
   const profile = await mkdtemp(path.resolve('.tmp/smoke-v050-'));
-  const screenshots = path.resolve('docs/previews/v0.5.0'); await mkdir(screenshots, { recursive: true });
+  const screenshots = path.resolve('test-results/v050-regression'); await mkdir(screenshots, { recursive: true });
   const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1' };
   delete env.ELECTRON_RUN_AS_NODE;
-  const application = await electron.launch({ executablePath: electronPath as unknown as string, args: ['.'], cwd: process.cwd(), env });
+  const application = await electron.launch({ executablePath: electronPath as unknown as string, args: electronArgs, cwd: process.cwd(), env });
   try {
     await expect.poll(() => application.windows().some(page => page.url().includes('view=settings'))).toBe(true);
     const settings = application.windows().find(page => page.url().includes('view=settings'))!;
@@ -148,7 +149,7 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
   delete env.ELECTRON_RUN_AS_NODE;
   let application: ElectronApplication | undefined;
   try {
-    application = await electron.launch({ executablePath: electronPath as unknown as string, args: ['.'], cwd: process.cwd(), env });
+    application = await electron.launch({ executablePath: electronPath as unknown as string, args: electronArgs, cwd: process.cwd(), env });
     await expect.poll(() => application!.windows().length).toBe(2);
     await expect.poll(() => application!.windows().some(page => page.url().includes('view=settings'))).toBe(true);
     const settings = application.windows().find(page => page.url().includes('view=settings'))!;
@@ -164,10 +165,18 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
     await settings.locator('#scale').fill('1.25');
     await settingsPage(settings, 'preferences', 'sound');
     await settings.locator('input[name="soundEnabled"]').uncheck();
+    await settingsPage(settings, 'preferences', 'behavior');
+    await settings.locator('#bubble-duration').fill('7');
+    await settings.locator('#bubble-hover-delay').fill('4');
     await settingsPage(settings, 'reminders', 'reminders');
     await settings.locator('#low-balance').fill('10.12345678');
     await settingsPage(settings, 'pet', 'appearance');
     await expect(settings.locator('#scale')).toHaveValue('1.25');
+    await settingsPage(settings, 'preferences', 'behavior');
+    await expect(settings.locator('#bubble-duration')).toHaveValue('7');
+    await expect(settings.locator('#bubble-hover-delay')).toHaveValue('4');
+    expect((await settings.evaluate(() => window.desktopPlay.getState())).settings).toMatchObject({ bubbleDurationSeconds: 3, bubbleHoverDelaySeconds: 0 });
+    await settingsPage(settings, 'pet', 'appearance');
     expect((await settings.evaluate(() => window.desktopPlay.getState())).settings.scale).toBe(1);
     await settings.getByRole('button', { name: '保存设置', exact: true }).click();
     await expect(settings.locator('#operation-status')).toContainText('设置已保存');
@@ -261,22 +270,23 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
     }
     await settingsPage(settings, 'account', 'codex');
     await settings.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
-    const lightColor = await settings.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    const pageBackground = () => settings.evaluate(() => ({ color: getComputedStyle(document.body).backgroundColor, image: getComputedStyle(document.body).backgroundImage, scheme: getComputedStyle(document.body).colorScheme }));
+    await expect.poll(pageBackground).toEqual({ color: 'rgb(255, 255, 255)', image: 'none', scheme: 'light' });
     await settings.screenshot({ path: 'test-results/settings-light.png' });
     await settings.emulateMedia({ colorScheme: 'dark' });
-    await expect.poll(() => settings.evaluate(() => getComputedStyle(document.body).backgroundColor)).not.toBe(lightColor);
+    await expect.poll(pageBackground).toEqual({ color: 'rgb(255, 255, 255)', image: 'none', scheme: 'light' });
     await settings.screenshot({ path: 'test-results/settings-dark.png' });
     await settings.locator('#tab-codex').focus();
     await expect(settings.locator('#tab-codex')).toBeFocused();
 
     await application.close(); application = undefined;
 
-    application = await electron.launch({ executablePath: electronPath as unknown as string, args: ['.'], cwd: process.cwd(), env });
+    application = await electron.launch({ executablePath: electronPath as unknown as string, args: electronArgs, cwd: process.cwd(), env });
     await expect.poll(() => application!.windows().length).toBe(2);
     await expect.poll(() => application!.windows().some(page => page.url().includes('view=settings'))).toBe(true);
     const restarted = application.windows().find(page => page.url().includes('view=settings'))!;
     await expect(restarted.locator('#codex-status')).toBeVisible();
-    expect((await restarted.evaluate(() => window.desktopPlay.getState())).settings).toMatchObject({ scale: 1.25, soundEnabled: false, lowBalanceThreshold: '10.12345678' });
+    expect((await restarted.evaluate(() => window.desktopPlay.getState())).settings).toMatchObject({ scale: 1.25, soundEnabled: false, lowBalanceThreshold: '10.12345678', bubbleDurationSeconds: 7, bubbleHoverDelaySeconds: 4 });
     expect((await restarted.evaluate(() => window.desktopPlay.getState())).activePet).toBe('gpt');
     expect((await restarted.evaluate(() => window.desktopPlay.getState())).gptAppearance).toBe('dragon');
     await restarted.evaluate(() => window.desktopPlay.selectPet('deepseek'));
@@ -289,7 +299,7 @@ test('comic bubble pages, retention and appearances work without opening setting
   const profile = await mkdtemp(path.resolve('.tmp/smoke-switch-'));
   const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1', DESKTOPPLAY_TEST_NO_ONBOARDING: '1' };
   delete env.ELECTRON_RUN_AS_NODE;
-  const application = await electron.launch({ executablePath: electronPath as unknown as string, args: ['.'], cwd: process.cwd(), env });
+  const application = await electron.launch({ executablePath: electronPath as unknown as string, args: electronArgs, cwd: process.cwd(), env });
   try {
     const pet = await application.firstWindow();
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
@@ -334,7 +344,7 @@ test('native layout follows the character anchor and keeps upside-down text upri
   const profile = await mkdtemp(path.resolve('.tmp/smoke-orientation-'));
   const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1', DESKTOPPLAY_TEST_NO_ONBOARDING: '1' };
   delete env.ELECTRON_RUN_AS_NODE;
-  const application = await electron.launch({ executablePath: electronPath as unknown as string, args: ['.'], cwd: process.cwd(), env });
+  const application = await electron.launch({ executablePath: electronPath as unknown as string, args: electronArgs, cwd: process.cwd(), env });
   try {
     const pet = await application.firstWindow();
     await pet.locator('.pet-character').waitFor();
@@ -375,7 +385,7 @@ test('real held pointer presses preserve all mirror poses and cancel without pag
   const profile = await mkdtemp(path.resolve('.tmp/smoke-pointer-'));
   const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1', DESKTOPPLAY_TEST_NO_ONBOARDING: '1' };
   delete env.ELECTRON_RUN_AS_NODE;
-  const application = await electron.launch({ executablePath: electronPath as unknown as string, args: ['.'], cwd: process.cwd(), env });
+  const application = await electron.launch({ executablePath: electronPath as unknown as string, args: electronArgs, cwd: process.cwd(), env });
   try {
     const pet = await application.firstWindow();
     await pet.locator('.pet-character').waitFor();

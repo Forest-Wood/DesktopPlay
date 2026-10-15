@@ -1,60 +1,50 @@
 # DesktopPet 当前项目状态
 
-更新日期：2026-10-15（Asia/Shanghai）。本文件只保留当前有效概况；协作约定见 [AGENTS.md](../AGENTS.md)，验收条件见 [需求登记](REQUIREMENTS.md)，实现与验证细节见对应任务记录。
+更新日期：2026-10-15（Asia/Shanghai）。本文件仅保留当前有效状态；约定见 [AGENTS.md](../AGENTS.md)，验收见 [需求登记](REQUIREMENTS.md)，实施细节见任务记录。
 
-## 仓库与工作区
+## 仓库与任务
 
 | 项目 | 当前事实 |
 | --- | --- |
 | 工作目录 | `D:\desktop1\DesktopPlay` |
-| 当前分支／目标合并分支 | `docs/T002-project-guidance` → `main` |
-| T002 基准提交 | `b7ed57f9b8558a8569fade14b3feb27a40039825`，`test: resolve Windows runner short paths in uninstall fixtures`；当前 HEAD 以 `git rev-parse HEAD` 为准 |
-| 对应业务版本 | 目标 `main` 基准的本地标签为 `v0.5.0`；本次文档提交不包含 v0.5.1 业务实现 |
-| 远程核实 | 2026-10-15 提交前已重新 `git fetch origin`，目标 `origin/main` 为上述基准；提交前双方差 0／0，不代表以后仍相同 |
-| 原工作区源码版本 | package、锁文件根包及 `APP_VERSION` 均为 `0.5.1`，属于 T001 未提交修改；本次文档分支的已提交业务树仍为 `0.5.0` |
-| 提交与 PR | T002 主提交 `66eef1ac69e5c323cb777d797f5f27512deb8f9b` 已推送，[PR #1](https://github.com/Forest-Wood/DesktopPlay/pull/1) 已创建，待审查且未合并；交接同步提交以 Git 历史为准。T001 业务实现仍未提交，未创建发行标签 |
+| 当前分支／目标 | `feat/T001-bubble-settings` → `main` |
+| 本轮分支基准 | `7ac1192094636ac09334d79c40412bc64598b2bb`；已 fetch 并核实为 origin/main，包含 PR #1 合并；当前 HEAD 以 Git 为准 |
+| 源码版本 | package、锁文件根包与 APP_VERSION 均为 0.5.1 |
+| T001 提交／PR | 业务提交 `f5a78fac3d5d982afc4edb69721fe98af142d753` 已推送，[PR #2](https://github.com/Forest-Wood/DesktopPlay/pull/2) 已创建，待审查／CI，未合并；交接同步提交见 Git 历史 |
+| T002 提交／PR | [PR #1](https://github.com/Forest-Wood/DesktopPlay/pull/1) 已合并；主提交 66eef1a、交接 c00a87f，合并提交为上述基准 |
 
-T002 的 6 个管理文件已独立提交并推送；工作区继续保留 T001 的源码、版本、测试、文档及截图修改。T002 分支创建时保留了原来位于 `main` 的 T001 未提交修改，不能将整个工作区视作 T002 产出；后续整理 T001 时继续按任务划分。
-
-## 当前任务与未提交工作
-
-| 任务 | 状态 | 范围与定位 |
+| 任务 | 状态 | 范围 |
 | --- | --- | --- |
-| [T001：v0.5.1 气泡与页面调整](tasks/T001-v051-bubble-settings.md) | 待审查 | R001–R004；默认 3 秒气泡、可保存的显示／悬浮延长时间、完整 GPT 倒计时单行、白色设置页；已实现并本地验证，未提交 |
-| [T002：项目协作与交接规范](tasks/T002-project-guidance.md) | 待审查 | R005；6 个管理文件已提交推送，[PR #1](https://github.com/Forest-Wood/DesktopPlay/pull/1) 已开启；21 个既有文件保持原样，未合并 |
+| [T001：v0.5.1 气泡与页面调整](tasks/T001-v051-bubble-settings.md) | 待审查 | R001–R004；本轮复验通过，独立功能提交已推送，PR #2 已开启；尚未合并 |
+| [T002：项目协作与交接规范](tasks/T002-project-guidance.md) | 已合并 | R005；远程 PR 状态与 origin/main 已核实，未据此推定独立审查结论 |
 
-- **T001 未提交文件**：`src/main/` 的窗口／设置服务，`src/renderer/` 的气泡／额度样式／设置，`src/shared/` 类型及默认值，package 与锁文件，相关 unit／smoke 测试；`README.md`、`DESIGN.md`、`docs/release.md`、`docs/releases/v0.5.1.md` 和 `docs/previews/v0.5.1/`。精确清单见 T001，实时差异以 Git 为准。
-- **T002 已提交范围**：`AGENTS.md`、`.github/pull_request_template.md`、`docs/REQUIREMENTS.md`、本文件和 `docs/tasks/` 下的 T001／T002 记录。T001 业务文件保持原样；交接跟进仍限于本任务管理文件。
-- **被忽略的本地产物**：`release/DesktopPet-0.5.1-Setup-x64.exe`、`release/DesktopPet-0.5.1-Portable-x64.exe`、`release/SHA256SUMS-0.5.1.txt` 与当前 `SHA256SUMS.txt` 已生成。忽略目录不等于 Git 已提交或远程已发布。
-- 下一个可分配任务编号为 `T003`，需求编号为 `R006`；分配前仍须检查其他并行工作是否已经占用。
+本轮继续原有 T001，未新建重复任务。创建功能分支前核对了 21 个既有文件的 SHA-256，完整保留了功能实现，再从已合并 T002 的最新主线创建分支；不重写共享历史。下一个可分配编号仍为 T003／R006，分配前须检查占用。
 
-## 定位与兼容边界
+## 当前改动与定位
 
-- 环境、关键目录和开发／构建／验证命令统一维护在 [AGENTS.md](../AGENTS.md)；实际定义以 [package.json](../package.json)、[开发脚本](../scripts/dev.mjs)和 [CI](../.github/workflows/ci.yml)为准。当前环境已核实 Node.js `v24.18.0`、npm `11.16.0`。
-- 桌宠计时入口为 `src/renderer/pet.ts`；设置跨 `src/shared/types.ts`／`defaults.ts`、`src/main/services/desktop-service.ts` 和 `src/renderer/settings.ts`。具体行为与验收见 R001／R002。
-- GPT 排版入口为 `quota.ts`／`quota.css`；白色设置页入口为 `settings.css` 和主进程设置窗口底色。设计入口为 [DESIGN.md](../DESIGN.md)，v0.5.1 的设计修改与发行说明 `docs/releases/v0.5.1.md` 属于 T001 未提交文件。
-- 产品名 DesktopPet，兼容标识保持 `io.github.forestwood.desktopplay` 和 `%APPDATA%\DesktopPlay`。真实凭据、账本和用户素材未作为本次任务输入，也不应进入提交。
+- T001 范围为气泡／设置／额度样式、共享设置类型及默认值、主进程设置校验和窗口底色、版本文件、unit／smoke 测试、README／设计／发行说明及 v0.5.1 预览图。同步交接、需求与任务状态；T002 记录仅修正为已合并，不修改已合并的指南或 PR 模板。
+- 气泡计时见 `src/renderer/pet.ts`；设置跨 `src/shared/`、`src/main/services/desktop-service.ts`、`src/renderer/settings.ts`。GPT 排版见 `quota.css`，白色页面见 `settings.css` 与设置窗口配置。
+- 本机测试可选 `DESKTOPPLAY_TEST_SOFTWARE_RENDERING=1`，仅向测试进程增加 `--disable-gpu`；正常应用和默认 CI 不变。复现命令见 T001。
+- 环境和常用命令统一见 AGENTS.md；实际定义以 [package.json](../package.json)、[开发脚本](../scripts/dev.mjs)和 [CI](../.github/workflows/ci.yml)为准。Node.js 24、npm；PowerShell 使用 npm.cmd。
+- 产品名为 DesktopPet，兼容标识与数据目录保持 `io.github.forestwood.desktopplay`／`%APPDATA%\DesktopPlay`。新增设置有默认值、主进程校验及旧配置兼容；没有新 IPC 或持久化格式版本迁移。
+- 安装版和免安装版 0.5.1 已在本地生成，连同 SHA256SUMS-0.5.1.txt 保存在被忽略的 `release/`。本轮不重复打包；未创建发行标签或 GitHub Release。说明与截图见 [v0.5.1](releases/v0.5.1.md)。
 
-## 验证状态
+## 本轮验证
 
-以下区分任务与验证对象；T001 的既有结果没有作为 T002 的重新运行结果。
-
-| 结果 | 对象与检查 | 记录 |
+| 结果 | 检查 | 说明 |
 | --- | --- | --- |
-| 通过 | T001 的 0.5.1 未提交实现 | 119 项单元测试、7 项 Electron smoke、TypeScript／生产构建、截图检查、本地缓存打包与包版本／SHA-256 核对；细节见 T001 |
-| 通过 | T002 的开始状态、远程获取与分支检查 | 已核实工作目录、分支、HEAD、暂存区及远程 `main`，保留已有修改后创建任务分支 |
-| 失败（已重试通过） | T002 沙箱内 `git fetch origin` | github.com:443 连接失败；沙箱外重试成功，无当前 fetch 阻塞 |
-| 失败（替代方式通过） | T001 原始环境下的 npm／Electron／默认打包 | 执行策略、AppContainer ACL 及工具下载／缓存权限问题；改用 `npm.cmd`、沙箱外测试与本地工具后完成；复现方式见 T001 |
-| 通过 | T002 管理文档与范围验证 | 6 个文档的链接／锚点、六组约定、需求与任务关联、命令及必需字段通过；21 个既有文件 SHA-256 一致；`git diff --check` 通过，暂存区为空 |
-| 通过 | T002 提交与 PR 独立性检查 | 暂存内容恰为 6 个管理文件；链接按暂存树及基准 HEAD 解析，不依赖 T001 未提交发行说明；主提交已推送并核实 PR 为 open、目标 main、6 个文件 |
-| 失败（替代方式通过） | GitHub 连接器创建 PR | 返回 403，集成缺少 PR 写权限；使用本机 Git 已配置的认证通过 GitHub API 创建 PR #1，未输出或保存凭据 |
-| 失败（已修正并通过） | T002 初次内联文档校验 | PowerShell 管道编码导致脚本中的中文被替换；设置 UTF-8 后重跑通过，细节见 T002 |
-| 未运行 | T002 类型检查、单测、构建与 smoke | 仅修改 Markdown，不重跑业务验证 |
-| 未运行 | 本次真实账户、真实安装覆盖升级／完整卸载及 helper fixtures | 不能由单测或加载构建产物的 Electron 测试推定已通过；历史限制见 [v0.5.0](releases/v0.5.0.md) |
+| 通过 | 远程与分支检查 | 已核实 PR #1 合并、最新主线、任务分支与原有文件保护 |
+| 通过 | `npm.cmd run build`、`npm.cmd run typecheck` | 生产构建及新增测试辅助文件类型检查 |
+| 通过 | `npm.cmd test` | 119 项单元测试通过 |
+| 通过 | 设置软件渲染变量后 `npm.cmd run test:smoke` | 本轮 7 项通过，使用隔离配置且不读真实 Codex；包含两种 GPT 造型、完整倒计时、气泡计时、设置保存与重启 |
+| 通过 | 新预览图检查 | 软件渲染结果中白龙完整倒计时保持单行；此前同一业务实现的安装包版本与校验和核对已通过 |
+| 通过 | 提交范围与推送／PR | 恰为 26 个任务文件，版本统一为 0.5.1，提交树文档链接通过；功能分支已推送，PR #2 已创建，未将本地安装包加入 Git |
+| 失败（替代通过） | 默认 GPU 下完整 smoke | 点击稳定／截图等待超时；隔离帧诊断后仅对测试启用软件渲染，完整回归通过；保留环境限制，不修改正式运行设置 |
+| 失败（已有替代方式） | 沙箱内 Electron、默认工具下载／缓存路径 | 本机已有 ACL 与网络／缓存限制；测试在沙箱外执行，前次使用本地缓存打包；详见 T001 |
+| 未运行 | 本轮重新打包、真实账户、真实安装升级／完整卸载、helper fixtures | 本轮提交未改变此前打包的业务实现；不把界面或单测结果当作真实安装卸载验收 |
 
-## 下一步与待确认
+## 下一步
 
-1. 审查 T002 的 [PR #1](https://github.com/Forest-Wood/DesktopPlay/pull/1) 并检查 CI；后续修订继续使用原分支。尚无审查或合并结论，不自动合并。
-2. 安全整理 T001 的独立实现分支与提交范围，保留当前所有修改；后续同步或解决冲突后重跑受影响的验证。
-3. 若需要发布 v0.5.1，再核实业务提交、发布授权、远程状态、CI、标签版本和下载附件；当前仅有本地安装包。[发布流程](release.md)与 [Release 工作流](../.github/workflows/release.yml)分别描述操作与实际自动化行为。
-4. 真实账户协议兼容、安装／卸载完整验收、两项任务的审查人及 T001 实现提交均待后续确认。本轮授权为 T002 提交、推送和 PR，没有执行合并或发布。
+1. 审查 [功能 PR #2](https://github.com/Forest-Wood/DesktopPlay/pull/2) 并查看最新 CI；远程结果未据本地测试推定通过。
+2. 后续修改继续原分支；本次未授权自动合并或发布。工作区状态与远程提交一致性以 Git 最终检查为准。
+3. 若后续发布 v0.5.1，另行核实发布授权、标签版本、CI 与下载附件；真实安装／卸载及账户验证缺口保持待确认，见 [v0.5.0 历史限制](releases/v0.5.0.md)。
