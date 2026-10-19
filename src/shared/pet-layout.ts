@@ -15,7 +15,7 @@ export function getPetLayout(flipped: boolean, placement: BubblePlacement, asset
   const height = content ? content.height * ratio : CHARACTER_SIZE;
   const character: Rect = { x: flipped ? 0 : PET_WIDTH - width, y: placement === 'above' ? PET_HEIGHT - height : 0, width, height };
   const image: Rect = content ? { x: -content.x * ratio, y: -content.y * ratio, width: content.imageWidth * ratio, height: content.imageHeight * ratio } : { x: 0, y: 0, width, height };
-  const bubble: Rect = { x: flipped ? 116 : 8, y: placement === 'above' ? 30 : 230, width: 236, height: 180 };
+  const bubble: Rect = { x: flipped ? 116 : 8, y: placement === 'above' ? 18 : 230, width: 236, height: 192 };
   const bubbleHit: Rect = { x: bubble.x - BUBBLE_RING, y: bubble.y - (placement === 'above' ? BUBBLE_RING : BUBBLE_TAIL), width: bubble.width + BUBBLE_RING * 2, height: bubble.height + BUBBLE_RING + BUBBLE_TAIL };
   return { character, image, bubble, bubbleHit };
 }

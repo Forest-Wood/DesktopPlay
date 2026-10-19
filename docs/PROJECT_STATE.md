@@ -12,8 +12,8 @@
 | 任务 | 状态 | 下一步 |
 | --- | --- | --- |
 | [T004：Git 准备](tasks/T004-git-preparation.md) | 待审查 | 本地提交 `e9ffff8` |
-| [T005：重置卡](tasks/T005-reset-cards.md) | 待审查 | 本地提交 `f9e951c`、布局修复 `8f847fa` |
-| [T006：角色化完成提醒](tasks/T006-completion-notice.md) | 待审查 | 实现提交 `fb4f30d`；本次收尾提交仅同步记录 |
+| [T005：重置卡](tasks/T005-reset-cards.md) | 待审查 | `2899e70`：摘要下移 12 DIP；build、几何 19 项、Electron 3 项通过 |
+| [T006：角色化完成提醒](tasks/T006-completion-notice.md) | 进行中 | 保留 `fb4f30d`；排查桌面 Work 对话漏提醒反馈 |
 
 任务分支依次基于前一任务，最终按 T004 → T005 → T006 审查整合。下一未分配编号 T007／R010。T001／T002 已合并，T003 发布完成、本地记录待审查。
 

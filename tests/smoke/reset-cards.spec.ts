@@ -48,6 +48,11 @@ test('reset cards keep authoritative count, local cutoff detail and compact pers
         return rect.left >= parent.left && rect.right <= parent.right + 1 && rect.bottom <= parent.bottom + 1 && el.scrollWidth <= el.clientWidth + 1;
       });
       expect(fits).toBe(true);
+      const resetSpacing = await pet.locator('.quota-reset-credits').evaluate(el => {
+        const bucket = el.previousElementSibling!;
+        return (el.getBoundingClientRect().top - bucket.getBoundingClientRect().bottom) / (document.querySelector('.pet-canvas')!.getBoundingClientRect().width / 360);
+      });
+      expect(resetSpacing).toBeGreaterThanOrEqual(11.9);
       expect(await pet.locator('.bubble-content').evaluate(el => el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight + 1)).toBe(true);
       await pet.screenshot({ path: `test-results/reset-cards-${appearance}.png`, omitBackground: true });
       await pet.locator('.bubble-close').dispatchEvent('click');
