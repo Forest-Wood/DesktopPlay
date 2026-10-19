@@ -1,7 +1,7 @@
 # T004：Git 准备与本地 TODO
 
 - 日期：2026-10-19（Asia/Shanghai）；负责人：Codex；需求：R007。
-- 状态：待审查（本地提交，无 PR／合并）；结果提交：见本任务 Git 历史。
+- 状态：待审查（本地提交，无 PR／合并）；结果提交：`e9ffff8`。
 - 工作目录：`D:\desktop1\DesktopPlay`；分支：`chore/T004-git-preparation`；目标：`main`。
 - 基准：`c84113d`，其父提交为远程 main `979764a`；依赖顺序 T004 → T005 → T006。
 - 范围：TODO 忽略规则与管理文档，无业务修改。
