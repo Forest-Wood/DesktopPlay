@@ -15,12 +15,12 @@
 .quota-reset-list { padding-left: 22px; margin: 10px 0 0; }
 .quota-reset-row { padding: 4px 0; font-size: 12px; overflow-wrap: anywhere; }
 .quota-reset-row span + span { margin-left: 10px; }
-.quota-compact .quota-reset-credits { clear: both; display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; margin-top: 3px; padding-top: 2px; border-color: currentColor; }
+.quota-compact .quota-reset-credits { clear: both; display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; margin: 0; padding: 0; border-color: currentColor; }
 .quota-compact .quota-reset-count, .quota-compact .quota-reset-deadline { font-size: 9px; line-height: 12px; margin: 0; color: inherit; }
-.quota-compact .quota-bucket { padding: 1px 0; border: 0; background: transparent; margin-bottom: 0; color: var(--bubble-ink, inherit); }
+.quota-compact .quota-bucket { padding: 0; border: 0; background: transparent; margin-bottom: 0; color: var(--bubble-ink, inherit); }
 .quota-compact .quota-bucket-name { font-size: 9px; line-height: 14px; min-height: 14px; margin-bottom: 1px; color: inherit; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .quota-compact .quota-windows { gap: 6px; clear: both; }
 .quota-compact .quota-window-title { font-size: 9px; line-height: 12px; gap: 4px; color: inherit; }
-.quota-compact .quota-percentage { font-size: 34px; line-height: 1.15; color: inherit; }
-.quota-compact .quota-countdown { font-size: 8.5px; line-height: 1.35; margin: 1px 0 0; color: inherit; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.quota-compact .quota-percentage { font-size: 30px; line-height: 1.15; color: inherit; }
+.quota-compact .quota-countdown { font-size: 8.5px; line-height: 1.35; margin: 0; color: inherit; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .quota-compact .quota-plan-badge { float: left; font-size: 9px; line-height: 12px; padding: 1px 6px; margin: 0 6px 1px 0; color: var(--bubble-ink, inherit); background: color-mix(in srgb, var(--bubble-ink, #378a76) 10%, transparent); }

@@ -18,7 +18,7 @@ test('reset cards keep authoritative count, local cutoff detail and compact pers
     await expect(settings.locator('#codex-quotas')).toBeVisible();
     const base = await pet.evaluate(() => window.desktopPlay.getState());
     base.codex = { ...base.codex, status: 'ready', planType: 'pro', updatedAt: new Date().toISOString(), error: null,
-      buckets: [{ id: 'codex', name: 'Codex', planType: 'pro', primary: { usedPercent: 20, remainingPercent: 80, windowMinutes: 10080, resetsAt: new Date(Date.now() + 604740000).toISOString() }, secondary: { usedPercent: 10, remainingPercent: 90, windowMinutes: 300, resetsAt: null }, creditsRemaining: null, unlimitedCredits: false }],
+      buckets: [{ id: 'codex', name: 'Codex', planType: 'pro', primary: { usedPercent: 23.4, remainingPercent: 76.6, windowMinutes: 10080, resetsAt: new Date(Date.now() + 604740000).toISOString() }, secondary: { usedPercent: 0.1, remainingPercent: 99.9, windowMinutes: 300, resetsAt: null }, creditsRemaining: null, unlimitedCredits: false }],
       resetCredits: { availableCount: 8, credits: [
         { id: 'last', status: 'available', expiresAt: '2031-06-02T12:34:56Z' },
         { id: 'first', status: 'available', expiresAt: '2031-06-01T12:34:56Z' },
@@ -34,6 +34,7 @@ test('reset cards keep authoritative count, local cutoff detail and compact pers
     await expect(settings.locator('.quota-reset-list')).toContainText('无到期限制');
     await expect(settings.locator('.quota-reset-list')).toContainText('截止时间未提供');
     await expect(settings.locator('.quota-reset-credits')).toContainText('明细不完整');
+    await settings.screenshot({ path: 'test-results/reset-cards-settings-details.png' });
     for (const appearance of ['classic', 'dragon'] as const) {
       await pet.evaluate(appearance => window.desktopPlay.selectGptAppearance(appearance), appearance);
       base.gptAppearance = appearance;
@@ -47,6 +48,7 @@ test('reset cards keep authoritative count, local cutoff detail and compact pers
         return rect.left >= parent.left && rect.right <= parent.right + 1 && rect.bottom <= parent.bottom + 1 && el.scrollWidth <= el.clientWidth + 1;
       });
       expect(fits).toBe(true);
+      expect(await pet.locator('.bubble-content').evaluate(el => el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight + 1)).toBe(true);
       await pet.screenshot({ path: `test-results/reset-cards-${appearance}.png`, omitBackground: true });
       await pet.locator('.bubble-close').dispatchEvent('click');
     }
