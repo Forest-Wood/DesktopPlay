@@ -15,7 +15,7 @@
 .quota-reset-list { padding-left: 22px; margin: 10px 0 0; }
 .quota-reset-row { padding: 4px 0; font-size: 12px; overflow-wrap: anywhere; }
 .quota-reset-row span + span { margin-left: 10px; }
-.quota-compact .quota-reset-credits { clear: both; display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; margin: 0; padding: 0; border-color: currentColor; }
+.quota-compact .quota-reset-credits { clear: both; display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; margin: 12px 0 0; padding: 0; border-color: currentColor; }
 .quota-compact .quota-reset-count, .quota-compact .quota-reset-deadline { font-size: 9px; line-height: 12px; margin: 0; color: inherit; }
 .quota-compact .quota-bucket { padding: 0; border: 0; background: transparent; margin-bottom: 0; color: var(--bubble-ink, inherit); }
 .quota-compact .quota-bucket-name { font-size: 9px; line-height: 14px; min-height: 14px; margin-bottom: 1px; color: inherit; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
