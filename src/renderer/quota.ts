@@ -1,4 +1,4 @@
-import type { CodexQuotaBucket, CodexQuotaState, CodexQuotaWindow } from '../shared/types';
+import type { CodexQuotaBucket, CodexQuotaState, CodexQuotaWindow, CodexResetCredit } from '../shared/types';
 import './quota.css';
 
 export function planLabel(plan: string | null): string {
@@ -39,7 +39,39 @@ export function localTime(value: string | null): string {
 }
 
 export function quotaIsStale(quota: CodexQuotaState, now = Date.now()): boolean {
-  return quota.buckets.length > 0 && (quota.status === 'error' || quota.status === 'unavailable' || !quota.updatedAt || !Number.isFinite(Date.parse(quota.updatedAt)) || now - Date.parse(quota.updatedAt) > 180000);
+  return (quota.buckets.length > 0 || !!quota.resetCredits) && (quota.status === 'error' || quota.status === 'unavailable' || !quota.updatedAt || !Number.isFinite(Date.parse(quota.updatedAt)) || now - Date.parse(quota.updatedAt) > 180000);
+}
+
+export function resetCreditExpiry(credit: CodexResetCredit, now = Date.now(), timeZone?: string): string {
+  if (credit.expiresAt === null) return '无到期限制';
+  const instant = credit.expiresAt ? Date.parse(credit.expiresAt) : NaN;
+  if (!Number.isFinite(instant)) return '截止时间未提供';
+  const text = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', timeZoneName: 'longOffset', ...(timeZone ? { timeZone } : {}) }).format(instant);
+  return `${text}${instant <= now ? ' · 已到期，待刷新' : ''}`;
+}
+
+export function resetCreditsView(quota: CodexQuotaState, now = Date.now()) {
+  const data = quota.resetCredits;
+  if (!data) return { count: '重置卡：未提供', deadline: '', note: '', rows: [] as CodexResetCredit[], nearest: undefined as CodexResetCredit | undefined };
+  const rows = [...(data.credits ?? [])].sort((a, b) => {
+    const time = (c: CodexResetCredit) => c.expiresAt && Number.isFinite(Date.parse(c.expiresAt)) ? Date.parse(c.expiresAt) : Infinity;
+    return time(a) - time(b);
+  });
+  const available = rows.filter(row => row.status === 'available');
+  const nearest = available.find(row => row.expiresAt && Number.isFinite(Date.parse(row.expiresAt)));
+  const partial = data.credits !== null && available.length < data.availableCount;
+  const stale = quotaIsStale(quota, now);
+  let deadline = '';
+  if (data.availableCount > 0) {
+    if (nearest) deadline = Date.parse(nearest.expiresAt!) <= now ? '已知卡片已到期 · 待刷新' : `最近已知截止 ${new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(nearest.expiresAt!))}`;
+    else deadline = !partial && available.length > 0 && available.every(row => row.expiresAt === null) ? '无到期限制' : '截止时间未提供';
+  }
+  return {
+    count: `重置卡 ${data.availableCount} 张${stale ? ' · 待刷新' : ''}`,
+    deadline,
+    note: data.credits === null ? '接口仅提供张数，截止时间未提供。' : partial ? '明细不完整，总张数以账户返回值为准；日期仅针对已知卡片。' : '',
+    rows, nearest,
+  };
 }
 
 export function quotaStatus(quota: CodexQuotaState, demo: boolean): string {
@@ -61,11 +93,9 @@ export function renderQuota(root: HTMLElement, quota: CodexQuotaState, compact: 
   add(root, 'span', 'quota-plan-badge', planLabel(quota.planType));
   if (!quota.buckets.length) {
     add(root, 'p', 'quota-empty', quota.status === 'loading' ? '正在读取额度与重置时间…' : '额度未知 · 请先登录本机 Codex。');
-    if (!compact && quota.error) add(root, 'p', 'service-message', quota.error);
-    return;
   }
   const main = quota.buckets.find(bucket => bucket.id.toLowerCase() === 'codex') ?? quota.buckets[0];
-  for (const bucket of [main, ...quota.buckets.filter(bucket => bucket !== main)]) {
+  for (const bucket of main ? [main, ...quota.buckets.filter(bucket => bucket !== main)] : []) {
     const card = add(root, 'article', 'quota-bucket');
     add(card, 'h3', 'quota-bucket-name', bucket.name);
     let windows = add(card, 'div', 'quota-windows');
@@ -92,6 +122,25 @@ export function renderQuota(root: HTMLElement, quota: CodexQuotaState, compact: 
     }
     if (!bucket.primary && !bucket.secondary) add(card, 'p', 'quota-empty', '未提供额度窗口');
     if (!compact && (bucket.unlimitedCredits || bucket.creditsRemaining !== null)) add(card, 'p', 'quota-credits', bucket.unlimitedCredits ? '附加额度：不限' : `附加余额：${bucket.creditsRemaining}`);
+  }
+  const resets = resetCreditsView(quota);
+  const resetCard = add(root, compact ? 'div' : 'section', 'quota-reset-credits');
+  add(resetCard, compact ? 'span' : 'h3', 'quota-reset-count', resets.count);
+  if (resets.deadline) {
+    const deadline = add(resetCard, 'p', 'quota-reset-deadline', resets.deadline);
+    if (resets.nearest) deadline.title = resetCreditExpiry(resets.nearest);
+  }
+  if (!compact) {
+    if (resets.note) add(resetCard, 'p', 'hint', resets.note);
+    if (quotaIsStale(quota)) add(resetCard, 'p', 'hint', '上次读取的数据，卡片状态与张数待刷新。');
+    if (resets.rows.length) {
+      const list = add(resetCard, 'ol', 'quota-reset-list');
+      for (const credit of resets.rows) {
+        const row = add(list, 'li', 'quota-reset-row');
+        add(row, 'span', '', { available: '可用', redeeming: '处理中', redeemed: '已使用', unknown: '状态未知' }[credit.status]);
+        add(row, 'span', '', resetCreditExpiry(credit));
+      }
+    }
   }
   if (!compact && quota.error) add(root, 'p', 'service-message', quota.error);
 }

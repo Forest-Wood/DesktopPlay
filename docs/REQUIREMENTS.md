@@ -13,7 +13,7 @@
 | R005 | 建立项目协作、需求、任务、PR 和交接约定 | 已合并 | [T002](tasks/T002-project-guidance.md) |
 | R006 | 发布已合并的 v0.5.1 并提供下载附件 | 待审查（发布已完成） | [T003](tasks/T003-release-v051.md) |
 | R007 | Git 管理与本地 TODO 忽略 | 待审查 | [T004](tasks/T004-git-preparation.md) |
-| R008 | 显示 Codex 重置卡张数和截止日期 | 待开发 | T005 |
+| R008 | 显示 Codex 重置卡张数和截止日期 | 待审查 | [T005](tasks/T005-reset-cards.md) |
 | R009 | 可编辑的角色化 Codex 输出完成提醒 | 待开发 | T006 |
 
 ## R001：默认气泡显示时间

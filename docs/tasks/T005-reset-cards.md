@@ -1,0 +1,27 @@
+# T005：Codex 重置卡
+
+- 日期：2026-10-19（Asia/Shanghai）；负责人：Codex；需求：R008。
+- 分支：`feat/T005-reset-cards`；依赖／基准：T004 `e9ffff8`；目标：按 T004 → T005 顺序整合至 main。
+- 工作目录：`D:\desktop1\DesktopPlay`；状态：待审查（仅本地提交）；结果提交见本任务 Git 历史。
+- 开始时工作区干净；范围为共享额度类型、解析／展示、演示数据、必要测试与文档。已有 T003、T004 提交保留。
+
+## 实现与决定
+
+沿用只读 `account/rateLimits/read`，解析独立的 `rateLimitResetCredits`；总数以 `availableCount` 为准。明细可为 null 或部分列表；期限区分 ISO 时间、null（无到期限制）和 undefined（未提供／非法）。去重明细 ID、过滤非法行，仅保留必要字段，不携带账户身份。
+
+GPT 气泡显示卡数及最近已知日期，设置页显示按到期排序的全部已提供行、完整时间和 GMT 偏移。显示零张、旧协议未提供、部分明细、过期与失败保留状态。仅展示，无兑换操作。紧凑套餐与标题同排，使摘要直接可见；更多窗口仍可滚动。
+
+参考：[官方 PR #30395](https://github.com/openai/codex/pull/30395)、[CodexBar](https://github.com/steipete/CodexBar)、[专用重置卡工具](https://github.com/hcsolakoglu/codex-reset)。采用官方接口自行适配，没有引入第三方运行依赖或复制实现。
+
+## 验证
+
+- 通过：类型检查；相关单测 2 文件／32 项；`npm.cmd run build`。
+- 通过：隔离 Electron `reset-cards.spec.ts`（1 项），验证原版／白龙、总数不等于明细数、排序／时区／未知与无到期、失败保留、零张和旧协议。截图在忽略的 `test-results/`，已查看排版。
+- 失败后修复：时区字符串顺序因 ICU 不同导致断言失败，改为核对日期／时间／偏移；新增测试 env 类型遗漏已修正。复验通过。
+- 环境失败后替代：受限 Electron 因 Windows AppContainer ACL 无法启动；沙箱外使用 `DESKTOPPLAY_TEST_SOFTWARE_RENDERING=1` 运行隔离测试成功，未关闭应用沙箱。
+- 通过：`git diff --check`；无 TODO 跟踪项。
+- 未运行：真实登录账户、全量回归、安装包；全量单测／smoke 在 T006 完成后执行，真实账户与打包另记。
+
+## 下一步
+
+建立 T006，添加本地完成事件监听和角色化提醒。版本保持 0.5.1，无推送、PR、合并或发布。

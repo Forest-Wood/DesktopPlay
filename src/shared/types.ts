@@ -94,6 +94,7 @@ export interface CodexQuotaBucket {
 }
 
 export interface CodexQuotaState {
+  resetCredits: CodexResetCredits | null;
   planType: string | null;
   status: 'idle' | 'loading' | 'ready' | 'unavailable' | 'error';
   buckets: CodexQuotaBucket[];
@@ -101,6 +102,18 @@ export interface CodexQuotaState {
   error: string | null;
   source: 'codex-app-server';
   available: boolean;
+}
+
+export interface CodexResetCredit {
+  id: string;
+  status: 'available' | 'redeeming' | 'redeemed' | 'unknown';
+  /** ISO instant; null means no expiry, undefined means not provided or invalid. */
+  expiresAt?: string | null;
+}
+export interface CodexResetCredits {
+  availableCount: number;
+  /** null means count only; the server may cap the detail rows. */
+  credits: CodexResetCredit[] | null;
 }
 
 export interface AppState extends ServiceState {
