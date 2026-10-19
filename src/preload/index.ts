@@ -1,7 +1,18 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { AppState, DesktopApi } from '../shared/types';
+import type { AppState, CodexCompletionNotice, DesktopApi } from '../shared/types';
 
 const api: DesktopApi = {
+  chooseCodexCompletionDirectory: () => ipcRenderer.invoke('desktopplay:choose-codex-completion-directory'),
+  onCodexCompletion: callback => {
+    const listener = (_: Electron.IpcRendererEvent, notice: CodexCompletionNotice) => callback(notice);
+    ipcRenderer.on('desktopplay:codex-completion', listener);
+    return () => ipcRenderer.removeListener('desktopplay:codex-completion', listener);
+  },
+  onPetHidden: callback => {
+    const listener = () => callback();
+    ipcRenderer.on('desktopplay:pet-hidden', listener);
+    return () => ipcRenderer.removeListener('desktopplay:pet-hidden', listener);
+  },
   getState: () => ipcRenderer.invoke('desktopplay:get-state'),
   updateSettings: (patch) => ipcRenderer.invoke('desktopplay:update-settings', patch),
   setApiKey: (key) => ipcRenderer.invoke('desktopplay:set-key', key),

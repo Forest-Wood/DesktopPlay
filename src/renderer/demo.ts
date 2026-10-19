@@ -5,6 +5,7 @@ export function createDemoApi(): DesktopApi {
   const activePet = localStorage.getItem('desktopplay-demo-pet') === 'gpt' ? 'gpt' : 'deepseek';
   const gptAppearance = localStorage.getItem('desktopplay-demo-appearance') === 'dragon' ? 'dragon' : 'classic';
   let state: AppState = {
+    codexCompletion: { status: 'disabled', directory: '浏览器演示不读取本机会话', error: null },
     sounds: structuredClone(DEFAULT_SOUNDS),
     settings: { ...DEFAULT_SETTINGS }, hasApiKey: false, balance: { currency: 'CNY', total: '28.36000000', granted: '0.00000000', toppedUp: '28.36000000', observedAt: new Date().toISOString(), isAvailable: true },
     ledger: { today: { date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date()), currency: 'CNY', spent: '1.24000000', increased: '0.00000000', startedAt: new Date().toISOString() }, history: [] },
@@ -14,6 +15,9 @@ export function createDemoApi(): DesktopApi {
   const listeners = new Set<(state: AppState) => void>();
   const emit = () => { listeners.forEach(listener => listener(state)); return Promise.resolve(state); };
   return {
+    chooseCodexCompletionDirectory: async () => { throw new Error('请在桌面应用中选择 Codex 目录。'); },
+    onCodexCompletion: () => () => {},
+    onPetHidden: () => () => {},
     getState: async () => state,
     updateSettings: async patch => { state = { ...state, settings: { ...state.settings, ...patch } }; return emit(); },
     setApiKey: async () => { state = { ...state, hasApiKey: true }; return emit(); },

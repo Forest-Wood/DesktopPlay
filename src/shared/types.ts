@@ -19,6 +19,9 @@ export interface AppSettings {
   volume: number;
   bubbleDurationSeconds: number;
   bubbleHoverDelaySeconds: number;
+  codexCompletionEnabled: boolean;
+  codexCompletionDirectory: string | null;
+  completionMessagesByPersona: Record<PetPersona, string>;
   phrases: string[];
   phrasesByPersona: Record<PetPersona, string[]>;
   lowBalanceThreshold: string | null;
@@ -117,6 +120,7 @@ export interface CodexResetCredits {
 }
 
 export interface AppState extends ServiceState {
+  codexCompletion: CodexCompletionState;
   sounds: SoundMetadataMap;
   pet: PetAsset;
   activePet: BuiltinPetId;
@@ -130,6 +134,9 @@ export interface AppState extends ServiceState {
 }
 
 export interface DesktopApi {
+  chooseCodexCompletionDirectory(): Promise<string | null>;
+  onCodexCompletion(callback: (notice: CodexCompletionNotice) => void): () => void;
+  onPetHidden(callback: () => void): () => void;
   getState(): Promise<AppState>;
   updateSettings(patch: Partial<AppSettings>): Promise<AppState>;
   setApiKey(key: string): Promise<AppState>;
@@ -159,3 +166,10 @@ export interface DesktopApi {
 }
 
 declare global { interface Window { desktopPlay: DesktopApi; } }
+
+export interface CodexCompletionNotice { id: string; completedAt: string }
+export interface CodexCompletionState {
+  status: 'disabled' | 'starting' | 'watching' | 'unavailable' | 'error';
+  directory: string;
+  error: string | null;
+}

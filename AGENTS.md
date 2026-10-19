@@ -90,6 +90,8 @@ README 与 CI 使用 Windows x64、Node.js 24 和 npm；具体依赖与版本以
 
 开发版默认也使用真实 `%APPDATA%\DesktopPlay`。开发或测试前按需设置独立 `DESKTOPPLAY_USER_DATA`，移除宿主可能带入的 `ELECTRON_RUN_AS_NODE`；测试额度界面时可使用现有 `DESKTOPPLAY_TEST_NO_CODEX=1`。现有 smoke 测试自行创建隔离目录。`DESKTOPPLAY_USER_DATA` 仅对非打包运行生效，不可据此假定打包版也已隔离。
 
+新增 Codex 完成监听也必须隔离：非打包环境的 `DESKTOPPLAY_TEST_NO_CODEX=1` 同时把默认监听目录切到测试 profile 内的 `codex-test-home`；可用 `DESKTOPPLAY_TEST_CODEX_HOME` 指定隔离 fixture 主目录。该覆盖仅在上述测试开关开启时生效，真实版本使用用户选定目录或 CODEX_HOME／用户 `.codex`。测试不得通过更改真实 Codex 配置、真实会话或 auth.json 验证通知。
+
 按改动选择必要检查：纯文档检查链接、内容、差异和范围；共享类型与行为改动运行类型检查及相关单测；界面改动在 build 后运行相关 smoke 并检查渲染结果；卸载、安装和真实账户验证与隔离测试分别记录。一次通过后，只有新改动、失败或未解决疑点才需要扩大或重复验证。
 
 ## 兼容性与实现边界

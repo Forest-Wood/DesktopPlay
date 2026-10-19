@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { DesktopService } from '../../../src/main/services/desktop-service';
-import { DEFAULT_PHRASES_BY_PERSONA } from '../../../src/shared/defaults';
+import { DEFAULT_COMPLETION_MESSAGES, DEFAULT_PHRASES_BY_PERSONA } from '../../../src/shared/defaults';
 
 const secrets = { isEncryptionAvailable: () => true, encryptString: (s: string) => Buffer.from(`encrypted:${s}`), decryptString: (b: Buffer) => { const s = b.toString(); if (!s.startsWith('encrypted:')) throw new Error(); return s.slice(10); } };
 function reply(total: string, currency = 'CNY') { return new Response(JSON.stringify({ is_available: true, balance_infos: [{ currency, total_balance: total, granted_balance: '0', topped_up_balance: total }] }), { status: 200 }); }
@@ -19,6 +19,29 @@ async function fixture(responses: string[] = ['100'], options: { dataDir?: strin
 async function configured(values: string[], options: Parameters<typeof fixture>[1] = {}) { const result = await fixture(values, options); await result.service.setApiKey('test-key'); await result.service.refresh(); return result; }
 
 describe('persona phrase storage', () => {
+  it('restores completion defaults into legacy data and persists independent text, directory and switch', async () => {
+    const { service, dataDir } = await fixture();
+    await service.updateSettings({ volume: 0.2 }); service.dispose();
+    const file = path.join(dataDir, 'desktopplay.json'), legacy = JSON.parse(await fs.readFile(file, 'utf8'));
+    for (const key of ['codexCompletionEnabled', 'codexCompletionDirectory', 'completionMessagesByPersona']) delete legacy.settings[key];
+    await fs.writeFile(file, JSON.stringify(legacy));
+    const restored = (await fixture([], { dataDir })).service;
+    expect(restored.getState().settings).toMatchObject({ volume: 0.2, codexCompletionEnabled: true, codexCompletionDirectory: null, completionMessagesByPersona: DEFAULT_COMPLETION_MESSAGES });
+    const messages = { whale: '鲸鱼提醒', gpt: '<b>纯文本</b>', dragon: '龙'.repeat(200) }, directory = path.resolve('.tmp/fake-codex-home');
+    await restored.updateSettings({ completionMessagesByPersona: messages, codexCompletionEnabled: false, codexCompletionDirectory: directory }); restored.dispose();
+    const restarted = (await fixture([], { dataDir })).service;
+    expect(restarted.getState().settings).toMatchObject({ completionMessagesByPersona: messages, codexCompletionEnabled: false, codexCompletionDirectory: directory });
+    expect(restarted.getState().settings.phrasesByPersona).toEqual(DEFAULT_PHRASES_BY_PERSONA);
+  });
+  it('rejects malformed completion messages, directories and switches atomically', async () => {
+    const { service } = await fixture(); const before = service.getState().settings;
+    for (const value of [{ whale: 'missing' }, { ...DEFAULT_COMPLETION_MESSAGES, extra: 'x' }, ...['', '   ', 'x'.repeat(201), null, []].map(gpt => ({ ...DEFAULT_COMPLETION_MESSAGES, gpt })), Object.defineProperty({ ...DEFAULT_COMPLETION_MESSAGES }, 'gpt', { get() { throw new Error('do not execute'); } })]) {
+      await expect(service.updateSettings({ volume: 0.7, completionMessagesByPersona: value as typeof DEFAULT_COMPLETION_MESSAGES })).rejects.toThrow();
+    }
+    for (const codexCompletionDirectory of ['relative', '\\\\server\\share', 'C:\\bad\0path', 5]) await expect(service.updateSettings({ codexCompletionDirectory: codexCompletionDirectory as string })).rejects.toThrow();
+    await expect(service.updateSettings({ codexCompletionEnabled: 'yes' as unknown as boolean })).rejects.toThrow();
+    expect(service.getState().settings).toEqual(before);
+  });
   it('migrates complete legacy custom text to whale and persists independent persona edits', async () => {
     const { service, dataDir } = await fixture();
     await service.updateSettings({ phrases: ['  自定义空格保留  ', '原版第二句'] });

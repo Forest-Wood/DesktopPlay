@@ -1,5 +1,10 @@
 import type { AppSettings, BuiltinPetId, PetAsset, PetPersona, SoundMetadataMap } from './types';
 export const APP_VERSION = '0.5.1';
+export const DEFAULT_COMPLETION_MESSAGES: Record<PetPersona, string> = {
+  whale: 'GPT 已经回复完啦，快去看看吧～',
+  gpt: '这轮输出完成了，来看看结果吧。',
+  dragon: 'GPT 的答复已送达，我替你守候着。',
+};
 export const DEFAULT_SOUNDS: SoundMetadataMap = Object.fromEntries(['whale', 'gpt', 'dragon'].map(persona => [persona, {
   press: { name: '内置按下音效', isCustom: false, revision: 'default', warning: null },
   release: { name: '内置松开音效', isCustom: false, revision: 'default', warning: null },
@@ -18,6 +23,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   volume: 0.35,
   bubbleDurationSeconds: 3,
   bubbleHoverDelaySeconds: 0,
+  codexCompletionEnabled: true,
+  codexCompletionDirectory: null,
+  completionMessagesByPersona: { ...DEFAULT_COMPLETION_MESSAGES },
   phrases: ['今天也要照顾好自己呀。', '小鲸鱼正在替你看着余额～', '工作一会儿，记得眺望远方。'],
   phrasesByPersona: structuredClone(DEFAULT_PHRASES_BY_PERSONA),
   lowBalanceThreshold: null,

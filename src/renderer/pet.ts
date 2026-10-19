@@ -6,6 +6,11 @@ import { pageCount, nextPage, summaryText, usageStatus } from './bubble-pages';
 import { PersonaSoundPlayer } from './sounds';
 
 export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, demo: boolean) {
+  let completionPending = false;
+  let completionTimer: ReturnType<typeof setTimeout> | undefined;
+  const completionSeen = new Set<string>();
+  let noticeKind: 'usage' | 'completion' = 'usage';
+  const clearCompletionPending = () => { completionPending = false; clearTimeout(completionTimer); };
   let state = initial, page = 0, visible = false, retention = false, hovered = false, disposed = false;
   let revision = 0, operation = 0, switching = false, refreshing = false, notice = '', lastAlertId: string | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -28,8 +33,8 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     const isGpt = state.activePet === 'gpt', total = pageCount(phrases());
     if (page >= total) page = 0;
     const usage = page === 0 && !retention && !notice;
-    query('.bubble-label').textContent = retention ? '再陪我一会儿吧' : notice ? '用量提醒' : page === 0 ? `${isGpt ? 'GPT' : 'DeepSeek'} 用量` : page === 1 ? '用量小报告' : '陪伴短句';
-    query('.bubble-page').textContent = retention ? '' : `${page + 1}/${total}`;
+    query('.bubble-label').textContent = retention ? '再陪我一会儿吧' : notice ? noticeKind === 'completion' ? 'GPT 完成提醒' : '用量提醒' : page === 0 ? `${isGpt ? 'GPT' : 'DeepSeek'} 用量` : page === 1 ? '用量小报告' : '陪伴短句';
+    query('.bubble-page').textContent = retention || notice ? '' : `${page + 1}/${total}`;
     query('.bubble-balances').hidden = !usage || isGpt; quota.hidden = !usage || !isGpt;
     message.hidden = usage; message.textContent = retention ? (persona(state) === 'dragon' ? '翅膀还为你留着位置，再陪我一会儿吧。' : isGpt ? '代码还没写完呢，再陪我一会儿，好吗？' : '我还想陪着你，再留一会儿，好吗？') : notice || (page === 1 ? summaryText(state) : phrases()[page - 2] ?? '工作一会儿，记得照顾自己哦。');
     if (usage && isGpt) renderQuota(quota, state.codex, true, demo);
@@ -47,12 +52,19 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     query<HTMLButtonElement>('.bubble-switch').disabled = switching;
   };
   const show = () => { visible = true; bubble.hidden = false; api.setBubbleVisible(true); render(); schedule(); };
+  const flushCompletion = () => {
+    if (!completionPending || disposed || !state.settings.codexCompletionEnabled || drag || retention || switching) return;
+    clearCompletionPending();
+    noticeKind = 'completion'; notice = state.settings.completionMessagesByPersona[persona(state)];
+    show(); query('.bubble-content').scrollTop = 0;
+  };
   const update = (next: AppState) => {
     if (disposed) return;
     revision++; const changedPet = persona(state) !== persona(next);
     const timingChanged = state.settings.bubbleDurationSeconds !== next.settings.bubbleDurationSeconds || state.settings.bubbleHoverDelaySeconds !== next.settings.bubbleHoverDelaySeconds;
     if (changedPet || state.sounds[persona(state)].press.revision !== next.sounds[persona(next)].press.revision || state.sounds[persona(state)].release.revision !== next.sounds[persona(next)].release.revision) soundWarning = '';
     state = next; sounds.sync(persona(state), state.sounds);
+    if (!state.settings.codexCompletionEnabled) { clearCompletionPending(); if (notice && noticeKind === 'completion') close(); }
     if (!state.settings.soundEnabled || state.settings.volume <= 0) sounds.stop();
     if (changedPet) { page = 0; retention = false; notice = ''; }
     const scale = state.effectiveScale ?? state.settings.scale, layout = getPetLayout(state.flipped, state.bubblePlacement, state.pet);
@@ -63,8 +75,9 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     canvas.classList.toggle('gpt-theme', state.activePet === 'gpt'); canvas.classList.toggle('dragon-theme', state.activePet === 'gpt' && state.gptAppearance === 'dragon'); image.src = state.pet.url;
     character.setAttribute('aria-label', `${state.pet.name}，点击切换用量、小报告和陪伴短句，拖动调整位置，右键打开菜单`);
     render();
-    if (state.activePet !== 'gpt' && state.alert && state.alert.id !== lastAlertId && !retention) { lastAlertId = state.alert.id; notice = state.alert.message; show(); }
+    if (state.activePet !== 'gpt' && state.alert && state.alert.id !== lastAlertId && !retention) { lastAlertId = state.alert.id; noticeKind = 'usage'; notice = state.alert.message; show(); }
     if (changedPet || timingChanged) schedule();
+    if (changedPet) flushCompletion();
   };
   // Broadcasts may precede IPC resolution; an older response must not overwrite them.
   const run = async (action: () => Promise<AppState>, kind: 'refresh' | 'switch' | 'appearance') => {
@@ -72,21 +85,21 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     if (kind === 'refresh') refreshing = true; else switching = true; render();
     try { const next = await action(); if (!disposed && ticket === operation && revision === started) update(next); if (!disposed && ticket === operation && kind === 'switch') { retention = false; page = 0; notice = ''; show(); } }
     catch (error) { if (!disposed && ticket === operation) { status.textContent = error instanceof Error ? error.message : '操作失败，请重试。'; status.title = status.textContent; } }
-    finally { if (!disposed && ticket === operation) { refreshing = false; switching = false; refresh.disabled = state.activePet === 'gpt' ? state.codex.status === 'loading' : state.status === 'loading'; refresh.textContent = refresh.disabled ? '刷新中' : '刷新'; confirm.disabled = false; query<HTMLButtonElement>('.bubble-cancel').disabled = false; query<HTMLButtonElement>('.bubble-appearance').disabled = false; query<HTMLButtonElement>('.bubble-switch').disabled = false; } }
+    finally { if (!disposed && ticket === operation) { refreshing = false; switching = false; refresh.disabled = state.activePet === 'gpt' ? state.codex.status === 'loading' : state.status === 'loading'; refresh.textContent = refresh.disabled ? '刷新中' : '刷新'; confirm.disabled = false; query<HTMLButtonElement>('.bubble-cancel').disabled = false; query<HTMLButtonElement>('.bubble-appearance').disabled = false; query<HTMLButtonElement>('.bubble-switch').disabled = false; flushCompletion(); } }
   };
   const clicked = () => { if (retention) return; page = visible ? nextPage(page, phrases()) : 0; notice = ''; show(); };
   character.addEventListener('pointerdown', event => { if (event.button !== 0) return; event.preventDefault(); drag = { id: event.pointerId, x: event.screenX, y: event.screenY, moved: false }; character.setPointerCapture(event.pointerId); character.classList.add('pressed'); setInteractive(true); play('press'); api.startDrag(); });
   character.addEventListener('pointermove', event => { if (drag?.id === event.pointerId && Math.hypot(event.screenX - drag.x, event.screenY - drag.y) > 5) drag.moved = true; });
-  const endDrag = (event: PointerEvent, cancel = false) => { if (!drag || drag.id !== event.pointerId) return; const moved = drag.moved; drag = undefined; character.classList.remove('pressed'); api.endDrag(); play('release'); if (character.hasPointerCapture(event.pointerId)) character.releasePointerCapture(event.pointerId); if (!cancel && !moved) clicked(); };
+  const endDrag = (event: PointerEvent, cancel = false) => { if (!drag || drag.id !== event.pointerId) return; const moved = drag.moved; drag = undefined; character.classList.remove('pressed'); api.endDrag(); play('release'); if (character.hasPointerCapture(event.pointerId)) character.releasePointerCapture(event.pointerId); if (!cancel && !moved) clicked(); flushCompletion(); };
   character.addEventListener('pointerup', event => endDrag(event)); character.addEventListener('pointercancel', event => endDrag(event, true)); character.addEventListener('lostpointercapture', event => endDrag(event, true));
   character.addEventListener('click', event => { if (event.detail === 0) { play('press'); clicked(); play('release'); } });
   const menu = (event: Event) => { event.preventDefault(); void api.showMenu().catch(() => { status.textContent = '无法打开菜单，请重试。'; }); };
   character.addEventListener('contextmenu', menu); character.addEventListener('keydown', event => { if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) menu(event); });
-  query('.bubble-close').addEventListener('click', close);
+  query('.bubble-close').addEventListener('click', () => { clearCompletionPending(); close(); });
   refresh.addEventListener('click', () => { void run(() => state.activePet === 'gpt' ? api.refreshCodexQuota() : api.refreshBalance(), 'refresh'); });
   query('.bubble-switch').addEventListener('click', () => { retention = true; clearTimeout(timer); render(); });
   confirm.addEventListener('click', () => { const target = state.activePet === 'gpt' ? 'deepseek' : 'gpt'; void run(() => api.selectPet(target), 'switch'); });
-  query('.bubble-cancel').addEventListener('click', () => { retention = false; render(); schedule(); });
+  query('.bubble-cancel').addEventListener('click', () => { retention = false; render(); schedule(); flushCompletion(); });
   query('.bubble-appearance').addEventListener('click', () => { void run(() => api.selectGptAppearance(state.gptAppearance === 'dragon' ? 'classic' : 'dragon'), 'appearance'); });
   query('.bubble-settings').addEventListener('click', () => { void api.openSettings().catch(() => { status.textContent = '无法打开设置，请重试。'; }); });
   bubble.addEventListener('pointerenter', () => { hovered = true; if (state.settings.bubbleHoverDelaySeconds > 0) clearTimeout(timer); });
@@ -96,6 +109,14 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const focusChange = () => setInteractive(Boolean(root.contains(document.activeElement) && document.activeElement !== document.body));
   document.addEventListener('pointermove', pointerMove); document.addEventListener('pointerleave', pointerLeave); root.addEventListener('focusin', focusChange); root.addEventListener('focusout', focusChange);
   api.setBubbleVisible(false); api.setInteractive(false); update(initial);
+  const stopCompletion = api.onCodexCompletion(event => {
+    if (disposed || !state.settings.codexCompletionEnabled || !event || typeof event.id !== 'string' || completionSeen.has(event.id)) return;
+    completionSeen.add(event.id);
+    if (completionSeen.size > 500) completionSeen.delete(completionSeen.values().next().value!);
+    completionPending = true;
+    clearTimeout(completionTimer); completionTimer = setTimeout(flushCompletion, 150);
+  });
+  const stopHidden = api.onPetHidden(() => { clearCompletionPending(); close(); });
   const countdown = setInterval(() => { if (visible) render(); }, 30000);
-  return { update, dispose: () => { disposed = true; sounds.dispose(); clearInterval(countdown); clearTimeout(timer); if (drag) api.endDrag(); api.setBubbleVisible(false); api.setInteractive(false); document.removeEventListener('pointermove', pointerMove); document.removeEventListener('pointerleave', pointerLeave); root.removeEventListener('focusin', focusChange); root.removeEventListener('focusout', focusChange); } };
+  return { update, dispose: () => { disposed = true; clearCompletionPending(); stopCompletion(); stopHidden(); sounds.dispose(); clearInterval(countdown); clearTimeout(timer); if (drag) api.endDrag(); api.setBubbleVisible(false); api.setInteractive(false); document.removeEventListener('pointermove', pointerMove); document.removeEventListener('pointerleave', pointerLeave); root.removeEventListener('focusin', focusChange); root.removeEventListener('focusout', focusChange); } };
 }
