@@ -3,8 +3,10 @@ import { appendFile, mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promi
 import path from 'node:path';
 import { CodexCompletionService } from '../../../src/main/services/codex-completion';
 import type { CodexCompletionNotice } from '../../../src/shared/types';
+import { codexHistoryFixture } from '../../fixtures/codex-history';
 
 const directories: string[] = [], services: CodexCompletionService[] = [];
+const databases: ReturnType<typeof codexHistoryFixture>[] = [];
 const root = path.resolve('.tmp');
 const instant = Date.parse('2026-10-19T10:00:00Z');
 const line = (value: unknown) => `${JSON.stringify(value)}\n`;
@@ -24,7 +26,89 @@ async function fixture(existing?: string, pollMs = 100000) {
 }
 afterEach(async () => {
   for (const service of services.splice(0)) { service.dispose(); await service.drain(); }
+  for (const database of databases.splice(0)) database.close();
   for (const directory of directories.splice(0)) { expect(path.dirname(directory)).toBe(root); await rm(directory, { recursive: true, force: true }); }
+});
+
+async function historyFixture() {
+  const f = await fixture(); await f.service.configure(false, f.home);
+  const db = codexHistoryFixture(f.home); databases.push(db); db.root();
+  return { ...f, db };
+}
+
+describe('desktop paginated completion history', () => {
+  it('skips existing SQLite turns, detects updates through WAL without session files or content tables', async () => {
+    const f = await historyFixture();
+    await rm(path.join(f.home, 'sessions'), { recursive: true });
+    f.db.turn('history', instant); f.db.turn('running', null, 'inProgress');
+    await f.service.configure(true, f.home);
+    expect(f.service.getState().status).toBe('watching'); expect(f.notices).toEqual([]);
+    f.db.turn('running', instant); await f.service.check(); await f.service.check();
+    expect(f.notices).toEqual([{ id: 'desktop:running', completedAt: new Date(instant).toISOString() }]);
+  });
+  it('deduplicates SQLite and JSONL in either order while accepting different turns in the same second', async () => {
+    const f = await historyFixture(); await writeFile(f.file, meta('desktop'));
+    await f.service.configure(true, f.home);
+    f.clock.now += 345;
+    f.db.turn('both', instant); await appendFile(f.file, event('both', f.clock.now)); await f.service.check();
+    await appendFile(f.file, event('file-first', f.clock.now)); await f.service.check();
+    f.db.turn('file-first', instant); f.db.turn('database-only', instant); await f.service.check();
+    expect(f.notices.map(n => n.id)).toEqual(['desktop:both', 'desktop:file-first', 'desktop:database-only']);
+  });
+  it('filters failed, interrupted, errored, subagent, automation and internal SQLite turns', async () => {
+    const f = await historyFixture(); await f.service.configure(true, f.home);
+    f.db.root('child', { subagent: { thread_spawn: { parent_thread_id: 'desktop' } } });
+    f.db.root('guardian', 'vscode', 'guardian_review'); f.db.root('automation', 'vscode', 'automation');
+    f.db.root('internal', 'internal_memory'); f.db.root('custom', { custom: 'codex-desktop' });
+    for (const id of ['child', 'guardian', 'automation', 'internal', 'custom']) f.db.turn('turn', instant, 'completed', id);
+    f.db.turn('failed', instant, 'failed'); f.db.turn('cancelled', instant, 'interrupted');
+    f.db.turn('error', instant, 'completed', 'desktop', '{}'); f.db.turn('unfinished', null, 'inProgress');
+    f.db.turn('success', instant); await f.service.check();
+    expect(f.notices.map(n => n.id).sort()).toEqual(['custom:turn', 'desktop:success']);
+  });
+  it('snapshots hidden completions even within one second and resumes after showing without losing new turns', async () => {
+    const f = await historyFixture(); await f.service.configure(true, f.home);
+    f.db.turn('hidden', instant); f.db.turn('metadata-late', instant, 'completed', 'late');
+    f.clock.now += 100; f.service.discardHiddenHistory();
+    f.db.root('late'); await f.service.check(); expect(f.notices).toEqual([]);
+    f.clock.now += 100; f.db.turn('visible', instant); await f.service.check();
+    expect(f.notices).toEqual([{ id: 'desktop:visible', completedAt: new Date(f.clock.now).toISOString() }]);
+  });
+  it('handles metadata arriving after the turn, and databases created after startup without replaying old history', async () => {
+    const f = await fixture();
+    const db = codexHistoryFixture(f.home); databases.push(db); db.root();
+    db.turn('old', instant - 1000); db.turn('new', instant); db.turn('late', instant, 'completed', 'later');
+    await f.service.check(); expect(f.notices.map(n => n.id)).toEqual(['desktop:new']);
+    db.root('later'); await f.service.check();
+    expect(f.notices.map(n => n.id)).toEqual(['desktop:new', 'later:late']);
+  });
+  it('reports an incompatible SQLite schema while continuing JSONL monitoring and recovers automatically', async () => {
+    const f = await historyFixture(); await writeFile(f.file, meta());
+    f.db.history.exec('ALTER TABLE thread_turns RENAME COLUMN status TO unsupported_status');
+    await f.service.configure(true, f.home);
+    expect(f.service.getState().status).toBe('error');
+    await appendFile(f.file, event('file-works')); await f.service.check();
+    expect(f.notices.map(n => n.id)).toEqual(['thread:file-works']);
+    f.db.history.exec('ALTER TABLE thread_turns RENAME COLUMN unsupported_status TO status');
+    await f.service.check(); expect(f.service.getState().status).toBe('watching');
+    f.db.turn('database-works', instant); await f.service.check();
+    expect(f.notices.map(n => n.id)).toEqual(['thread:file-works', 'desktop:database-works']);
+  });
+  it('re-arms SQLite without replay and ignores updates while disabled', async () => {
+    const f = await historyFixture(); await f.service.configure(true, f.home);
+    await f.service.configure(false, f.home); f.db.turn('disabled', instant); await f.service.check();
+    await f.service.configure(true, f.home); expect(f.notices).toEqual([]);
+    f.db.turn('enabled', instant); await f.service.check();
+    expect(f.notices.map(n => n.id)).toEqual(['desktop:enabled']);
+  });
+  it('does not replay database completions when the shared bounded duplicate cache rolls over', async () => {
+    const f = await historyFixture(); await f.service.configure(true, f.home);
+    f.db.history.exec('BEGIN');
+    for (let i = 0; i < 5002; i++) f.db.turn(`turn-${i}`, instant + i * 1000);
+    f.db.history.exec('COMMIT'); f.clock.now += 5002000;
+    await f.service.check(); expect(f.notices).toHaveLength(5002);
+    await f.service.check(); expect(f.notices).toHaveLength(5002);
+  });
 });
 
 describe('local Codex completion monitoring', () => {

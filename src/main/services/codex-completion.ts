@@ -3,6 +3,8 @@ import { open, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { StringDecoder } from 'node:string_decoder';
+import { CodexCompletionHistory } from './codex-completion-history';
+import { isRootCodexSource } from './codex-completion-source';
 import type { CodexCompletionNotice, CodexCompletionState } from '../../shared/types';
 
 const MAX_LINE = 1024 * 1024;
@@ -21,13 +23,7 @@ function metadata(line: string): Meta | null {
   try {
     const row = object(JSON.parse(line)), data = object(row?.payload);
     if (row?.type !== 'session_meta' || !data || !text(data.id)) return null;
-    const source = data.source;
-    const custom = object(source);
-    const customRoot = custom && Object.keys(custom).length === 1 && typeof custom.custom === 'string';
-    const nonRoot = !!data.parent_thread_id || (source !== undefined && typeof source !== 'string' && !customRoot)
-      || (typeof source === 'string' && /^(subagent|internal|guardian|memory)/i.test(source))
-      || (typeof data.thread_source === 'string' && data.thread_source !== 'user');
-    return { id: data.id as string, root: !nonRoot };
+    return { id: data.id as string, root: isRootCodexSource(data) };
   } catch { return null; }
 }
 
@@ -50,6 +46,8 @@ export class CodexCompletionService {
   private cursors = new Map<string, Cursor>();
   private seen = new Set<string>();
   private completedThrough = new Map<string, { time: number; ids: Set<string> }>();
+  private history = new CodexCompletionHistory();
+  private historyNeedsBaseline = false;
   private watcher: FSWatcher | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
   private debounce: ReturnType<typeof setTimeout> | undefined;
@@ -64,6 +62,7 @@ export class CodexCompletionService {
     const generation = ++this.generation;
     this.stopTimers(); this.enabled = enabled;
     this.cursors.clear(); this.seen.clear(); this.completedThrough.clear(); this.baseline = true;
+    this.history.reset(); this.historyNeedsBaseline = true;
     this.armedAt = this.now(); this.inFlight = null;
     this.update({ directory, status: enabled ? 'starting' : 'disabled', error: null });
     if (!enabled) return;
@@ -87,6 +86,12 @@ export class CodexCompletionService {
   }
 
   private now(): number { return this.options.now?.() ?? Date.now(); }
+  /** SQLite timestamps have second precision: snapshot on show to discard hidden completions. */
+  discardHiddenHistory(): void {
+    if (!this.enabled || this.disposed) return;
+    try { this.history.read(this.state.directory, this.armedAt, true); }
+    catch { this.historyNeedsBaseline = true; }
+  }
   private current(generation: number): boolean { return !this.disposed && this.enabled && generation === this.generation; }
   private update(patch: Partial<CodexCompletionState>): void {
     const next = { ...this.state, ...patch };
@@ -114,6 +119,19 @@ export class CodexCompletionService {
 
   private async scan(generation: number): Promise<void> {
     const directory = path.join(this.state.directory, 'sessions');
+    let historyAvailable = false, historyError = false;
+    try {
+      const history = this.history.read(this.state.directory, this.armedAt, this.historyNeedsBaseline);
+      historyAvailable = history.available;
+      this.historyNeedsBaseline = false;
+      for (const turn of history.completions) {
+        // The database records seconds, so use detection time for delivery. Show snapshots
+        // above prevent a completion from the hidden interval being delivered after show.
+        this.accept(turn.thread, turn.turn, turn.completedAt, turn.success, this.now());
+      }
+    } catch { historyError = true; }
+    if (!this.current(generation)) return;
+    let sessionsAvailable = true;
     try { if (!(await stat(directory)).isDirectory()) throw new Error('not-directory'); }
     catch (error) {
       if (!this.current(generation)) return;
@@ -121,11 +139,10 @@ export class CodexCompletionService {
       this.watcher?.close(); this.watcher = null;
       // A directory created later is a new source, not old history to replay.
       this.baseline = false;
-      this.update({ status: 'unavailable', error: '未找到 sessions 目录；等待本机 Codex 保存会话事件。' });
-      return;
+      sessionsAvailable = false;
     }
     if (!this.current(generation)) return;
-    this.attachWatcher(directory, generation);
+    if (sessionsAvailable) this.attachWatcher(directory, generation);
     const files = new Set<string>();
     const visit = async (folder: string): Promise<void> => {
       if (!this.current(generation)) return;
@@ -141,11 +158,13 @@ export class CodexCompletionService {
         }
       }
     };
-    await visit(directory);
+    if (sessionsAvailable) await visit(directory);
     if (!this.current(generation)) return;
     for (const filename of this.cursors.keys()) if (!files.has(filename)) this.cursors.delete(filename);
     this.baseline = false;
-    this.update({ status: 'watching', error: null });
+    this.update(historyError ? { status: 'error', error: '桌面分页历史暂时无法读取，文件监听仍将继续；请检查目录或 Codex 版本，将自动重试。' }
+      : historyAvailable || sessionsAvailable ? { status: 'watching', error: null }
+        : { status: 'unavailable', error: '未找到本机会话文件或分页历史；等待 Codex 保存完成事件。' });
   }
 
   private async read(filename: string, generation: number, baseline: boolean): Promise<void> {
@@ -218,20 +237,26 @@ export class CodexCompletionService {
       if (payload.type === 'turn_aborted' || payload.type === 'error') { this.remember(key); return; }
       if (payload.type !== 'task_complete' && payload.type !== 'turn_complete') return;
       const timestamp = typeof row.timestamp === 'string' ? Date.parse(row.timestamp) : NaN;
-      if (!Number.isFinite(timestamp) || timestamp < this.armedAt || this.seen.has(key)) return;
-      const previous = this.completedThrough.get(cursor.meta.id);
-      if (previous && (timestamp < previous.time || (timestamp === previous.time && previous.ids.has(turn)))) return;
-      const through = previous && timestamp === previous.time ? previous : { time: timestamp, ids: new Set<string>() };
-      through.ids.add(turn); this.completedThrough.set(cursor.meta.id, through);
-      this.remember(key);
-      if (payload.error != null || (payload.status != null && payload.status !== 'completed' && payload.status !== 'success')) return;
-      this.options.onNotice({ id: key, completedAt: new Date(timestamp).toISOString() });
+      this.accept(cursor.meta.id, turn, timestamp, payload.error == null && (payload.status == null || payload.status === 'completed' || payload.status === 'success'));
     } catch { /* Malformed lines and consumer errors cannot stop monitoring. */ }
+  }
+  private accept(thread: string, turn: string, timestamp: number, success: boolean, detectedAt?: number): void {
+    const key = `${thread}:${turn}`;
+    const deliveredAt = detectedAt ?? timestamp;
+    if (!Number.isFinite(timestamp) || deliveredAt < this.armedAt || this.seen.has(key)) return;
+    const previous = this.completedThrough.get(thread);
+    if (detectedAt === undefined && previous && (timestamp < previous.time || (timestamp === previous.time && previous.ids.has(turn)))) return;
+    if (!previous || timestamp >= previous.time) {
+      const through = previous && timestamp === previous.time ? previous : { time: timestamp, ids: new Set<string>() };
+      through.ids.add(turn); this.completedThrough.set(thread, through);
+    }
+    this.remember(key);
+    if (success) { try { this.options.onNotice({ id: key, completedAt: new Date(deliveredAt).toISOString() }); } catch { /* Consumer failure cannot stop monitoring. */ } }
   }
   private remember(key: string): void {
     this.seen.add(key);
     if (this.seen.size > 5000) this.seen.delete(this.seen.values().next().value!);
   }
   async drain(): Promise<void> { await Promise.all(this.active); }
-  dispose(): void { this.disposed = true; this.generation++; this.enabled = false; this.stopTimers(); this.cursors.clear(); this.seen.clear(); this.completedThrough.clear(); }
+  dispose(): void { this.disposed = true; this.generation++; this.enabled = false; this.stopTimers(); this.cursors.clear(); this.seen.clear(); this.completedThrough.clear(); this.history.reset(); }
 }

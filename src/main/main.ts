@@ -155,7 +155,7 @@ async function createPet(): Promise<void> {
   petWindow.on('close', (event) => { if (!quitting) { event.preventDefault(); petWindow?.hide(); } });
   petWindow.on('move', scheduleWindowSave);
   petWindow.on('blur', finishDrag);
-  petWindow.on('show', () => { petVisibleSince = Date.now(); });
+  petWindow.on('show', () => { petVisibleSince = Date.now(); completion.discardHiddenHistory(); });
   petWindow.on('hide', () => { if (petWindow && !petWindow.webContents.isDestroyed()) petWindow.webContents.send('desktopplay:pet-hidden'); });
   let recoveries = 0;
   petWindow.webContents.on('render-process-gone', () => { if (!quitting && recoveries++ < 2) petWindow?.reload(); });

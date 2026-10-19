@@ -4,6 +4,7 @@ import electronPath from 'electron';
 import path from 'node:path';
 import { appendFile, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { electronArgs } from './electron-args';
+import { codexHistoryFixture } from '../fixtures/codex-history';
 
 const metadata = (id: string) => `${JSON.stringify({ type: 'session_meta', payload: { id, source: 'vscode' } })}\n`;
 const finished = (id: string) => `${JSON.stringify({ type: 'event_msg', timestamp: new Date().toISOString(), payload: { type: 'task_complete', turn_id: id, last_agent_message: 'PRIVATE CONTENT MUST NOT APPEAR' } })}\n`;
@@ -23,6 +24,43 @@ async function profile() {
   const file = path.join(sessions, 'rollout.jsonl'); await writeFile(file, metadata('client') + finished('history'));
   return { directory, home, file };
 }
+
+test('desktop SQLite WAL completions notify without new JSONL, share deduplication and discard hidden history', async () => {
+  const f = await profile(), db = codexHistoryFixture(f.home);
+  db.root(); db.turn('before-start', Date.now()); db.turn('running', null, 'inProgress');
+  const application = await launch(f.directory, f.home);
+  try {
+    const pet = await application.firstWindow();
+    await expect.poll(() => pet.evaluate(async () => (await window.desktopPlay.getState()).codexCompletion.status)).toBe('watching');
+    await expect(pet.locator('.pet-bubble')).toBeHidden();
+    await pet.evaluate(async () => {
+      window.desktopPlay.onCodexCompletion(() => { document.body.dataset.sqliteCount = String(Number(document.body.dataset.sqliteCount ?? 0) + 1); });
+      await window.desktopPlay.selectPet('gpt'); await window.desktopPlay.selectGptAppearance('dragon');
+      await window.desktopPlay.openSettings();
+    });
+    const settings = application.windows().find(win => win !== pet) ?? await application.waitForEvent('window');
+    await settings.bringToFront();
+    const focused = await application.evaluate(({ BrowserWindow }) => BrowserWindow.getFocusedWindow()?.id);
+    db.turn('running', Date.now());
+    await expect(pet.locator('.bubble-label')).toHaveText('GPT 完成提醒');
+    await expect(pet.locator('.bubble-message')).toHaveText('GPT 的答复已送达，我替你守候着。');
+    expect(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getFocusedWindow()?.id)).toBe(focused);
+    await pet.screenshot({ path: 'test-results/completion-desktop-sqlite.png', omitBackground: true });
+    await writeFile(f.file, metadata('desktop') + finished('running'));
+    await new Promise(resolve => setTimeout(resolve, 2200));
+    expect(await pet.locator('body').getAttribute('data-sqlite-count')).toBe('1');
+    await pet.evaluate(() => window.desktopPlay.hidePet());
+    db.turn('hidden-quick-show', Date.now());
+    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(win => win.webContents.getURL().includes('view=pet'))!.showInactive());
+    await new Promise(resolve => setTimeout(resolve, 2200));
+    await expect(pet.locator('.pet-bubble')).toBeHidden();
+    expect(await pet.locator('body').getAttribute('data-sqlite-count')).toBe('1');
+    db.turn('visible-again', Date.now());
+    await expect(pet.locator('.pet-bubble')).toBeVisible();
+    await expect(pet.locator('.bubble-label')).toHaveText('GPT 完成提醒');
+    await expect(pet.locator('body')).toHaveAttribute('data-sqlite-count', '2');
+  } finally { await application.close(); db.close(); }
+});
 
 test('local events use editable persona text, preserve drafts and focus, respect hidden state and persist directory/settings', async () => {
   test.setTimeout(90000);
