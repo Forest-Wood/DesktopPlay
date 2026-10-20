@@ -21,14 +21,16 @@ async function fixture(mode = 'valid', stepName = 'Publish only after every asse
   if (mode === 'size') assets[0].size++;
   const release = { id: 123, tag_name: 'v0.5.3', draft: mode !== 'published', assets };
   const old = { id: 1, tag_name: 'v0.5.2', draft: false, assets: [] };
-  const pages = mode === 'single' ? [[old, release]] : [[old], mode === 'duplicate' ? [release, { ...release, id: 124 }] : [release]];
+  const pages = mode === 'none' ? [[old]] : mode === 'single' ? [[old, release]] : [[old], mode === 'duplicate' ? [release, { ...release, id: 124 }] : [release]];
   await writeFile(path.join(directory, 'pages.json'), JSON.stringify(pages));
   const script = `$ErrorActionPreference='Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $env:GITHUB_REPOSITORY='Forest-Wood/DesktopPlay'
 $env:RELEASE_TAG='v0.5.3'
+$env:GITHUB_OUTPUT=Join-Path $PSScriptRoot 'output'
 function gh {
   $global:LASTEXITCODE=0
+  if ($args -contains 'upload') { [IO.File]::WriteAllText((Join-Path $PSScriptRoot 'uploaded'), ($args -join '|')); ${mode === 'upload-fails' ? '$global:LASTEXITCODE=1' : ''}; return }
   if ($args -contains 'PATCH') { [IO.File]::WriteAllText((Join-Path $PSScriptRoot 'published'), ($args -join '|')); return }
   if ($args -notcontains '--paginate' -or $args -notcontains '--slurp' -or ($args -join ' ') -match '/releases/tags/') { throw 'Draft lookup must use paginated release collection' }
   return [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'pages.json'))
@@ -51,4 +53,23 @@ it.skipIf(process.platform !== 'win32').each(['missing', 'digest', 'size', 'dupl
 });
 it.skipIf(process.platform !== 'win32')('refuses to overwrite an already published version', async () => {
   const f = await fixture('published', 'Refuse to overwrite a published release'); expect(f.result.status).not.toBe(0); await expect(readFile(path.join(f.directory, 'published'))).rejects.toThrow();
+});
+it.skipIf(process.platform !== 'win32').each(['valid', 'none'])('selects the draft upload path for %s releases', async mode => {
+  const f = await fixture(mode, 'Refuse to overwrite a published release'); expect(f.result.status, f.result.stderr).toBe(0);
+  expect(await readFile(path.join(f.directory, 'output'), 'utf16le')).toContain(`draft_exists=${mode === 'valid'}`);
+});
+it.skipIf(process.platform !== 'win32')('rejects ambiguous drafts before replacing assets', async () => {
+  const f = await fixture('duplicate', 'Refuse to overwrite a published release'); expect(f.result.status).not.toBe(0);
+});
+it.skipIf(process.platform !== 'win32')('replaces only the five draft assets without patching tag or target', async () => {
+  const f = await fixture('valid', 'Replace assets in an existing draft without rewriting release metadata'); expect(f.result.status, f.result.stderr).toBe(0);
+  const command = await readFile(path.join(f.directory, 'uploaded'), 'utf8');
+  expect(command.split('|').slice(0, 3)).toEqual(['release', 'upload', 'v0.5.3']);
+  expect(command).toContain('--repo|Forest-Wood/DesktopPlay|--clobber');
+  expect(command.split('|').filter(arg => arg.startsWith(f.directory + path.sep + 'release' + path.sep))).toHaveLength(5);
+  await expect(readFile(path.join(f.directory, 'published'))).rejects.toThrow();
+});
+it.skipIf(process.platform !== 'win32')('does not proceed after a failed draft asset upload', async () => {
+  const f = await fixture('upload-fails', 'Replace assets in an existing draft without rewriting release metadata'); expect(f.result.status).not.toBe(0);
+  await expect(readFile(path.join(f.directory, 'published'))).rejects.toThrow();
 });

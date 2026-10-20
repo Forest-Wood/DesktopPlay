@@ -1,7 +1,7 @@
 # T009：发布 DesktopPet v0.5.3
 
 - 日期：2026-10-20（Asia/Shanghai）；负责人／整合负责人：Codex；需求 R012。
-- 状态：PR #6 已合并，v0.5.3 标签已推送；Release #10 五资源已上传但转正接口失败，草稿保持非公开，正在修复恢复流程。
+- 状态：PR #6／#7 已合并，v0.5.3 标签固定；Release #10／#11 因不同发布接口问题失败，草稿保持非公开，正在修复已有草稿的上传路径。
 - 当前独立目录 `D:\desktop1\DesktopPlay-T009`；分支 `release/T009-v053`；目标 main。初始目录 `D:\desktop1\DesktopPlay` 保留，避免与原目录的分支操作相互影响。
 - 基准 `101477afcb8a861289cd87d038519f64658046fb`，PR #5 合并提交；任务开始时 T008 工作区干净，原分支与旧标签保留。远端无 v0.5.3 标签／Release。
 - 短路径修复 `67fb6ec`，发布准备交接 `9c618b0`，[PR #6](https://github.com/Forest-Wood/DesktopPlay/pull/6) 合并提交 `e71d83644bb6895a91129bd6700fe0d3c5ec7fec`；原分支／提交均保留。
@@ -27,11 +27,15 @@
 - 新增 workflow_dispatch 恢复入口：在主线读取修复后的 workflow，但 checkout 既有稳定标签作为打包源码；沿用同一 Release／tag，不移动 v0.5.3 或变更应用代码。仅允许稳定版本且必须匹配 package.json，已公开版本仍拒绝覆盖。
 - 新增 8 个真实 PowerShell 门禁回归：单页／多页精确草稿可发布，缺附件、错误摘要／大小、重复草稿和已发布版本均不得转正。
 - 恢复 PR #7 首次 CI #27 为 200／202：测试从 pwsh 继承 PS7 模块路径，Windows PowerShell 5 的 Get-FileHash 无法导入；仅隔离测试子进程的 PSModulePath，使用其自身默认模块。实际门禁仍执行真实 Get-FileHash，不伪造摘要或降低断言。
-- 待验证：恢复流程远端 CI、Release 重试、五附件公开下载与摘要。
+- 通过：[PR CI #28](https://github.com/Forest-Wood/DesktopPlay/actions/runs/39397156417) 与 [main CI #29](https://github.com/Forest-Wood/DesktopPlay/actions/runs/39397807406)，PR #7 合并为 `69f224d`，19 文件／202 单测及完整检查通过。
+- 失败并定位：[Release #11](https://github.com/Forest-Wood/DesktopPlay/actions/runs/39397812854) 按既有标签完成 194 单测、构建和资源核实；action 找到草稿后 PATCH 元信息返回 403，尚未开始替换附件。GitHub 未提供更具体的拒绝原因，不把推测写为事实。
+- 恢复已有草稿时改用 `gh release upload --clobber`，仅替换五附件，不重写 tag／target；新草稿继续使用 action。既有正式版本、重复草稿均在上传前拒绝。凭据权限不增加，最终门禁仍逐一核对本轮产物，上传失败不得公开。
+- 通过：本地 13 个真实 PowerShell 回归，新增草稿／新建分流、重复草稿、精确五附件上传与失败阻断。
+- 待验证：最新上传修复的远端 CI、Release 重试、五附件公开下载与摘要。
 - 未运行：真实用户数据覆盖升级、真实账户／Work 端到端、其他 Windows／ACL／UAC 组合；不借发布验证启动当前真实桌宠。
 
 ## 下一步
 
 原目录在处理期间被切换到 main 并 pull；修复提交仍完整保留且从未推送到远端 main。创建独立 worktree，将本任务分支快进到 `67fb6ec` 后推送，PR #6 已核实正确包含修复；未回退原 main、未改写历史。后续从独立目录继续。
 
-提交发布准备并推送 PR；检查远端完整 CI，通过后整合到 main，再创建并推送 v0.5.3 新标签。跟踪 Release，核实草稿门禁与五资源，更新发布结果及继承资料。下一编号 T010／R013。
+提交恢复修复并推送 PR，完整 CI 通过后整合到 main，从主线手动运行 Release，指定既有 v0.5.3；不移动标签。跟踪草稿门禁与五资源，公开下载核实后更新发布结果及继承资料。下一编号 T010／R013。
