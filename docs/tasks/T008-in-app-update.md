@@ -4,7 +4,7 @@
 - 状态：已实现，必要本地验证完成；待审查，未推送、未创建 PR、未合并、未发布。
 - 目录：`D:\desktop1\DesktopPlay`；分支 `feat/T008-in-app-update`；目标 main。
 - 基准：获取远程后 origin/main 为 `34259f13837b52e641937fde6bc4cd168fc32c1f`；保留并快进带入 T007 交接 `7ed9cf3`。原分支、标签与 TODO 忽略规则未改写。
-- 结果提交：本次实现待提交，完成后在交接提交写入准确编号。开始时工作区干净；新增未提交内容均属 T008，无原有业务修改混入。
+- 结果提交：`2762baa`（feat(T008): add in-app updates for NSIS and portable）。本交接提交只更新任务与 PROJECT_STATE；开始时工作区干净，任务提交后无遗留未提交业务修改或其他任务修改。
 - 依赖：现有 Electron 44.5.1、electron-builder 26.15.3、NSIS／GitHub Release；新增生产 electron-updater 6.8.9、semver 7.7.3，类型及发布校验使用开发依赖。npm 自动调整依赖提升位置，没有无关依赖升级／audit fix。
 - 授权：本地实现、隔离验证、分任务提交；正式推送、PR、标签、Release 后续另行授权。
 
@@ -29,6 +29,7 @@ NSIS 使用官方整包更新，关闭自动下载、普通退出安装和差分
 - `tests/update-helper-fixtures.ps1`：7 场景通过，成功替换／健康回执、失败恢复、取消、文件变化、独占锁、只读目标、精确来源进程 120 秒不退出。旧文件保留且未强杀；文件系统 fixture 位于忽略的 `.tmp/T008-helper-*`。
 - `node tests/update-packaged.mjs`：三轮构建隔离 appId `io.github.forestwood.desktopplay.update-fixture` 的 Windows 0.0.1／0.0.2 NSIS＋portable；均实际完成两种升级、普通退出不安装、有效缓存复用、数据／原路径／开机启动项保留、重启新版本，以及 portable 启动失败恢复旧文件并重启。最终原子标记代码证据 `.tmp/T008-upgrade-MjGL9Z/results.json`；先前两轮为 `.tmp/T008-upgrade-HVzBwx`、`.tmp/T008-upgrade-1HlB4c`。只用伪造数据、本机测试源、专用 Run 项；完成后 fixture 退出并卸载自己的 NSIS，未更新真实桌宠。
 - 正式代码本地打包成功；最终输出 `.tmp/T008-v053`。`verify-release.mjs` 和 `verify-update-runtime.mjs` 核对五资源及 asar 的 electron-updater、semver、助手、固定 GitHub 源；打包 main／助手与当前构建字节核对一致。未安装或运行这个真实 appId 的产物。
+- 提交前后核对：文档相对链接、工作流 YAML／PowerShell 语法、版本三处、实际差异／暂存内容和 `git diff --check` 通过。根 TODO／TODO.md 大小写变体忽略命中、无跟踪项；旧预览图已恢复，未纳入提交。测试专用 Run 项和 fixture 应用进程均已清空，旧分支与 v0.5.1／v0.5.2 标签保留。
 
 ## 失败与修复／保留
 
@@ -47,4 +48,4 @@ NSIS 使用官方整包更新，关闭自动下载、普通退出安装和差分
 
 ## 下一步
 
-复核最终差异和 TODO 忽略／无跟踪项后本地提交，写回准确提交和工作区状态。go、pending、healthy 标记采用临时文件原子 rename，避免助手读取半份标记。经后续授权推送、创建 PR，处理审查与既有鼠标失败，再整合／发布 v0.5.3。发布后单独核实 latest、五附件、公开下载和摘要。下一编号 T009／R012。
+本地实现与交接已提交；go、pending、healthy 使用临时文件原子 rename，避免半份标记。经后续授权推送、创建 PR，处理审查与既有鼠标失败，再整合／发布 v0.5.3。发布后单独核实 latest、五附件、公开下载和摘要。下一编号 T009／R012。
