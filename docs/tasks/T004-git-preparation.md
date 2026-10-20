@@ -1,7 +1,7 @@
 # T004：Git 准备与本地 TODO
 
 - 日期：2026-10-20（Asia/Shanghai）；负责人：Codex；需求：R007。
-- 状态：待审查（已推送，纳入整合 [PR #3](https://github.com/Forest-Wood/DesktopPlay/pull/3)，未合并）；结果提交：`e9ffff8`。
+- 状态：已合并（整合 [PR #3](https://github.com/Forest-Wood/DesktopPlay/pull/3)，合并提交 `e3a1f3d`）；结果提交：`e9ffff8`。
 - 工作目录：`D:\desktop1\DesktopPlay`；分支：`chore/T004-git-preparation`；目标：`main`。
 - 基准：`c84113d`，其父提交为远程 main `979764a`；依赖顺序 T004 → T005 → T006。
 - 范围：TODO 忽略规则与管理文档，无业务修改。
@@ -17,4 +17,4 @@
 - 通过：远程状态／祖先关系；原分支保留；`git check-ignore --no-index` 覆盖 TODO、TODO.md、todo.md、ToDo.MD；`git ls-files` 无跟踪项；`git diff --check`。
 - 未运行：业务测试／构建／Electron smoke；本任务无业务修改，后续功能任务执行。
 
-T005、T006 已按顺序建立并保留独立提交。2026-10-20 按用户授权推送三条任务分支，以 T006 → main 的单个 PR #3 整合本阶段工作；未改写历史，TODO 不上传。下一步等待审查／CI；本次无业务变更，不重复此前业务验证。合并、版本调整和发布另行授权。
+T005、T006 已按顺序建立并保留独立提交。2026-10-20 三条任务分支推送后，PR #3 已合并；未改写历史，TODO 不上传。后续版本发布由 T007 单独记录，本任务无新增业务变更。
