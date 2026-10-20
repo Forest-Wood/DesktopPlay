@@ -6,11 +6,12 @@ import { pageCount, nextPage, summaryText, usageStatus } from './bubble-pages';
 import { PersonaSoundPlayer } from './sounds';
 
 export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, demo: boolean) {
-  let completionPending = false;
+  let completionPending: 'codex' | 'chatgpt-work' | null = null;
+  let completionSource: 'codex' | 'chatgpt-work' = 'codex';
   let completionTimer: ReturnType<typeof setTimeout> | undefined;
   const completionSeen = new Set<string>();
   let noticeKind: 'usage' | 'completion' = 'usage';
-  const clearCompletionPending = () => { completionPending = false; clearTimeout(completionTimer); };
+  const clearCompletionPending = () => { completionPending = null; clearTimeout(completionTimer); };
   let state = initial, page = 0, visible = false, retention = false, hovered = false, disposed = false;
   let revision = 0, operation = 0, switching = false, refreshing = false, notice = '', lastAlertId: string | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -33,7 +34,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     const isGpt = state.activePet === 'gpt', total = pageCount(phrases());
     if (page >= total) page = 0;
     const usage = page === 0 && !retention && !notice;
-    query('.bubble-label').textContent = retention ? '再陪我一会儿吧' : notice ? noticeKind === 'completion' ? 'GPT 完成提醒' : '用量提醒' : page === 0 ? `${isGpt ? 'GPT' : 'DeepSeek'} 用量` : page === 1 ? '用量小报告' : '陪伴短句';
+    query('.bubble-label').textContent = retention ? '再陪我一会儿吧' : notice ? noticeKind === 'completion' ? completionSource === 'chatgpt-work' ? 'ChatGPT Work 结束提醒' : 'GPT 完成提醒' : '用量提醒' : page === 0 ? `${isGpt ? 'GPT' : 'DeepSeek'} 用量` : page === 1 ? '用量小报告' : '陪伴短句';
     query('.bubble-page').textContent = retention || notice ? '' : `${page + 1}/${total}`;
     query('.bubble-balances').hidden = !usage || isGpt; quota.hidden = !usage || !isGpt;
     message.hidden = usage; message.textContent = retention ? (persona(state) === 'dragon' ? '翅膀还为你留着位置，再陪我一会儿吧。' : isGpt ? '代码还没写完呢，再陪我一会儿，好吗？' : '我还想陪着你，再留一会儿，好吗？') : notice || (page === 1 ? summaryText(state) : phrases()[page - 2] ?? '工作一会儿，记得照顾自己哦。');
@@ -54,6 +55,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const show = () => { visible = true; bubble.hidden = false; api.setBubbleVisible(true); render(); schedule(); };
   const flushCompletion = () => {
     if (!completionPending || disposed || !state.settings.codexCompletionEnabled || drag || retention || switching) return;
+    completionSource = completionPending;
     clearCompletionPending();
     noticeKind = 'completion'; notice = state.settings.completionMessagesByPersona[persona(state)];
     show(); query('.bubble-content').scrollTop = 0;
@@ -113,7 +115,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     if (disposed || !state.settings.codexCompletionEnabled || !event || typeof event.id !== 'string' || completionSeen.has(event.id)) return;
     completionSeen.add(event.id);
     if (completionSeen.size > 500) completionSeen.delete(completionSeen.values().next().value!);
-    completionPending = true;
+    completionPending = event.source === 'chatgpt-work' ? 'chatgpt-work' : 'codex';
     clearTimeout(completionTimer); completionTimer = setTimeout(flushCompletion, 150);
   });
   const stopHidden = api.onPetHidden(() => { clearCompletionPending(); close(); });

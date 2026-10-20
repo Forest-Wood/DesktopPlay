@@ -5,13 +5,14 @@ import { createHash } from 'node:crypto';
 import { StringDecoder } from 'node:string_decoder';
 import { CodexCompletionHistory } from './codex-completion-history';
 import { isRootCodexSource } from './codex-completion-source';
+import { completionFileAnchor } from './completion-file-anchor';
 import type { CodexCompletionNotice, CodexCompletionState } from '../../shared/types';
 
 const MAX_LINE = 1024 * 1024;
 const CHUNK = 64 * 1024;
 type Meta = { id: string; root: boolean };
 type Cursor = {
-  offset: number; identity: string; modified: string; prefix: string; prefixBytes: number; meta: Meta | null;
+  offset: number; identity: string; modified: string; prefix: string; prefixBytes: number; anchor: string; meta: Meta | null;
   decoder: StringDecoder; partial: string; discard: boolean;
 };
 const object = (value: unknown): Record<string, unknown> | null => value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
@@ -172,19 +173,19 @@ export class CodexCompletionService {
     if (!this.current(generation) || !info.isFile()) return;
     const identity = `${info.ino}:${info.birthtimeMs}`, modified = `${info.mtimeMs}:${info.ctimeMs}`;
     const previous = this.cursors.get(filename);
-    if (previous && previous.identity === identity && previous.offset === info.size && previous.modified === modified) return;
     const handle = await open(filename, 'r');
     try {
       const head = Buffer.alloc(256);
       const { bytesRead: headSize } = await handle.read(head, 0, head.length, 0);
       const prefixBytes = previous ? Math.min(previous.prefixBytes, headSize) : headSize;
       const prefix = createHash('sha256').update(head.subarray(0, prefixBytes)).digest('hex');
+      const anchor = await completionFileAnchor(handle, Math.min(previous?.offset ?? 0, info.size));
       if (!this.current(generation)) return;
       let cursor = this.cursors.get(filename);
-      if (!cursor || cursor.identity !== identity || cursor.offset > info.size || cursor.prefix !== prefix) {
+      if (!cursor || cursor.identity !== identity || cursor.offset > info.size || cursor.prefix !== prefix || cursor.anchor !== anchor) {
         const tail = Buffer.alloc(1);
         if (baseline && info.size) await handle.read(tail, 0, 1, info.size - 1);
-        cursor = { offset: baseline ? info.size : 0, identity, modified, prefix, prefixBytes, meta: null, decoder: new StringDecoder('utf8'), partial: '', discard: baseline && info.size > 0 && tail[0] !== 10 };
+        cursor = { offset: baseline ? info.size : 0, identity, modified, prefix, prefixBytes, anchor: await completionFileAnchor(handle, baseline ? info.size : 0), meta: null, decoder: new StringDecoder('utf8'), partial: '', discard: baseline && info.size > 0 && tail[0] !== 10 };
         if (!this.current(generation)) return;
         this.cursors.set(filename, cursor);
       }
@@ -210,6 +211,7 @@ export class CodexCompletionService {
         const chunk = Buffer.alloc(Math.min(CHUNK, info.size - cursor.offset));
         const { bytesRead } = await handle.read(chunk, 0, chunk.length, cursor.offset);
         if (!bytesRead) break;
+        if (!this.current(generation)) return;
         cursor.offset += bytesRead;
         const data = cursor.decoder.write(chunk.subarray(0, bytesRead));
         let start = 0, newline: number;
@@ -223,6 +225,7 @@ export class CodexCompletionService {
           if (cursor.partial.length > MAX_LINE) { cursor.partial = ''; cursor.discard = true; }
         }
       }
+      if (this.current(generation)) cursor.anchor = await completionFileAnchor(handle, cursor.offset);
     } finally { await handle.close(); }
   }
 

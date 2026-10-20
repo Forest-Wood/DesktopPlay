@@ -6,6 +6,7 @@ export function createDemoApi(): DesktopApi {
   const gptAppearance = localStorage.getItem('desktopplay-demo-appearance') === 'dragon' ? 'dragon' : 'classic';
   let state: AppState = {
     codexCompletion: { status: 'disabled', directory: '浏览器演示不读取本机会话', error: null },
+    chatgptCompletion: { status: 'disabled', directory: '浏览器演示不读取桌面通知', error: null },
     sounds: structuredClone(DEFAULT_SOUNDS),
     settings: { ...DEFAULT_SETTINGS }, hasApiKey: false, balance: { currency: 'CNY', total: '28.36000000', granted: '0.00000000', toppedUp: '28.36000000', observedAt: new Date().toISOString(), isAvailable: true },
     ledger: { today: { date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date()), currency: 'CNY', spent: '1.24000000', increased: '0.00000000', startedAt: new Date().toISOString() }, history: [] },

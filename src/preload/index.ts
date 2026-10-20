@@ -4,6 +4,7 @@ import type { AppState, CodexCompletionNotice, DesktopApi } from '../shared/type
 const api: DesktopApi = {
   chooseCodexCompletionDirectory: () => ipcRenderer.invoke('desktopplay:choose-codex-completion-directory'),
   onCodexCompletion: callback => {
+    // Shared completion channel: only identifiers, timestamp and optional source.
     const listener = (_: Electron.IpcRendererEvent, notice: CodexCompletionNotice) => callback(notice);
     ipcRenderer.on('desktopplay:codex-completion', listener);
     return () => ipcRenderer.removeListener('desktopplay:codex-completion', listener);

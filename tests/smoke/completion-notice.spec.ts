@@ -152,14 +152,14 @@ test('completion bubbles reuse timing/hover, merge deferred events, use the disp
   try {
     const pet = await application.firstWindow(); await expect(pet.locator('.pet-character')).toBeVisible();
     const now = Date.now(); await pet.clock.install({ time: now }); await pet.clock.pauseAt(now + 1000);
-    const emit = (id: string) => application.evaluate(({ BrowserWindow }, id) => { BrowserWindow.getAllWindows().find(win => win.webContents.getURL().includes('view=pet'))!.webContents.send('desktopplay:codex-completion', { id, completedAt: new Date().toISOString() }); }, id);
+    const emit = (id: string, source?: 'chatgpt-work') => application.evaluate(({ BrowserWindow }, event) => { BrowserWindow.getAllWindows().find(win => win.webContents.getURL().includes('view=pet'))!.webContents.send('desktopplay:codex-completion', { ...event, completedAt: new Date().toISOString() }); }, { id, source });
     const bubble = pet.locator('.pet-bubble');
     await emit('timer'); await pet.clock.runFor(150); await expect(bubble).toBeVisible();
     await pet.clock.runFor(1000); await emit('timer');
     await pet.clock.runFor(1999); await expect(bubble).toBeVisible(); await pet.clock.runFor(1); await expect(bubble).toBeHidden();
 
     await pet.evaluate(() => window.desktopPlay.updateSettings({ bubbleDurationSeconds: 2, bubbleHoverDelaySeconds: 1 }));
-    await emit('hover'); await pet.clock.runFor(150); await bubble.dispatchEvent('pointerenter');
+    await emit('hover', 'chatgpt-work'); await pet.clock.runFor(150); await expect(pet.locator('.bubble-label')).toHaveText('ChatGPT Work 结束提醒'); await bubble.dispatchEvent('pointerenter');
     await pet.clock.runFor(9000); await expect(bubble).toBeVisible();
     await bubble.dispatchEvent('pointerleave'); await pet.clock.runFor(999); await expect(bubble).toBeVisible();
     await pet.clock.runFor(1); await expect(bubble).toBeHidden();
@@ -167,10 +167,11 @@ test('completion bubbles reuse timing/hover, merge deferred events, use the disp
 
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
     await pet.locator('.bubble-switch').dispatchEvent('click');
-    await emit('pending-one'); await emit('pending-two'); await pet.clock.runFor(150);
+    await emit('pending-one'); await emit('pending-two', 'chatgpt-work'); await pet.clock.runFor(150);
     await expect(pet.locator('.bubble-confirm')).toBeVisible();
     await pet.clock.runFor(5000); await expect(pet.locator('.bubble-confirm')).toBeVisible();
     await pet.locator('.bubble-cancel').dispatchEvent('click');
+    await expect(pet.locator('.bubble-label')).toHaveText('ChatGPT Work 结束提醒');
     await expect(pet.locator('.bubble-message')).toHaveText('GPT 已经回复完啦，快去看看吧～');
     await pet.locator('.bubble-close').dispatchEvent('click');
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 }); await pet.locator('.bubble-switch').dispatchEvent('click');
@@ -194,7 +195,7 @@ test('completion bubbles reuse timing/hover, merge deferred events, use the disp
     await expect(pet.locator('.bubble-message')).toHaveText('这轮输出完成了，来看看结果吧。');
     const messages = { ...state.settings.completionMessagesByPersona, gpt: '长文案'.repeat(66) + '完成' };
     await pet.evaluate(messages => window.desktopPlay.updateSettings({ completionMessagesByPersona: messages }), messages);
-    await emit('long'); await pet.clock.runFor(150); await expect(pet.locator('.bubble-message')).toHaveText(messages.gpt);
+    await emit('long', 'chatgpt-work'); await pet.clock.runFor(150); await expect(pet.locator('.bubble-message')).toHaveText(messages.gpt);
     expect(await pet.locator('.bubble-content').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
     await pet.screenshot({ path: 'test-results/completion-long.png', omitBackground: true });
   } finally { await application.close(); }

@@ -121,6 +121,7 @@ export interface CodexResetCredits {
 
 export interface AppState extends ServiceState {
   codexCompletion: CodexCompletionState;
+  chatgptCompletion: CodexCompletionState;
   sounds: SoundMetadataMap;
   pet: PetAsset;
   activePet: BuiltinPetId;
@@ -167,7 +168,8 @@ export interface DesktopApi {
 
 declare global { interface Window { desktopPlay: DesktopApi; } }
 
-export interface CodexCompletionNotice { id: string; completedAt: string }
+/** Source is optional for compatibility with existing Codex notices. No conversation text. */
+export interface CodexCompletionNotice { id: string; completedAt: string; source?: 'codex' | 'chatgpt-work' }
 export interface CodexCompletionState {
   status: 'disabled' | 'starting' | 'watching' | 'unavailable' | 'error';
   directory: string;
