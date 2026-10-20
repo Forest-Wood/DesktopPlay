@@ -36,7 +36,11 @@ function gh {
 ${steps.find(s => s.name === stepName)!.run}
 `;
   const scriptPath = path.join(directory, 'gate.ps1'); await writeFile(scriptPath, script);
-  const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath], { cwd: directory, encoding: 'utf8', windowsHide: true, timeout: 15000 });
+  const env = { ...process.env };
+  // A pwsh-hosted CI step may export PS7 modules that Windows PowerShell 5
+  // cannot import. Let the isolated legacy test process use its own defaults.
+  for (const key of Object.keys(env)) if (key.toLowerCase() === 'psmodulepath') delete env[key];
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath], { cwd: directory, encoding: 'utf8', windowsHide: true, timeout: 15000, env });
   return { directory, result };
 }
 it.skipIf(process.platform !== 'win32').each(['valid', 'single'])('publishes only the exact verified draft with %s pagination', async mode => {

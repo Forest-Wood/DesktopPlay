@@ -26,6 +26,7 @@
 - 失败并定位：[Release #10](https://github.com/Forest-Wood/DesktopPlay/actions/runs/39396018348) 单测、打包、元数据／依赖检查、五附件草稿上传均通过，最后按标签 GET 草稿返回 404，未正式发布。改为分页列出 releases 精确匹配 draft，仍逐一核对五文件名、大小、状态和摘要，全部一致才 PATCH 转正。
 - 新增 workflow_dispatch 恢复入口：在主线读取修复后的 workflow，但 checkout 既有稳定标签作为打包源码；沿用同一 Release／tag，不移动 v0.5.3 或变更应用代码。仅允许稳定版本且必须匹配 package.json，已公开版本仍拒绝覆盖。
 - 新增 8 个真实 PowerShell 门禁回归：单页／多页精确草稿可发布，缺附件、错误摘要／大小、重复草稿和已发布版本均不得转正。
+- 恢复 PR #7 首次 CI #27 为 200／202：测试从 pwsh 继承 PS7 模块路径，Windows PowerShell 5 的 Get-FileHash 无法导入；仅隔离测试子进程的 PSModulePath，使用其自身默认模块。实际门禁仍执行真实 Get-FileHash，不伪造摘要或降低断言。
 - 待验证：恢复流程远端 CI、Release 重试、五附件公开下载与摘要。
 - 未运行：真实用户数据覆盖升级、真实账户／Work 端到端、其他 Windows／ACL／UAC 组合；不借发布验证启动当前真实桌宠。
 
