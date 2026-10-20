@@ -1,7 +1,7 @@
 # T009：发布 DesktopPet v0.5.3
 
 - 日期：2026-10-20（Asia/Shanghai）；负责人／整合负责人：Codex；需求 R012。
-- 状态：PR #6／#7 已合并，v0.5.3 标签固定；Release #10／#11 因不同发布接口问题失败，草稿保持非公开，正在修复已有草稿的上传路径。
+- 状态：PR #6／#7／#8 已合并，v0.5.3 已于 2026-10-20 17:21:27（UTC+08:00）正式发布为 latest；自动流水线失败后经发布者 API 恢复转正。
 - 当前独立目录 `D:\desktop1\DesktopPlay-T009`；分支 `release/T009-v053`；目标 main。初始目录 `D:\desktop1\DesktopPlay` 保留，避免与原目录的分支操作相互影响。
 - 基准 `101477afcb8a861289cd87d038519f64658046fb`，PR #5 合并提交；任务开始时 T008 工作区干净，原分支与旧标签保留。远端无 v0.5.3 标签／Release。
 - 短路径修复 `67fb6ec`，发布准备交接 `9c618b0`，[PR #6](https://github.com/Forest-Wood/DesktopPlay/pull/6) 合并提交 `e71d83644bb6895a91129bd6700fe0d3c5ec7fec`；原分支／提交均保留。
@@ -32,11 +32,24 @@
 - 恢复已有草稿时改用 `gh release upload --clobber`，仅替换五附件，不重写 tag／target；新草稿继续使用 action。既有正式版本、重复草稿均在上传前拒绝。凭据权限不增加，最终门禁仍逐一核对本轮产物，上传失败不得公开。
 - 通过：本地 13 个真实 PowerShell 回归，新增草稿／新建分流、重复草稿、精确五附件上传与失败阻断。
 - 失败并定位：PR #8 首次 CI #30 为 206／207，新上传断言直接比较 TEMP 路径前缀，再次遇到 runner 短路径与 PowerShell FullName 长路径的拼写差异；上传脚本本身成功。测试改为 canonical realpath 后逐一比较五个文件的完整路径，保留精确文件集合断言。
-- 待验证：最新上传修复的远端 CI、Release 重试、五附件公开下载与摘要。
+- 通过：[PR CI #31](https://github.com/Forest-Wood/DesktopPlay/actions/runs/39399345328) 完整 CI，207 单测、类型、构建、helper 与 Electron 均通过；PR #8 合并为 `8e2776e872acea15d0658a517b20006cf40171cf`。上传恢复分流代码已合并，但实际上传尚未实测。
+- 取消：[Release #12](https://github.com/Forest-Wood/DesktopPlay/actions/runs/39399884586) 按用户“精简流程，尽快发布”要求停止，未替换原草稿附件。取消完成后，重新核实 tag 指向、草稿来源、五附件 ID／大小／摘要均与完整下载记录一致，逐一复算本地文件并核对最新元数据，再通过发布者会话 PATCH 草稿为正式／latest；未把凭据写入文件、应用或仓库。
+- 通过：五附件在发布前完整下载并核对 SHA-256，SHA256SUMS 与两 EXE 一致，latest.yml 的 0.5.3／文件名／大小／SHA-512 一致；发布后确认同一 Release 为 latest、非草稿／非预发布。两 EXE 匿名 HEAD 200／大小一致；三个更新资源匿名 GET 200／SHA-256 一致。按精简要求不重复下载未改变的两个大文件。
+- 失败／环境限制：发布后生产 AppUpdateService／PortableUpdateBackend 的固定公开源只读检查收到 GitHub 匿名 API 限流，未验证到 available／current；未下载或更新真实桌宠。资源公开入口正常，隔离状态机用例已通过。
 - 未运行：真实用户数据覆盖升级、真实账户／Work 端到端、其他 Windows／ACL／UAC 组合；不借发布验证启动当前真实桌宠。
 
 ## 下一步
 
 原目录在处理期间被切换到 main 并 pull；修复提交仍完整保留且从未推送到远端 main。创建独立 worktree，将本任务分支快进到 `67fb6ec` 后推送，PR #6 已核实正确包含修复；未回退原 main、未改写历史。后续从独立目录继续。
 
-提交恢复修复并推送 PR，完整 CI 通过后整合到 main，从主线手动运行 Release，指定既有 v0.5.3；不移动标签。跟踪草稿门禁与五资源，公开下载核实后更新发布结果及继承资料。下一编号 T010／R013。
+发布已完成：[v0.5.3](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v0.5.3)，Release ID `418176374`。后续不再对已公开同版本重跑发布，不覆盖附件、不移动标签。提交本次结果交接到原任务分支；下一独立需求 T010／R013。后续版本发布前实测已有草稿上传恢复路径，GitHub 匿名限流解除后补做真实更新源只读检查。
+
+| 正式附件 | 字节数 | SHA-256 |
+| --- | ---: | --- |
+| DesktopPet-0.5.3-Setup-x64.exe | 115114071 | `1bfc45df16e4f797b96909e9f95c8b03ea262e8dd74aa86cc19ff9c6864de1a6` |
+| DesktopPet-0.5.3-Portable-x64.exe | 114792335 | `800ebea72bec9220ac04e47ea87d889a2f9198a846be2e0e8b6a22980c478e4e` |
+| SHA256SUMS.txt | 197 | `0dd99393afd08287b1741382545978ed9fffc574fb736ae34e1a23f0155950db` |
+| latest.yml | 357 | `d9bd7563fa65844d2e82e626a3c1fd7453393755801798c6a0f9ed86a3f89a6f` |
+| DesktopPet-0.5.3-Setup-x64.exe.blockmap | 121072 | `51d787813cb7b7376f09ce9129c8ebff56bb451e9511a0009408ed49725c91bf` |
+
+本地证据在忽略的 `.tmp/T009-draft-snapshot.json`、`.tmp/T009-download-results.json`；正式可复核信息以上表及 Release 为准。0.5.2 升级：托盘退出旧程序，安装版运行 Setup 选择原目录；免安装版替换旧 EXE、保持原位置和原文件名。无需卸载，不删除 `%APPDATA%\DesktopPlay`。
