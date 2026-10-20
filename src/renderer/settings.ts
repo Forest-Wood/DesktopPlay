@@ -2,7 +2,7 @@ import './settings.css';
 import type { AppSettings, AppState, DesktopApi, PetPersona, SoundSlot } from '../shared/types';
 import { beijingTime, decimalSetting, money, updateMoney } from './format';
 import { localTime, quotaStatus, renderQuota } from './quota';
-import { APP_VERSION, GPT_DRAGON_PET, GPT_PET } from '../shared/defaults';
+import { APP_VERSION, DEFAULT_COMPLETION_MESSAGES, GPT_DRAGON_PET, GPT_PET } from '../shared/defaults';
 import { PersonaSoundPlayer } from './sounds';
 
 export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppState, demo: boolean) {
@@ -59,7 +59,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     { category: 'account', label: '账户与用量', icon: '◉', children: [['overview', 'DeepSeek'], ['codex', 'Codex']] },
     { category: 'pet', label: '桌宠与陪伴', icon: '✧', children: [['appearance', '角色造型'], ['companionship', '陪伴短句']] },
     { category: 'preferences', label: '应用偏好', icon: '⌘', children: [['behavior', '桌面行为'], ['sound', '声音']] },
-    { category: 'reminders', label: '提醒与记录', icon: '◇', children: [['reminders', '余额提醒'], ['records', '消费记录']] },
+    { category: 'reminders', label: '提醒与记录', icon: '◇', children: [['reminders', '余额提醒'], ['completion', 'GPT 完成提醒'], ['records', '消费记录']] },
     { category: 'about', label: '关于', icon: 'ⓘ', children: [['version', '版本'], ['guide', '使用说明'], ['licenses', '素材与许可证'], ['uninstall', '卸载']] },
   ];
   const makePage = (id: string, title: string, html: string) => {
@@ -68,6 +68,10 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   for (const id of ['overview', 'codex', 'appearance', 'reminders', 'records']) content.append(element(id));
   const behavior = makePage('behavior', '桌面行为', '<p class="page-description">让小伙伴按你的习惯，留在桌面上。</p>');
   const sound = makePage('sound', '声音', '<p class="page-description">给每次轻轻按下，留一点回应。</p>');
+  makePage('completion', 'GPT 完成提醒', `<label class="toggle-label"><span>输出结束时提醒<small>Codex 与 ChatGPT Work 共用开关；所有角色均可提醒，隐藏桌宠时保持安静。</small></span><input id="completion-enabled" name="codexCompletionEnabled" type="checkbox"></label>
+    <label class="field-label" for="completion-directory">Codex 会话目录</label><p id="completion-status" class="hint" role="status"></p><p id="completion-current-directory" class="hint completion-path"></p><input id="completion-directory" type="text" readonly><div class="button-row"><button id="completion-choose-directory" class="secondary-button" type="button">选择目录</button><button id="completion-default-directory" class="text-button" type="button">使用默认目录</button></div><p class="hint">选择 Codex 主目录（一般为用户目录下的 .codex）。只提醒本机保存的新成功完成事件；目录与开关保存后生效。</p>
+    <h3>ChatGPT Work 桌面对话</h3><p id="chatgpt-completion-status" class="hint" role="status"></p><p class="hint">请在 ChatGPT 桌面应用中将回合结束通知设为“始终”（Always），以便前台和后台都能提醒。这里接收原生结束通知，失败或中止也会提醒；启动前的通知不会补弹。</p>
+    <div class="persona-tabs" role="group" aria-label="完成提醒角色"><button type="button" data-completion-persona="whale">小鲸鱼</button><button type="button" data-completion-persona="gpt">原版 GPT</button><button type="button" data-completion-persona="dragon">白龙</button></div><label class="field-label" for="completion-message">完成提醒文案 <span>每个角色一条 · 1–200 字符 · 保存后生效</span></label><textarea id="completion-message" name="completionMessage" maxlength="200" rows="3"></textarea><div class="button-row"><button id="completion-reset-message" class="text-button" type="button">恢复该角色默认文案</button><span id="completion-message-length" class="hint"></span></div><p class="hint">两种来源共用角色文案。自定义 GPT 造型使用原版 GPT 文案。提醒沿用气泡显示时间和悬浮延长设置。</p>`);
   const phrases = makePage('companionship', '陪伴短句', '<p class="page-description">三套内容独立保存。自定义 GPT 图片使用原版 GPT 短句。</p><div class="persona-tabs" role="group" aria-label="短句人设"><button type="button" data-persona="whale">小鲸鱼</button><button type="button" data-persona="gpt">原版 GPT</button><button type="button" data-persona="dragon">白龙</button></div><div class="phrase-preview"><img id="phrase-preview-image" alt=""><p id="phrase-preview-text"></p></div><label class="field-label" for="phrases">陪伴短句 <span>每行一句 · 保存后生效</span></label>');
   phrases.querySelector('.panel')!.append(element<HTMLTextAreaElement>('phrases'));
   element('appearance').querySelector('label[for="phrases"]')!.remove();
@@ -126,6 +130,28 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const form = element<HTMLFormElement>('settings-form');
   const input = (name: string) => form.elements.namedItem(name) as HTMLInputElement;
   const notify = (message: string, error = false) => { const el = element('operation-status'); el.textContent = message; el.classList.toggle('error', error); };
+  let completionPersona: PetPersona = persona;
+  let completionDraft = structuredClone(initial.settings.completionMessagesByPersona);
+  let directoryDraft = initial.settings.codexCompletionDirectory;
+  const completionInput = element<HTMLTextAreaElement>('completion-message');
+  const renderCompletionDraft = () => {
+    completionInput.value = completionDraft[completionPersona];
+    element('completion-message-length').textContent = `${completionInput.value.length}/200`;
+    element<HTMLInputElement>('completion-directory').value = directoryDraft ?? '默认 Codex 目录';
+    for (const button of root.querySelectorAll<HTMLButtonElement>('[data-completion-persona]')) button.setAttribute('aria-pressed', String(button.dataset.completionPersona === completionPersona));
+  };
+  const markCompletionDirty = () => { dirty = true; draftRevision++; element('save-hint').textContent = '有尚未保存的调整'; };
+  completionInput.addEventListener('input', () => {
+    completionDraft[completionPersona] = completionInput.value;
+    element('completion-message-length').textContent = `${completionInput.value.length}/200`;
+  });
+  for (const button of root.querySelectorAll<HTMLButtonElement>('[data-completion-persona]')) button.addEventListener('click', () => { completionPersona = button.dataset.completionPersona as PetPersona; renderCompletionDraft(); });
+  element('completion-reset-message').addEventListener('click', () => { completionDraft[completionPersona] = DEFAULT_COMPLETION_MESSAGES[completionPersona]; renderCompletionDraft(); markCompletionDirty(); });
+  element('completion-default-directory').addEventListener('click', () => { directoryDraft = null; renderCompletionDraft(); markCompletionDirty(); });
+  element('completion-choose-directory').addEventListener('click', () => {
+    const button = element<HTMLButtonElement>('completion-choose-directory'); button.disabled = true;
+    void api.chooseCodexCompletionDirectory().then(directory => { if (!disposed && directory !== null) { directoryDraft = directory; renderCompletionDraft(); markCompletionDirty(); } }).catch(error => { if (!disposed) notify(error instanceof Error ? error.message : '无法选择目录，请重试。', true); }).finally(() => { if (!disposed) button.disabled = false; });
+  });
   const soundSlots: SoundSlot[] = ['press', 'release'];
   const renderSounds = () => {
     for (const button of root.querySelectorAll<HTMLButtonElement>('[data-sound-persona]')) button.setAttribute('aria-pressed', String(button.dataset.soundPersona === soundPersona));
@@ -180,6 +206,8 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     for (const name of ['soundEnabled', 'alwaysOnTop', 'snapToEdges', 'launchAtLogin'] as const) input(name).checked = settings[name];
     input('scale').value = String(settings.scale); input('volume').value = String(settings.volume);
     input('bubbleDurationSeconds').value = String(settings.bubbleDurationSeconds); input('bubbleHoverDelaySeconds').value = String(settings.bubbleHoverDelaySeconds);
+    input('codexCompletionEnabled').checked = settings.codexCompletionEnabled;
+    completionDraft = structuredClone(settings.completionMessagesByPersona); directoryDraft = settings.codexCompletionDirectory; renderCompletionDraft();
     input('lowBalanceThreshold').value = settings.lowBalanceThreshold ?? ''; input('dailyBudget').value = settings.dailyBudget ?? '';
     phraseDraft = structuredClone(settings.phrasesByPersona); phraseInput.value = phraseDraft[persona].join('\n'); previewPhrases(); ranges();
   };
@@ -199,6 +227,11 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     renderQuota(element('codex-quotas'), state.codex, false, demo);
     element('codex-status').textContent = quotaStatus(state.codex, demo); element('codex-status').dataset.status = state.codex.status;
     element('codex-updated').textContent = `更新于 ${localTime(state.codex.updatedAt)} · 本地时间`;
+    const completionLabels = { disabled: '完成提醒已关闭', starting: '正在连接本机会话…', watching: '正在监听新的完成事件', unavailable: '等待 Codex 会话', error: '会话监听异常' };
+    element('completion-status').textContent = [completionLabels[state.codexCompletion.status], state.codexCompletion.error].filter(Boolean).join(' · ');
+    element('completion-current-directory').textContent = `当前目录：${state.codexCompletion.directory}`;
+    const workLabels = { disabled: 'ChatGPT Work 提醒已关闭', starting: '正在连接 ChatGPT 桌面通知…', watching: '正在监听 ChatGPT 桌面结束通知', unavailable: '未找到 ChatGPT 桌面通知日志，请先启动桌面应用', error: 'ChatGPT 桌面通知监听异常' };
+    element('chatgpt-completion-status').textContent = [workLabels[state.chatgptCompletion.status], state.chatgptCompletion.error].filter(Boolean).join(' · ');
     element<HTMLButtonElement>('refresh-codex').disabled = state.codex.status === 'loading';
     if (!dirty) fill(next.settings);
     const labels = { unconfigured: '尚未连接', loading: '正在更新', ready: '已连接', error: '连接异常' };
@@ -245,7 +278,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   form.addEventListener('submit', event => {
     event.preventDefault();
     try {
-      const patch: AppSettings = { ...state.settings, scale: Math.max(0.5, Math.min(2, Number(input('scale').value))), volume: Math.max(0, Math.min(1, Number(input('volume').value))), bubbleDurationSeconds: Number(input('bubbleDurationSeconds').value), bubbleHoverDelaySeconds: Number(input('bubbleHoverDelaySeconds').value), lowBalanceThreshold: decimalSetting(input('lowBalanceThreshold').value), dailyBudget: decimalSetting(input('dailyBudget').value), phrasesByPersona: Object.fromEntries(Object.entries(phraseDraft).map(([key, lines]) => [key, lines.map(line => line.trim()).filter(Boolean)])) as Record<PetPersona, string[]>, soundEnabled: input('soundEnabled').checked, alwaysOnTop: input('alwaysOnTop').checked, snapToEdges: input('snapToEdges').checked, launchAtLogin: input('launchAtLogin').checked };
+      const patch: AppSettings = { ...state.settings, codexCompletionEnabled: input('codexCompletionEnabled').checked, codexCompletionDirectory: directoryDraft, completionMessagesByPersona: structuredClone(completionDraft), scale: Math.max(0.5, Math.min(2, Number(input('scale').value))), volume: Math.max(0, Math.min(1, Number(input('volume').value))), bubbleDurationSeconds: Number(input('bubbleDurationSeconds').value), bubbleHoverDelaySeconds: Number(input('bubbleHoverDelaySeconds').value), lowBalanceThreshold: decimalSetting(input('lowBalanceThreshold').value), dailyBudget: decimalSetting(input('dailyBudget').value), phrasesByPersona: Object.fromEntries(Object.entries(phraseDraft).map(([key, lines]) => [key, lines.map(line => line.trim()).filter(Boolean)])) as Record<PetPersona, string[]>, soundEnabled: input('soundEnabled').checked, alwaysOnTop: input('alwaysOnTop').checked, snapToEdges: input('snapToEdges').checked, launchAtLogin: input('launchAtLogin').checked };
       const savingRevision = draftRevision;
       void run(element('save-settings'), async () => { const next = await api.updateSettings(patch); if (savingRevision === draftRevision) { dirty = false; fill(next.settings); element('save-hint').textContent = '设置已保存'; } else { element('save-hint').textContent = '已保存先前调整；新草稿尚未保存'; } return next; }, '设置已保存，桌宠已经收到啦。');
     } catch (error) { notify(error instanceof Error ? error.message : '请检查输入。', true); }

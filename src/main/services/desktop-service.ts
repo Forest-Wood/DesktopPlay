@@ -35,6 +35,12 @@ function settings(patch: unknown, base = DEFAULT_SETTINGS): AppSettings {
       if (typeof value !== 'number' || !Number.isFinite(value) || value < (key === 'scale' ? 0.5 : 0) || value > (key === 'scale' ? 2 : 1)) throw new Error('数值设置无效');
     } else if (key === 'bubbleDurationSeconds' || key === 'bubbleHoverDelaySeconds') {
       if (typeof value !== 'number' || !Number.isInteger(value) || value < (key === 'bubbleDurationSeconds' ? 1 : 0) || value > 60) throw new Error('气泡时间设置无效');
+    } else if (key === 'codexCompletionEnabled') {
+      if (typeof value !== 'boolean') throw new Error('完成提醒开关无效');
+    } else if (key === 'codexCompletionDirectory') {
+      if (value !== null && (typeof value !== 'string' || !path.isAbsolute(value) || value.startsWith('\\\\') || value.includes('\0') || value.length > 4096)) throw new Error('请选择本机 Codex 目录');
+    } else if (key === 'completionMessagesByPersona') {
+      if (!plain(value) || Reflect.ownKeys(value).length !== 3 || ['whale', 'gpt', 'dragon'].some(persona => !Object.hasOwn(value, persona) || !Object.hasOwn(Object.getOwnPropertyDescriptor(value, persona)!, 'value') || typeof value[persona] !== 'string' || !value[persona].trim() || value[persona].length > 200)) throw new Error('每个角色的完成提醒需为 1–200 字符的非空文本');
     } else if (key === 'phrases') {
       if (!validPhrases(value)) throw new Error('短句设置无效');
     } else if (key === 'phrasesByPersona') {

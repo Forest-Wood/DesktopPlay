@@ -1,16 +1,19 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, safeStorage, screen, shell, Tray } from 'electron';
 import type { IpcMainEvent, IpcMainInvokeEvent } from 'electron';
 import path from 'node:path';
+import os from 'node:os';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { DesktopService } from './services/desktop-service';
 import { CodexQuotaService } from './services/codex-quota';
+import { CodexCompletionService } from './services/codex-completion';
+import { ChatgptCompletionService, chatgptLogDirectories } from './services/chatgpt-completion';
 import { PetAssets } from './pet-assets';
 import { SoundAssets } from './sound-assets';
 import { UninstallManager } from './uninstall';
 import { characterOrigin, fitScale, petSize, placeCharacter } from './geometry';
 import type { Orientation, Point } from './geometry';
 import { contains, getPetLayout, PET_WIDTH } from '../shared/pet-layout';
-import type { AppState, AppSettings, BuiltinPetId, GptAppearance, BubblePlacement } from '../shared/types';
+import type { AppState, AppSettings, BuiltinPetId, GptAppearance, BubblePlacement, CodexCompletionNotice } from '../shared/types';
 
 app.setName('DesktopPet');
 app.setAppUserModelId('io.github.forestwood.desktopplay');
@@ -28,6 +31,9 @@ let assets: PetAssets;
 let sounds: SoundAssets;
 let uninstaller: UninstallManager;
 let codex: CodexQuotaService;
+let completion: CodexCompletionService;
+let chatgptCompletion: ChatgptCompletionService;
+let petVisibleSince = Infinity;
 let codexTimer: ReturnType<typeof setInterval> | null = null;
 let flipped = false, bubbleVisible = false, quitting = false;
 let verticalFlipped = false;
@@ -50,7 +56,7 @@ else {
 }
 app.on('window-all-closed', () => { /* The tray keeps the desktop pet alive. */ });
 app.on('before-quit', () => {
-  quitting = true; service?.dispose(); codex?.dispose();
+  quitting = true; service?.dispose(); codex?.dispose(); completion?.dispose(); chatgptCompletion?.dispose();
   if (codexTimer) clearInterval(codexTimer);
   if (dragTimer) clearInterval(dragTimer);
   if (hitTimer) clearInterval(hitTimer);
@@ -59,7 +65,7 @@ app.on('before-quit', () => {
 });
 
 function orientation(): Orientation { return { flipped, verticalFlipped, bubblePlacement }; }
-function getState(): AppState { return { ...service.getState(), sounds: sounds.getMetadata(), pet: assets.get(), activePet: assets.getSelected(), gptAppearance: assets.getGptAppearance(), hasCustomGpt: assets.hasCustomGpt(), codex: codex.getState(), ...orientation(), effectiveScale: petWindow && !petWindow.isDestroyed() ? petWindow.getBounds().width / PET_WIDTH : service.getState().settings.scale }; }
+function getState(): AppState { return { ...service.getState(), sounds: sounds.getMetadata(), pet: assets.get(), activePet: assets.getSelected(), gptAppearance: assets.getGptAppearance(), hasCustomGpt: assets.hasCustomGpt(), codex: codex.getState(), codexCompletion: completion.getState(), chatgptCompletion: chatgptCompletion.getState(), ...orientation(), effectiveScale: petWindow && !petWindow.isDestroyed() ? petWindow.getBounds().width / PET_WIDTH : service.getState().settings.scale }; }
 function publish(): void {
   const state = getState();
   for (const win of [petWindow, settingsWindow]) if (win && !win.isDestroyed() && !win.webContents.isLoadingMainFrame()) win.webContents.send('desktopplay:state', state);
@@ -80,6 +86,14 @@ async function start(): Promise<void> {
   const noCodex = !app.isPackaged && process.env.DESKTOPPLAY_TEST_NO_CODEX === '1';
   codex = new CodexQuotaService({ cwd: dataDir, ...(noCodex ? { discoverExecutable: async () => null } : { executablePath }) });
   await codex.init();
+  const completionOptions = {
+    onState: publish,
+    onNotice: (notice: CodexCompletionNotice) => {
+      if (!shuttingDown && !quitting && Date.parse(notice.completedAt) >= petVisibleSince && service.getState().settings.codexCompletionEnabled && petWindow?.isVisible() && !petWindow.webContents.isLoadingMainFrame()) petWindow.webContents.send('desktopplay:codex-completion', notice);
+    },
+  };
+  completion = new CodexCompletionService(completionOptions);
+  chatgptCompletion = new ChatgptCompletionService(completionOptions);
   codex.subscribe(publish);
   service.subscribe(() => { applySettings(); publish(); });
   registerIpc();
@@ -145,6 +159,8 @@ async function createPet(): Promise<void> {
   petWindow.on('close', (event) => { if (!quitting) { event.preventDefault(); petWindow?.hide(); } });
   petWindow.on('move', scheduleWindowSave);
   petWindow.on('blur', finishDrag);
+  petWindow.on('show', () => { petVisibleSince = Date.now(); completion.discardHiddenHistory(); });
+  petWindow.on('hide', () => { if (petWindow && !petWindow.webContents.isDestroyed()) petWindow.webContents.send('desktopplay:pet-hidden'); });
   let recoveries = 0;
   petWindow.webContents.on('render-process-gone', () => { if (!quitting && recoveries++ < 2) petWindow?.reload(); });
   await loadWindow(petWindow, 'pet');
@@ -207,6 +223,7 @@ function updateTray(): void {
 }
 function applySettings(): void {
   const settings = service.getState().settings;
+  if (!lastSettings || settings.codexCompletionEnabled !== lastSettings.codexCompletionEnabled || settings.codexCompletionDirectory !== lastSettings.codexCompletionDirectory) configureCompletion();
   if (petWindow && !petWindow.isDestroyed()) {
     petWindow.setAlwaysOnTop(settings.alwaysOnTop);
     if (!lastSettings || settings.scale !== lastSettings.scale) {
@@ -221,6 +238,16 @@ function applySettings(): void {
     app.setLoginItemSettings({ openAtLogin: settings.launchAtLogin, name: 'electron.app.DesktopPlay', path: executable, args: [] });
   }
   lastSettings = { ...settings, phrases: [...settings.phrases] }; updateTray();
+}
+
+function configureCompletion(): void {
+  const settings = service.getState().settings;
+  const isolated = !app.isPackaged && process.env.DESKTOPPLAY_TEST_NO_CODEX === '1';
+  const directory = settings.codexCompletionDirectory ?? (isolated ? process.env.DESKTOPPLAY_TEST_CODEX_HOME || path.join(dataDir, 'codex-test-home') : process.env.CODEX_HOME || path.join(os.homedir(), '.codex'));
+  void completion.configure(settings.codexCompletionEnabled && !shuttingDown, directory);
+  const logs = isolated ? [process.env.DESKTOPPLAY_TEST_CHATGPT_LOG_DIR || path.join(dataDir, 'chatgpt-test-logs')]
+    : chatgptLogDirectories(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'));
+  void chatgptCompletion.configure(settings.codexCompletionEnabled && !shuttingDown, logs);
 }
 
 function scheduleWindowSave(): void {
@@ -308,9 +335,11 @@ async function requestUninstall(event: IpcMainInvokeEvent, removeData: unknown):
     if (codexTimer) clearInterval(codexTimer);
     if (hitTimer) clearInterval(hitTimer);
     service.pause(); codex.pause();
+    void completion.configure(false, completion.getState().directory);
+    void chatgptCompletion.configure(false, []);
     await Promise.allSettled([...pendingActions]);
     saveWindowPosition();
-    await Promise.all([service.drain(), codex.drain(), assets.drain(), sounds.drain(), geometryWrites, preferenceWrites.catch(() => {})]);
+    await Promise.all([service.drain(), codex.drain(), completion.drain(), chatgptCompletion.drain(), assets.drain(), sounds.drain(), geometryWrites, preferenceWrites.catch(() => {})]);
     await prepared.commit();
     setTimeout(() => app.quit(), 100);
     return { started: true };
@@ -318,6 +347,7 @@ async function requestUninstall(event: IpcMainInvokeEvent, removeData: unknown):
     await prepared?.cancel().catch(() => {});
     if (shuttingDown) {
       shuttingDown = false; service.resume(); codex.resume(); startCodexTimer();
+      configureCompletion();
       hitTimer = setInterval(updateHitRegion, 80);
     }
     throw error;
@@ -330,6 +360,12 @@ function registerIpc(): void {
     return reads.has(channel) ? action(event, ...args) : track(() => action(event, ...args));
   });
   handle('get-state', () => getState());
+  handle('choose-codex-completion-directory', async event => {
+    assertSettingsSender(event);
+    const selection = await dialog.showOpenDialog(settingsWindow!, { title: '选择 Codex 主目录（包含 sessions 子目录）', properties: ['openDirectory'] });
+    assertWritable();
+    return selection.canceled ? null : selection.filePaths[0] ?? null;
+  });
   handle('sound-data', async (_event, persona, slot) => {
     assertWritable();
     const before = JSON.stringify(sounds.getMetadata());
@@ -348,7 +384,7 @@ function registerIpc(): void {
   handle('reset-sound', async (event, persona, slot) => { assertSettingsSender(event); await sounds.reset(persona, slot); publish(); return getState(); });
   handle('uninstall-info', (event) => { assertSettingsSender(event); return uninstaller.getInfo(); });
   handle('uninstall', requestUninstall);
-  handle('update-settings', async (_event, patch) => { await service.updateSettings(patch); return getState(); });
+  handle('update-settings', async (_event, patch) => { await service.updateSettings(patch); await Promise.all([completion.drain(), chatgptCompletion.drain()]); return getState(); });
   handle('set-key', async (_event, key) => { await service.setApiKey(key); return getState(); });
   handle('clear-key', async () => { await service.clearApiKey(); return getState(); });
   handle('refresh', async () => { await service.refresh(); return getState(); });

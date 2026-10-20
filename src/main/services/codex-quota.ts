@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import type { CodexQuotaBucket, CodexQuotaState, CodexQuotaWindow } from '../../shared/types';
+import type { CodexQuotaBucket, CodexQuotaState, CodexQuotaWindow, CodexResetCredit, CodexResetCredits } from '../../shared/types';
 import { APP_VERSION } from '../../shared/defaults';
 
 type RecordValue = Record<string, unknown>;
@@ -31,6 +31,23 @@ function window(value: unknown): CodexQuotaWindow | null {
     resetsAt: date && Number.isFinite(date.getTime()) ? date.toISOString() : null };
 }
 
+/** Optional reset data must not break quota reads from older Codex versions. */
+export function normalizeCodexResetCredits(value: unknown): CodexResetCredits | null {
+  const data = record(record(value)?.rateLimitResetCredits);
+  if (!data || typeof data.availableCount !== 'number' || !Number.isSafeInteger(data.availableCount) || data.availableCount < 0) return null;
+  const credits: CodexResetCredit[] = [], seen = new Set<string>();
+  if (Array.isArray(data.credits)) for (const raw of data.credits) {
+    const row = record(raw), id = string(row?.id);
+    if (!row || !id || seen.has(id)) continue;
+    seen.add(id);
+    const status = row.status === 'available' || row.status === 'redeeming' || row.status === 'redeemed' ? row.status : 'unknown';
+    const timestamp = row.expiresAt;
+    const date = typeof timestamp === 'number' && Number.isSafeInteger(timestamp) && timestamp >= 0 ? new Date(timestamp * 1000) : null;
+    credits.push({ id, status, expiresAt: timestamp === null ? null : date && Number.isFinite(date.getTime()) ? date.toISOString() : undefined });
+  }
+  return { availableCount: data.availableCount, credits: Array.isArray(data.credits) ? credits : null };
+}
+
 /** Accept the app-server result only; unknown windows remain unknown. */
 export function normalizeCodexQuota(value: unknown): CodexQuotaBucket[] {
   const result = record(value);
@@ -38,7 +55,7 @@ export function normalizeCodexQuota(value: unknown): CodexQuotaBucket[] {
   const map = record(result.rateLimitsByLimitId);
   const fallback = record(result.rateLimits);
   const entries: [string, unknown][] = map && Object.keys(map).length ? Object.entries(map) : fallback ? [[string(fallback.limitId) ?? 'codex', fallback]] : [];
-  if (!entries.length) throw new Error('invalid-quota');
+  if (!entries.length && !normalizeCodexResetCredits(value)) throw new Error('invalid-quota');
   return entries.map(([key, raw]) => {
     const data = record(raw);
     if (!data) throw new Error('invalid-quota');
@@ -167,7 +184,7 @@ export interface CodexQuotaOptions {
   timeoutMs?: number;
 }
 export class CodexQuotaService {
-  private state: CodexQuotaState = { planType: null, status: 'idle', buckets: [], updatedAt: null, error: null, source: 'codex-app-server', available: false };
+  private state: CodexQuotaState = { resetCredits: null, planType: null, status: 'idle', buckets: [], updatedAt: null, error: null, source: 'codex-app-server', available: false };
   private executable: string | null = null;
   private listeners = new Set<(state: CodexQuotaState) => void>();
   private inFlight: Promise<CodexQuotaState> | null = null;
@@ -191,7 +208,7 @@ export class CodexQuotaService {
     await this.inFlight;
     if (this.disposed) return;
     this.executable = executable;
-    this.update({ status: 'idle', available: true, planType: null, buckets: [], updatedAt: null, error: null });
+    this.update({ status: 'idle', available: true, planType: null, buckets: [], resetCredits: null, updatedAt: null, error: null });
   }
   refresh(): Promise<CodexQuotaState> {
     if (this.inFlight) return this.inFlight;
@@ -210,7 +227,7 @@ export class CodexQuotaService {
         const request = (this.options.requestRunner ?? requestCodexQuota)(executable, this.options.cwd, controller.signal);
         const result = await (cancelled ? Promise.race([request, cancelled]) : request);
         const buckets = normalizeCodexQuota(result);
-        if (!this.disposed && this.executable === executable && (!controller.signal.aborted || timedOut)) this.update({ status: 'ready', planType: quotaPlanType(result), buckets, updatedAt: (this.options.now?.() ?? new Date()).toISOString(), error: null });
+        if (!this.disposed && this.executable === executable && (!controller.signal.aborted || timedOut)) this.update({ status: 'ready', planType: quotaPlanType(result), buckets, resetCredits: normalizeCodexResetCredits(result), updatedAt: (this.options.now?.() ?? new Date()).toISOString(), error: null });
       } catch {
         if (!this.disposed && (this.executable === executable) && (!controller.signal.aborted || timedOut)) this.update({ status: 'error', error: timedOut ? '读取 Codex 额度超时，请稍后刷新。' : '无法读取 Codex 额度，请确认已在 Codex 登录 ChatGPT 账户后刷新。' });
       } finally { clearTimeout(timer); if (this.controller === controller) this.controller = null; this.inFlight = null; }

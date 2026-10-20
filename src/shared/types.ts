@@ -19,6 +19,9 @@ export interface AppSettings {
   volume: number;
   bubbleDurationSeconds: number;
   bubbleHoverDelaySeconds: number;
+  codexCompletionEnabled: boolean;
+  codexCompletionDirectory: string | null;
+  completionMessagesByPersona: Record<PetPersona, string>;
   phrases: string[];
   phrasesByPersona: Record<PetPersona, string[]>;
   lowBalanceThreshold: string | null;
@@ -94,6 +97,7 @@ export interface CodexQuotaBucket {
 }
 
 export interface CodexQuotaState {
+  resetCredits: CodexResetCredits | null;
   planType: string | null;
   status: 'idle' | 'loading' | 'ready' | 'unavailable' | 'error';
   buckets: CodexQuotaBucket[];
@@ -103,7 +107,21 @@ export interface CodexQuotaState {
   available: boolean;
 }
 
+export interface CodexResetCredit {
+  id: string;
+  status: 'available' | 'redeeming' | 'redeemed' | 'unknown';
+  /** ISO instant; null means no expiry, undefined means not provided or invalid. */
+  expiresAt?: string | null;
+}
+export interface CodexResetCredits {
+  availableCount: number;
+  /** null means count only; the server may cap the detail rows. */
+  credits: CodexResetCredit[] | null;
+}
+
 export interface AppState extends ServiceState {
+  codexCompletion: CodexCompletionState;
+  chatgptCompletion: CodexCompletionState;
   sounds: SoundMetadataMap;
   pet: PetAsset;
   activePet: BuiltinPetId;
@@ -117,6 +135,9 @@ export interface AppState extends ServiceState {
 }
 
 export interface DesktopApi {
+  chooseCodexCompletionDirectory(): Promise<string | null>;
+  onCodexCompletion(callback: (notice: CodexCompletionNotice) => void): () => void;
+  onPetHidden(callback: () => void): () => void;
   getState(): Promise<AppState>;
   updateSettings(patch: Partial<AppSettings>): Promise<AppState>;
   setApiKey(key: string): Promise<AppState>;
@@ -146,3 +167,11 @@ export interface DesktopApi {
 }
 
 declare global { interface Window { desktopPlay: DesktopApi; } }
+
+/** Source is optional for compatibility with existing Codex notices. No conversation text. */
+export interface CodexCompletionNotice { id: string; completedAt: string; source?: 'codex' | 'chatgpt-work' }
+export interface CodexCompletionState {
+  status: 'disabled' | 'starting' | 'watching' | 'unavailable' | 'error';
+  directory: string;
+  error: string | null;
+}

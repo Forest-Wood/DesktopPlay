@@ -12,3 +12,7 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 Thumbs.db
+
+# Local task notes (keep these files on this computer).
+/[Tt][Oo][Dd][Oo]
+/[Tt][Oo][Dd][Oo].[Mm][Dd]

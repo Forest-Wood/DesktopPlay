@@ -5,10 +5,10 @@
 | 日期 | 2026-10-15（Asia/Shanghai） |
 | 负责人 | Codex（本会话实现）；审查人待指定 |
 | 关联需求 | [R001–R004](../REQUIREMENTS.md) |
-| 状态 | 待审查；实现及本轮复验通过，已提交推送并创建 PR，未合并、未发布 Release |
+| 状态 | 已合并；PR #2 与 origin/main 已核实；v0.5.1 发布由 T003 单独跟进 |
 | 基准提交 | 原业务基准 `b7ed57f9b8558a8569fade14b3feb27a40039825`（v0.5.0）；功能分支基准 `7ac1192094636ac09334d79c40412bc64598b2bb`（已合并 T002） |
 | 实现提交 | `f5a78fac3d5d982afc4edb69721fe98af142d753`；后续交接同步提交见本文件 Git 历史 |
-| PR | [#2：v0.5.1 气泡时间设置与界面调整](https://github.com/Forest-Wood/DesktopPlay/pull/2)，open，目标 main |
+| PR | [#2：v0.5.1 气泡时间设置与界面调整](https://github.com/Forest-Wood/DesktopPlay/pull/2)，closed／merged；合并提交 `979764a596e3c4f639d09db53ce8f0f879104981` |
 | 分支 | `feat/T001-bubble-settings`，从最新 `origin/main` 创建；原实现曾在 main／T002 工作区保留，本轮已独立整理 |
 | 目标合并分支／目录 | `main`／`D:\desktop1\DesktopPlay` |
 | 依赖 | 现有 v0.5.0 应用、已安装依赖与本地打包工具缓存；T002 的管理规范已通过 PR #1 合并到主线 |
@@ -64,10 +64,10 @@ npm.cmd run build
 & '.\node_modules\.bin\electron-builder.cmd' --win nsis portable --x64 --publish never --config.electronDist=node_modules/electron/dist
 ```
 
-产物为 `release/DesktopPet-0.5.1-Setup-x64.exe` 与 `release/DesktopPet-0.5.1-Portable-x64.exe`，目录被 Git 忽略。本地包不代表 GitHub Release 已发布。
+历史本地预构建产物为 `release/DesktopPet-0.5.1-Setup-x64.exe` 与 `release/DesktopPet-0.5.1-Portable-x64.exe`，目录被 Git 忽略。正式 v0.5.1 已由 [T003](T003-release-v051.md) 发布，正式下载与校验以 GitHub Release 为准。
 
 ## 下一步
 
-1. 等待 [PR #2](https://github.com/Forest-Wood/DesktopPlay/pull/2) 审查和 CI，后续修订继续使用 feat/T001-bubble-settings。
-2. 未获得合并或发布授权，本次不自动合并、不创建发行标签或发布 Release；CI 结论以 PR 最新检查为准，未据本地通过推定远程通过。
+1. PR #2 已合并；其合并提交的 [CI #15](https://github.com/Forest-Wood/DesktopPlay/actions/runs/38716301473) 已通过。后续新功能或修复另建任务与分支。
+2. 用户随后明确授权继续发布 v0.5.1，标签、Release 与附件核实见 [T003](T003-release-v051.md)；本任务保留功能实现与验证结果，不追加发布过程日志。
 3. 若后续涉及安装、卸载或额度协议，再安排对应的隔离环境与真实场景验证；现有历史卸载缺口见 [v0.5.0 说明](../releases/v0.5.0.md)。

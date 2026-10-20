@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { accountPlanType, quotaPlanType, CodexQuotaService, normalizeCodexQuota, requestCodexQuota } from '../../../src/main/services/codex-quota';
+import { accountPlanType, quotaPlanType, CodexQuotaService, normalizeCodexQuota, normalizeCodexResetCredits, requestCodexQuota } from '../../../src/main/services/codex-quota';
 
 vi.mock('node:child_process', () => ({ spawn: vi.fn() }));
 const services: CodexQuotaService[] = [];
@@ -22,6 +22,26 @@ function childFixture() {
   return child;
 }
 describe('Codex quota normalization', () => {
+  it('reads authoritative reset totals, sanitizes rows and preserves unknown/no expiry', () => {
+    const value = { rateLimitResetCredits: { availableCount: 8, credits: [
+      { id: 'a', status: 'available', expiresAt: 1800000000, email: 'private@example.com' },
+      { id: 'a', status: 'available', expiresAt: 1 }, { id: 'b', status: 'available', expiresAt: null },
+      { id: 'c', status: 'future-status' }, { id: 'd', status: 'available', expiresAt: 1e99 }, null,
+    ] } };
+    const result = normalizeCodexResetCredits(value);
+    expect(result).toEqual({ availableCount: 8, credits: [
+      { id: 'a', status: 'available', expiresAt: '2027-01-15T08:00:00.000Z' },
+      { id: 'b', status: 'available', expiresAt: null }, { id: 'c', status: 'unknown', expiresAt: undefined },
+      { id: 'd', status: 'available', expiresAt: undefined },
+    ] });
+    expect(JSON.stringify(result)).not.toContain('private');
+    expect(normalizeCodexQuota(value)).toEqual([]);
+  });
+  it('distinguishes zero, count only and missing or invalid reset summaries', () => {
+    expect(normalizeCodexResetCredits({ rateLimitResetCredits: { availableCount: 0, credits: [] } })).toEqual({ availableCount: 0, credits: [] });
+    expect(normalizeCodexResetCredits({ rateLimitResetCredits: { availableCount: 2 } })).toEqual({ availableCount: 2, credits: null });
+    for (const value of [response, null, { rateLimitResetCredits: null }, ...[-1, 1.5, '2', Infinity, Number.MAX_SAFE_INTEGER + 1].map(availableCount => ({ rateLimitResetCredits: { availableCount } }))]) expect(normalizeCodexResetCredits(value)).toBeNull();
+  });
   it('extracts only plan data from quota and account results', () => {
     expect(quotaPlanType(response)).toBe('plus');
     expect(quotaPlanType({ planType: 'pro', rateLimits: response.rateLimits })).toBe('pro');
@@ -79,9 +99,9 @@ describe('Codex quota service', () => {
     expect(service.getState().buckets[0].name).toBe('codex');
   });
   it('preserves successful data when a later read fails and does not expose raw errors', async () => {
-    const service = await fixture(vi.fn().mockResolvedValueOnce(response).mockRejectedValueOnce(new Error('secret account token')));
+    const service = await fixture(vi.fn().mockResolvedValueOnce({ ...response, rateLimitResetCredits: { availableCount: 2, credits: [] } }).mockRejectedValueOnce(new Error('secret account token')));
     await service.refresh(); const before = service.getState(); await service.refresh();
-    expect(service.getState()).toMatchObject({ status: 'error', buckets: before.buckets, updatedAt: before.updatedAt });
+    expect(service.getState()).toMatchObject({ status: 'error', buckets: before.buckets, resetCredits: before.resetCredits, updatedAt: before.updatedAt });
     expect(service.getState().error).not.toContain('secret');
   });
   it('aborts timed out reads, clears singleflight, and allows another refresh', async () => {

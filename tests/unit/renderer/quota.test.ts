@@ -1,8 +1,30 @@
 import { describe, expect, it } from 'vitest';
-import { planLabel, quotaSlots, remainingLabel, quotaIsStale, resetCountdown, windowLabel } from '../../../src/renderer/quota';
+import { planLabel, quotaSlots, remainingLabel, quotaIsStale, resetCountdown, windowLabel, resetCreditExpiry, resetCreditsView } from '../../../src/renderer/quota';
 import type { CodexQuotaState } from '../../../src/shared/types';
 
 describe('Codex quota time and availability', () => {
+  const resetQuota = (resetCredits: CodexQuotaState['resetCredits']): CodexQuotaState => ({ resetCredits, planType: null, status: 'ready', updatedAt: '2026-10-02T08:00:00Z', available: true, error: null, source: 'codex-app-server', buckets: [] });
+  it('keeps unknown, zero, partial details and count-only snapshots distinct', () => {
+    expect(resetCreditsView(resetQuota(null), now).count).toBe('重置卡：未提供');
+    expect(resetCreditsView(resetQuota({ availableCount: 0, credits: [] }), now)).toMatchObject({ count: '重置卡 0 张', deadline: '', note: '' });
+    expect(resetCreditsView(resetQuota({ availableCount: 2, credits: null }), now)).toMatchObject({ count: '重置卡 2 张', deadline: '截止时间未提供', note: '接口仅提供张数，截止时间未提供。' });
+    const quota = resetQuota({ availableCount: 8, credits: [{ id: 'late', status: 'available', expiresAt: '2027-01-01T00:00:00Z' }, { id: 'first', status: 'available', expiresAt: '2026-12-31T00:00:00Z' }] });
+    const view = resetCreditsView(quota, now);
+    expect(view.count).toBe('重置卡 8 张'); expect(view.rows[0].id).toBe('first'); expect(view.note).toContain('明细不完整'); expect(view.deadline).toContain('最近已知截止');
+    expect(resetCreditsView({ ...quota, status: 'error' }, now).count).toContain('待刷新');
+  });
+  it('formats complete cutoff instants with explicit timezone and keeps no expiry distinct', () => {
+    const credit = { id: 'a', status: 'available' as const, expiresAt: '2026-10-02T08:09:10Z' };
+    const shanghai = resetCreditExpiry(credit, now, 'Asia/Shanghai');
+    expect(shanghai).toContain('2026/10/02'); expect(shanghai).toContain('16:09:10'); expect(shanghai).toContain('GMT+08:00');
+    const utc = resetCreditExpiry(credit, now, 'UTC');
+    expect(utc).toContain('08:09:10'); expect(utc).toContain('GMT');
+    expect(resetCreditExpiry(credit, now + 86400000)).toContain('已到期');
+    expect(resetCreditExpiry({ ...credit, expiresAt: null }, now)).toBe('无到期限制');
+    expect(resetCreditExpiry({ ...credit, expiresAt: undefined }, now)).toBe('截止时间未提供');
+    expect(resetCreditsView(resetQuota({ availableCount: 1, credits: [{ ...credit, expiresAt: null }] }), now).deadline).toBe('无到期限制');
+    expect(resetCreditsView(resetQuota({ availableCount: 2, credits: [{ ...credit, expiresAt: null }] }), now).deadline).toBe('截止时间未提供');
+  });
   it('labels real plans and keeps precise remaining percentages', () => {
     expect([null, 'plus', 'PRO', 'business'].map(planLabel)).toEqual(['套餐未知', 'Plus', 'Pro', 'business']);
     expect([100, 99.9, 0.1, 0].map(remainingLabel)).toEqual(['100%', '99.9%', '0.1%', '0%']);
@@ -35,7 +57,7 @@ describe('Codex quota time and availability', () => {
     expect(resetCountdown('2026-10-04T08:00:00Z', now)).toBe('2天后重置');
   });
   it('labels retained quota as stale after failed requests or missed refreshes', () => {
-    const quota: CodexQuotaState = { planType: null, status: 'ready', updatedAt: '2026-10-02T08:00:00Z', available: true, error: null, source: 'codex-app-server', buckets: [{ id: 'a', name: 'Codex', primary: null, secondary: null, planType: null, creditsRemaining: null, unlimitedCredits: false }] };
+    const quota: CodexQuotaState = { resetCredits: null, planType: null, status: 'ready', updatedAt: '2026-10-02T08:00:00Z', available: true, error: null, source: 'codex-app-server', buckets: [{ id: 'a', name: 'Codex', primary: null, secondary: null, planType: null, creditsRemaining: null, unlimitedCredits: false }] };
     expect(quotaIsStale(quota, now)).toBe(false);
     expect(quotaIsStale(quota, now + 181000)).toBe(true);
     expect(quotaIsStale({ ...quota, status: 'error' }, now)).toBe(true);
