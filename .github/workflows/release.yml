@@ -37,36 +37,60 @@ jobs:
             throw "Tag version '$tagVersion' does not match package.json version '$packageVersion'."
           }
 
+      - name: Refuse to overwrite a published release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $result = gh api --include "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG" 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            if (($result -join "`n") -notmatch 'HTTP/\S+ 404') { throw 'Could not verify existing release status' }
+            $global:LASTEXITCODE = 0
+          } elseif (!((($result -join "`n") -split "\r?\n\r?\n", 2)[1] | ConvertFrom-Json).draft) {
+            throw 'This release is already published. Use a new version and tag.'
+          }
+
       - name: Unit tests
         run: npm test
 
       - name: Build Windows x64 packages
         run: npm run dist
 
-      - name: Verify packages and write SHA-256 sums
-        shell: pwsh
+      - name: Verify updater metadata and write SHA-256 sums
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          $version = $env:RELEASE_TAG -replace '^v', ''
-          $packages = @(Get-ChildItem -Path release -File -Filter '*-x64.exe' | Sort-Object Name)
-          $expected = @(
-            "DesktopPet-$version-Setup-x64.exe",
-            "DesktopPet-$version-Portable-x64.exe"
-          )
-          if ($packages.Count -ne 2 -or @(Compare-Object $expected $packages.Name).Count -ne 0) {
-            throw "Expected exactly the NSIS Setup and Portable x64 executables. Found: $($packages.Name -join ', ')"
-          }
-          $lines = foreach ($package in $packages) {
-            $hash = (Get-FileHash -LiteralPath $package.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            "$hash  $($package.Name)"
-          }
-          Set-Content -Path release/SHA256SUMS.txt -Value $lines -Encoding ascii
+          node scripts/verify-release.mjs
+          node scripts/verify-update-runtime.mjs
 
-      - name: Create GitHub Release
+      - name: Upload all assets to a draft release
         uses: softprops/action-gh-release@v3
         with:
+          draft: true
           generate_release_notes: true
           files: |
             release/*-x64.exe
             release/SHA256SUMS.txt
+            release/latest.yml
+            release/*-Setup-x64.exe.blockmap
+
+      - name: Publish only after every asset is verified
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or !$release.draft) { throw 'Expected a draft release' }
+          $version = $env:RELEASE_TAG -replace '^v', ''
+          $names = @("DesktopPet-$version-Setup-x64.exe", "DesktopPet-$version-Portable-x64.exe", 'SHA256SUMS.txt', 'latest.yml', "DesktopPet-$version-Setup-x64.exe.blockmap")
+          if ($release.assets.Count -ne $names.Count) { throw 'Unexpected release asset count' }
+          foreach ($name in $names) {
+            $asset = @($release.assets | Where-Object name -eq $name)
+            $localFile = Get-Item -LiteralPath (Join-Path 'release' $name)
+            $hash = (Get-FileHash -LiteralPath $localFile.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($asset.Count -ne 1 -or $asset[0].state -ne 'uploaded' -or $asset[0].size -ne $localFile.Length -or $asset[0].digest -ne "sha256:$hash") { throw "Incomplete or mismatched asset: $name" }
+          }
+          gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/releases/$($release.id)" -F draft=false -F prerelease=false -f make_latest=true
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to publish the verified draft' }

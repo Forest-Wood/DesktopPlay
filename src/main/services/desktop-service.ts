@@ -29,7 +29,7 @@ function settings(patch: unknown, base = DEFAULT_SETTINGS): AppSettings {
   const result = structuredClone(base);
   for (const [key, value] of Object.entries(patch)) {
     if (!Object.hasOwn(DEFAULT_SETTINGS, key)) throw new Error('包含未知设置');
-    if (['alwaysOnTop', 'launchAtLogin', 'snapToEdges', 'soundEnabled'].includes(key)) {
+    if (['autoCheckUpdates', 'alwaysOnTop', 'launchAtLogin', 'snapToEdges', 'soundEnabled'].includes(key)) {
       if (typeof value !== 'boolean') throw new Error('开关设置无效');
     } else if (key === 'scale' || key === 'volume') {
       if (typeof value !== 'number' || !Number.isFinite(value) || value < (key === 'scale' ? 0.5 : 0) || value > (key === 'scale' ? 2 : 1)) throw new Error('数值设置无效');

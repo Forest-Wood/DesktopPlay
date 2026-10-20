@@ -84,6 +84,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   soundProfiles.innerHTML = `<p class="hint">三个角色的按下与松开音效独立保存。更换与恢复立即生效，音量及开关需保存设置。</p><div class="persona-tabs" role="group" aria-label="音效角色"><button type="button" data-sound-persona="whale">小鲸鱼</button><button type="button" data-sound-persona="gpt">原版 GPT</button><button type="button" data-sound-persona="dragon">白龙</button></div>${(['press', 'release'] as const).map(slot => `<article class="sound-file"><div class="sound-file-heading"><h3>${slot === 'press' ? '按下音效' : '松开音效'}</h3><span id="sound-kind-${slot}" class="sound-kind"></span></div><p id="sound-name-${slot}" class="sound-filename"></p><div class="button-row"><button id="sound-choose-${slot}" type="button" class="secondary-button">更换音频</button><button id="sound-preview-${slot}" type="button" class="secondary-button">试听</button><button id="sound-stop-${slot}" type="button" class="text-button">停止</button><button id="sound-reset-${slot}" type="button" class="text-button">恢复内置音效</button></div><p id="sound-warning-${slot}" class="sound-warning" role="status"></p></article>`).join('')}<p class="hint">试听使用当前音量草稿；即使关闭点击音效，也可以试听。音量为零时不会播放。</p>`;
   sound.querySelector('.panel')!.append(soundProfiles);
   makePage('version', '关于 DesktopPet', `<div class="about-hero"><span class="brand-mark">≈</span><div><h3>DesktopPet <span class="version-chip">v${APP_VERSION}</span></h3><p>让桌面多一点陪伴。</p></div></div><p>小鲸鱼陪你关注余额，GPT 小伙伴与白龙陪你照顾编程节奏。</p><p class="hint">原有账户、图片、记录和桌面位置会继续保留。</p><div class="about-detail">项目仓库 · Forest-Wood / DesktopPlay<br>代码许可证 · MIT</div>`);
+  element('version').querySelector('.panel')!.insertAdjacentHTML('beforeend', `<section class="app-update"><h3>软件更新</h3><p id="update-mode" class="hint"></p><p id="update-status" role="status"></p><p id="update-checked" class="hint"></p><progress id="update-progress" max="100" value="0" hidden></progress><p id="update-bytes" class="hint"></p><p id="update-error" class="sound-warning" role="alert"></p><pre id="update-notes" class="update-notes"></pre><div class="button-row"><button id="update-check" type="button" class="secondary-button">检查更新</button><button id="update-download" type="button" hidden>下载更新</button><button id="update-cancel" type="button" class="secondary-button" hidden>取消下载</button><button id="update-install" type="button" hidden>重启并更新</button></div><label class="toggle-label"><span>自动检查更新<small>启动后自动检查，之后每 6 小时检查；下载和重启由你决定。</small></span><input id="auto-check-updates" name="autoCheckUpdates" type="checkbox"></label><div id="update-dirty-dialog" class="update-dirty-dialog" hidden><p>有未保存的设置，请先保存，或选择放弃草稿后重启更新。</p><div class="button-row"><button id="update-save-first" type="button">保存设置</button><button id="update-discard" class="secondary-button" type="button">放弃草稿并更新</button><button id="update-keep-editing" class="text-button" type="button">继续编辑</button></div></div></section>`);
   makePage('guide', '使用说明', '<div class="guide-list"><article><h3>轻点一下，看看近况</h3><p>点击桌宠翻阅余额、额度与陪伴短句；点击气泡关闭按钮收起。</p></article><article><h3>拖到喜欢的位置</h3><p>按住桌宠拖动，可在桌面行为中启用贴边吸附。靠近屏幕上方时，小伙伴会倒挂陪着你。</p></article><article><h3>连接你的账户</h3><p>DeepSeek 使用 API Key 查询余额；Codex 读取本机登录状态与官方返回的额度。没有返回的窗口显示“未提供”。</p></article><article><h3>保存你的小习惯</h3><p>切换页面会保留草稿。完成后点击底部“保存设置”。角色与账户操作即时生效。</p></article></div>');
   makePage('licenses', '素材与许可证', '<div class="guide-list"><article><h3>代码与开源来源</h3><p>代码采用 MIT 许可证。部分代码参考 MeteorNOX / DeepSeek-Balance-Whale-Widget，并保留上游署名与许可证。</p></article><article><h3>小鲸鱼与音效</h3><p>源自上游项目，维护者确认获得独立分发授权。美术与声音素材不随代码转为 MIT 授权。</p></article><article><h3>GPT 与白龙</h3><p>根据用户参考生成的非官方二创形象，不代表 OpenAI 的官方吉祥物、合作或认可。第三方商标权归原权利人。</p></article><article><h3>完整声明</h3><p>随应用分发的 LICENSE 与 THIRD_PARTY_NOTICES.md 包含完整许可证、素材来源与授权边界。</p></article></div>');
   makePage('uninstall', '卸载 DesktopPet', '<p class="page-description">移除程序，并按你的选择清理本机数据。</p><dl class="uninstall-paths"><dt>运行模式</dt><dd id="uninstall-kind">正在检查…</dd><dt>程序位置</dt><dd id="uninstall-program">正在检查…</dd><dt>用户数据位置</dt><dd id="uninstall-data">正在检查…</dd></dl><label class="toggle-label uninstall-delete-label" for="uninstall-remove-data"><span>同时删除本机用户数据<small>默认开启，可关闭以保留设置与素材。</small></span><input id="uninstall-remove-data" type="checkbox" checked></label><p class="hint">清理范围：API Key、设置、余额与消费记录、自定义图片、自定义音频和缓存。同一用户运行的安装版与免安装版可能共用这些数据，清理会同时影响它们。</p><p id="uninstall-reason" class="sound-warning" role="status"></p><button id="uninstall-start" class="uninstall-button" type="button" disabled>卸载 DesktopPet</button><p class="hint">点击后会显示系统确认对话框，取消即可返回。</p>');
@@ -91,6 +92,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   main.append(content, saveBar);
   main.querySelector('header')!.after(tabs);
   element<HTMLButtonElement>('save-settings').setAttribute('form', 'settings-form');
+  for (const id of ['update-download', 'update-install', 'update-save-first']) element(id).classList.add('primary-button');
   for (const control of content.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input[name], textarea[name]')) control.setAttribute('form', 'settings-form');
   settingsForm.hidden = true;
   root.querySelector('.page-footer')!.remove();
@@ -115,6 +117,9 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   for (const group of pages) { const button = document.createElement('button'); button.type = 'button'; button.dataset.category = group.category; button.innerHTML = `<span aria-hidden="true">${group.icon}</span><span>${group.label}</span>`; button.addEventListener('click', () => showCategory(group.category)); sidebar.append(button); }
   tabs.addEventListener('keydown', event => { if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return; event.preventDefault(); const buttons = [...tabs.querySelectorAll<HTMLButtonElement>('button')]; const index = buttons.indexOf(document.activeElement as HTMLButtonElement); const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length; buttons[next].click(); buttons[next].focus(); });
   pageMemory.set('account', initial.activePet === 'gpt' ? 'codex' : 'overview'); showCategory('account');
+  const openVersion = () => { showCategory('about'); showPage('version'); };
+  if (new URLSearchParams(location.search).get('page') === 'version') openVersion();
+  const stopSettingsPage = api.onSettingsPage(openVersion);
   root.querySelector('.brand')!.addEventListener('click', event => { event.preventDefault(); showCategory('account'); });
   let persona: PetPersona = initial.activePet === 'deepseek' ? 'whale' : initial.gptAppearance === 'dragon' ? 'dragon' : 'gpt';
   let phraseDraft: Record<PetPersona, string[]> = structuredClone(initial.settings.phrasesByPersona);
@@ -203,6 +208,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     }).catch(error => { if (!disposed) notify(error instanceof Error ? error.message : '无法启动卸载，请重试。', true); }).finally(() => { if (!disposed) button.disabled = !uninstallAvailable; });
   });
   const fill = (settings: AppSettings) => {
+    input('autoCheckUpdates').checked = settings.autoCheckUpdates;
     for (const name of ['soundEnabled', 'alwaysOnTop', 'snapToEdges', 'launchAtLogin'] as const) input(name).checked = settings[name];
     input('scale').value = String(settings.scale); input('volume').value = String(settings.volume);
     input('bubbleDurationSeconds').value = String(settings.bubbleDurationSeconds); input('bubbleHoverDelaySeconds').value = String(settings.bubbleHoverDelaySeconds);
@@ -216,6 +222,17 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const update = (next: AppState) => {
     if (disposed) return;
     state = next;
+    const u = state.appUpdate;
+    const updateLabels = { idle: '尚未检查更新', checking: '正在检查更新…', current: '当前已是最新版本', available: `发现新版本 v${u.latestVersion}`, downloading: `正在下载 ${u.progress.toFixed(1)}%`, ready: `v${u.latestVersion} 已下载，重启后更新`, installing: '正在准备重启更新…', error: '更新暂未完成', unsupported: '当前运行模式不执行更新' };
+    element('update-status').textContent = updateLabels[u.status];
+    element('update-mode').textContent = `${u.kind === 'portable' ? '免安装版 · 保留原文件名和位置' : u.kind === 'installed' ? '安装版 · 覆盖升级并保留用户数据' : '开发／演示模式'} · 当前版本 v${u.currentVersion}`;
+    element('update-checked').textContent = u.checkedAt ? `上次检查：${new Date(u.checkedAt).toLocaleString()}` : '';
+    element('update-error').textContent = u.error ?? ''; element('update-notes').textContent = u.releaseNotes;
+    element<HTMLProgressElement>('update-progress').value = u.progress; element('update-progress').hidden = u.status !== 'downloading';
+    element('update-bytes').textContent = u.status === 'downloading' && u.total > 0 ? `${(u.transferred / 1048576).toFixed(1)} / ${(u.total / 1048576).toFixed(1)} MiB` : '';
+    element<HTMLButtonElement>('update-check').disabled = ['unsupported', 'checking', 'downloading', 'installing'].includes(u.status);
+    element('update-download').hidden = !u.latestVersion || !['available', 'error'].includes(u.status);
+    element('update-cancel').hidden = u.status !== 'downloading'; element('update-install').hidden = u.status !== 'ready';
     renderSounds();
     root.classList.toggle('gpt-theme', state.activePet === 'gpt');
     root.classList.toggle('dragon-theme', state.activePet === 'gpt' && state.gptAppearance === 'dragon');
@@ -275,15 +292,28 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     if (!key) { notify('请先输入 API Key。', true); keyInput.focus(); return; }
     keyInput.value = ''; void run(element('save-key'), () => api.setApiKey(key), 'API Key 已保存。');
   });
+  const updateAction = async (action: () => Promise<unknown>) => {
+    try { await action(); } catch (error) { if (!disposed) notify(error instanceof Error ? error.message : '更新暂未完成，请重试。', true); }
+  };
+  element('update-check').addEventListener('click', () => { void updateAction(() => api.checkForUpdates()); });
+  element('update-download').addEventListener('click', () => { void updateAction(() => api.downloadUpdate()); });
+  element('update-cancel').addEventListener('click', () => { void updateAction(() => api.cancelUpdateDownload()); });
+  element('update-install').addEventListener('click', () => {
+    if (dirty) { element('update-dirty-dialog').hidden = false; return; }
+    void updateAction(() => api.installUpdate());
+  });
+  element('update-discard').addEventListener('click', () => { dirty = false; fill(state.settings); element('update-dirty-dialog').hidden = true; void updateAction(() => api.installUpdate()); });
+  element('update-keep-editing').addEventListener('click', () => { element('update-dirty-dialog').hidden = true; });
+  element('update-save-first').addEventListener('click', () => { element('update-dirty-dialog').hidden = true; form.requestSubmit(); });
   form.addEventListener('submit', event => {
     event.preventDefault();
     try {
-      const patch: AppSettings = { ...state.settings, codexCompletionEnabled: input('codexCompletionEnabled').checked, codexCompletionDirectory: directoryDraft, completionMessagesByPersona: structuredClone(completionDraft), scale: Math.max(0.5, Math.min(2, Number(input('scale').value))), volume: Math.max(0, Math.min(1, Number(input('volume').value))), bubbleDurationSeconds: Number(input('bubbleDurationSeconds').value), bubbleHoverDelaySeconds: Number(input('bubbleHoverDelaySeconds').value), lowBalanceThreshold: decimalSetting(input('lowBalanceThreshold').value), dailyBudget: decimalSetting(input('dailyBudget').value), phrasesByPersona: Object.fromEntries(Object.entries(phraseDraft).map(([key, lines]) => [key, lines.map(line => line.trim()).filter(Boolean)])) as Record<PetPersona, string[]>, soundEnabled: input('soundEnabled').checked, alwaysOnTop: input('alwaysOnTop').checked, snapToEdges: input('snapToEdges').checked, launchAtLogin: input('launchAtLogin').checked };
+      const patch: AppSettings = { ...state.settings, autoCheckUpdates: input('autoCheckUpdates').checked, codexCompletionEnabled: input('codexCompletionEnabled').checked, codexCompletionDirectory: directoryDraft, completionMessagesByPersona: structuredClone(completionDraft), scale: Math.max(0.5, Math.min(2, Number(input('scale').value))), volume: Math.max(0, Math.min(1, Number(input('volume').value))), bubbleDurationSeconds: Number(input('bubbleDurationSeconds').value), bubbleHoverDelaySeconds: Number(input('bubbleHoverDelaySeconds').value), lowBalanceThreshold: decimalSetting(input('lowBalanceThreshold').value), dailyBudget: decimalSetting(input('dailyBudget').value), phrasesByPersona: Object.fromEntries(Object.entries(phraseDraft).map(([key, lines]) => [key, lines.map(line => line.trim()).filter(Boolean)])) as Record<PetPersona, string[]>, soundEnabled: input('soundEnabled').checked, alwaysOnTop: input('alwaysOnTop').checked, snapToEdges: input('snapToEdges').checked, launchAtLogin: input('launchAtLogin').checked };
       const savingRevision = draftRevision;
       void run(element('save-settings'), async () => { const next = await api.updateSettings(patch); if (savingRevision === draftRevision) { dirty = false; fill(next.settings); element('save-hint').textContent = '设置已保存'; } else { element('save-hint').textContent = '已保存先前调整；新草稿尚未保存'; } return next; }, '设置已保存，桌宠已经收到啦。');
     } catch (error) { notify(error instanceof Error ? error.message : '请检查输入。', true); }
   });
   update(initial); fill(initial.settings);
   const countdown = setInterval(() => { renderQuota(element('codex-quotas'), state.codex, false, demo); element('codex-status').textContent = quotaStatus(state.codex, demo); }, 30000);
-  return { update, dispose: () => { disposed = true; preview.dispose(); clearInterval(countdown); } };
+  return { update, dispose: () => { disposed = true; stopSettingsPage(); preview.dispose(); clearInterval(countdown); } };
 }

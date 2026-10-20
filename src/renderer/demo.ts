@@ -1,10 +1,12 @@
 import { BUILTIN_PETS, DEFAULT_SETTINGS, GPT_DRAGON_PET, DEFAULT_SOUNDS } from '../shared/defaults';
 import type { AppState, DesktopApi } from '../shared/types';
+import { initialUpdateState } from '../shared/app-update';
 
 export function createDemoApi(): DesktopApi {
   const activePet = localStorage.getItem('desktopplay-demo-pet') === 'gpt' ? 'gpt' : 'deepseek';
   const gptAppearance = localStorage.getItem('desktopplay-demo-appearance') === 'dragon' ? 'dragon' : 'classic';
   let state: AppState = {
+    appUpdate: initialUpdateState(),
     codexCompletion: { status: 'disabled', directory: '浏览器演示不读取本机会话', error: null },
     chatgptCompletion: { status: 'disabled', directory: '浏览器演示不读取桌面通知', error: null },
     sounds: structuredClone(DEFAULT_SOUNDS),
@@ -16,6 +18,12 @@ export function createDemoApi(): DesktopApi {
   const listeners = new Set<(state: AppState) => void>();
   const emit = () => { listeners.forEach(listener => listener(state)); return Promise.resolve(state); };
   return {
+    checkForUpdates: async () => state.appUpdate,
+    downloadUpdate: async () => state.appUpdate,
+    cancelUpdateDownload: async () => state.appUpdate,
+    installUpdate: async () => ({ started: false }),
+    onUpdateAvailable: () => () => {},
+    onSettingsPage: () => () => {},
     chooseCodexCompletionDirectory: async () => { throw new Error('请在桌面应用中选择 Codex 目录。'); },
     onCodexCompletion: () => () => {},
     onPetHidden: () => () => {},
@@ -40,7 +48,7 @@ export function createDemoApi(): DesktopApi {
     refreshCodexQuota: async () => { state = { ...state, codex: { ...state.codex, updatedAt: new Date().toISOString() } }; return emit(); },
     chooseCodexExecutable: async () => { throw new Error('请在桌面应用中选择 codex.exe，本地演示不读取真实账户。'); },
     openCodexUsage: async () => { window.open('https://chatgpt.com/codex/settings/usage', '_blank', 'noopener'); },
-    openSettings: async () => { location.href = '?view=settings'; },
+    openSettings: async page => { location.href = `?view=settings${page ? '&page=version' : ''}`; },
     showMenu: async () => { location.href = '?view=settings'; }, hidePet: async () => {}, quit: async () => {},
     startDrag: () => {}, endDrag: () => {}, setInteractive: () => {}, setBubbleVisible: () => {},
     onState: callback => { listeners.add(callback); return () => listeners.delete(callback); },
