@@ -15,7 +15,7 @@
 | R007 | Git 管理与本地 TODO 忽略 | 已合并 | [T004](tasks/T004-git-preparation.md) |
 | R008 | 显示 Codex 重置卡张数和截止日期 | 已合并 | [T005](tasks/T005-reset-cards.md) |
 | R009 | 可编辑的角色化 Codex／ChatGPT Work 完成提醒 | 已合并（真实 Work 端到端未验证） | [T006](tasks/T006-completion-notice.md) |
-| R010 | 发布本阶段功能为 v0.5.2 并更新下载附件 | 进行中 | [T007](tasks/T007-release-v052.md) |
+| R010 | 发布本阶段功能为 v0.5.2 并更新下载附件 | 已合并（发布已完成） | [T007](tasks/T007-release-v052.md) |
 
 ## R001：默认气泡显示时间
 
