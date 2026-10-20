@@ -47,17 +47,17 @@ jobs:
           }
 
       - name: Refuse to overwrite a published release
+        id: release_guard
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $pages = gh api --paginate --slurp "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0) { throw 'Could not verify existing release status' }
-          foreach ($page in $pages) {
-            foreach ($existing in $page) {
-              if ($existing.tag_name -eq $env:RELEASE_TAG -and !$existing.draft) { throw 'This release is already published. Use a new version and tag.' }
-            }
-          }
+          $matching = @(foreach ($page in $pages) { foreach ($item in $page) { if ($item.tag_name -eq $env:RELEASE_TAG) { $item } } })
+          if ($matching.Count -gt 1) { throw 'Multiple releases match this tag' }
+          if ($matching.Count -eq 1 -and !$matching[0].draft) { throw 'This release is already published. Use a new version and tag.' }
+          "draft_exists=$($matching.Count -eq 1)".ToLowerInvariant() >> $env:GITHUB_OUTPUT
 
       - name: Unit tests
         run: npm test
@@ -71,6 +71,7 @@ jobs:
           node scripts/verify-update-runtime.mjs
 
       - name: Upload all assets to a draft release
+        if: steps.release_guard.outputs.draft_exists != 'true'
         uses: softprops/action-gh-release@v3
         with:
           draft: true
@@ -81,6 +82,18 @@ jobs:
             release/SHA256SUMS.txt
             release/latest.yml
             release/*-Setup-x64.exe.blockmap
+
+      - name: Replace assets in an existing draft without rewriting release metadata
+        if: steps.release_guard.outputs.draft_exists == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = $env:RELEASE_TAG -replace '^v', ''
+          $names = @("DesktopPet-$version-Setup-x64.exe", "DesktopPet-$version-Portable-x64.exe", 'SHA256SUMS.txt', 'latest.yml', "DesktopPet-$version-Setup-x64.exe.blockmap")
+          $files = @($names | ForEach-Object { (Get-Item -LiteralPath (Join-Path 'release' $_)).FullName })
+          gh release upload $env:RELEASE_TAG @files --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to replace draft assets; keep release unpublished' }
 
       - name: Publish only after every asset is verified
         shell: pwsh
