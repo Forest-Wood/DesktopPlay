@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing stable tag to build and publish without moving it
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -11,11 +17,15 @@ permissions:
 jobs:
   build-and-release:
     runs-on: windows-latest
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
     permissions:
       contents: write
     steps:
       - name: Check out source
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Set up Node.js 24
         uses: actions/setup-node@v7
@@ -28,11 +38,10 @@ jobs:
 
       - name: Verify tag matches package version
         shell: pwsh
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           $packageVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
           $tagVersion = $env:RELEASE_TAG -replace '^v', ''
+          if ($env:RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+$') { throw 'A stable version tag is required' }
           if ($tagVersion -ne $packageVersion) {
             throw "Tag version '$tagVersion' does not match package.json version '$packageVersion'."
           }
@@ -41,14 +50,13 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          $result = gh api --include "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG" 2>$null
-          if ($LASTEXITCODE -ne 0) {
-            if (($result -join "`n") -notmatch 'HTTP/\S+ 404') { throw 'Could not verify existing release status' }
-            $global:LASTEXITCODE = 0
-          } elseif (!((($result -join "`n") -split "\r?\n\r?\n", 2)[1] | ConvertFrom-Json).draft) {
-            throw 'This release is already published. Use a new version and tag.'
+          $pages = gh api --paginate --slurp "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Could not verify existing release status' }
+          foreach ($page in $pages) {
+            foreach ($existing in $page) {
+              if ($existing.tag_name -eq $env:RELEASE_TAG -and !$existing.draft) { throw 'This release is already published. Use a new version and tag.' }
+            }
           }
 
       - name: Unit tests
@@ -58,8 +66,6 @@ jobs:
         run: npm run dist
 
       - name: Verify updater metadata and write SHA-256 sums
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           node scripts/verify-release.mjs
           node scripts/verify-update-runtime.mjs
@@ -68,6 +74,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           draft: true
+          tag_name: ${{ env.RELEASE_TAG }}
           generate_release_notes: true
           files: |
             release/*-x64.exe
@@ -79,10 +86,13 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG" | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0 -or !$release.draft) { throw 'Expected a draft release' }
+          # The tag endpoint returns published releases only. Find the exact draft in the release collection.
+          $pages = gh api --paginate --slurp "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Could not read draft releases' }
+          $matching = @(foreach ($page in $pages) { foreach ($item in $page) { if ($item.tag_name -eq $env:RELEASE_TAG) { $item } } })
+          if ($matching.Count -ne 1 -or !$matching[0].draft) { throw 'Expected exactly one draft release' }
+          $release = $matching[0]
           $version = $env:RELEASE_TAG -replace '^v', ''
           $names = @("DesktopPet-$version-Setup-x64.exe", "DesktopPet-$version-Portable-x64.exe", 'SHA256SUMS.txt', 'latest.yml', "DesktopPet-$version-Setup-x64.exe.blockmap")
           if ($release.assets.Count -ne $names.Count) { throw 'Unexpected release asset count' }

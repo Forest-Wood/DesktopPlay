@@ -1,10 +1,11 @@
 # T009：发布 DesktopPet v0.5.3
 
 - 日期：2026-10-20（Asia/Shanghai）；负责人／整合负责人：Codex；需求 R012。
-- 状态：发布准备 [PR #6](https://github.com/Forest-Wood/DesktopPlay/pull/6) 已创建，等待完整 CI；尚未创建 v0.5.3 标签或正式 Release。
+- 状态：PR #6 已合并，v0.5.3 标签已推送；Release #10 五资源已上传但转正接口失败，草稿保持非公开，正在修复恢复流程。
 - 当前独立目录 `D:\desktop1\DesktopPlay-T009`；分支 `release/T009-v053`；目标 main。初始目录 `D:\desktop1\DesktopPlay` 保留，避免与原目录的分支操作相互影响。
 - 基准 `101477afcb8a861289cd87d038519f64658046fb`，PR #5 合并提交；任务开始时 T008 工作区干净，原分支与旧标签保留。远端无 v0.5.3 标签／Release。
-- 修复提交：`67fb6ec`；后续交接仅文档。本轮开始无既有修改，未丢弃任何原分支或提交。
+- 短路径修复 `67fb6ec`，发布准备交接 `9c618b0`，[PR #6](https://github.com/Forest-Wood/DesktopPlay/pull/6) 合并提交 `e71d83644bb6895a91129bd6700fe0d3c5ec7fec`；原分支／提交均保留。
+- v0.5.3 annotated 标签对象 `dadaca0eb16f0ee6a3dbf1750de02edf81c65681`，解析到 `e71d836`；未移动标签。草稿 Release ID `418176374`。
 - 授权：用户明确要求发布 0.5.3 Release，包含必要发布修复、验证、发布准备的提交／推送／整合、标签与 Release；不改写旧版本，不上传 TODO，不测试更新真实桌宠。
 
 ## 目标与范围
@@ -18,9 +19,14 @@
 ## 验证
 
 - 通过：本地 `npm.cmd run build`（含类型），18 文件／194 单测；新增 3 个路径回归。
+- 通过：[PR CI #25](https://github.com/Forest-Wood/DesktopPlay/actions/runs/39394711099) 与 [main CI #26](https://github.com/Forest-Wood/DesktopPlay/actions/runs/39395322494) 的完整检查，含 helper 与 Electron；发布提交树与通过 PR 的树完全一致。
+- 通过：本轮重新执行独立两版本 NSIS／portable 升级及回滚，三场景均通过；证据 `.tmp/T008-upgrade-f6mOZf/results.json`，未触碰真实程序。
 - 失败并已定位：[主线 CI #23](https://github.com/Forest-Wood/DesktopPlay/actions/runs/39391816544) 为 187／191，四个更新相关用例失败于短路径；其他步骤被跳过，不能写成完整 CI 已通过。
 - 保留：T008 的本地完整 Electron 12／13，原生鼠标页码未翻动与此前约 39px 偏移，未声称修复。既有账本偶发失败、真实 Work 与真实数据升级限制见 T008。
-- 待验证：修复后的远端 CI、Release 构建、五附件公开下载与摘要。
+- 失败并定位：[Release #10](https://github.com/Forest-Wood/DesktopPlay/actions/runs/39396018348) 单测、打包、元数据／依赖检查、五附件草稿上传均通过，最后按标签 GET 草稿返回 404，未正式发布。改为分页列出 releases 精确匹配 draft，仍逐一核对五文件名、大小、状态和摘要，全部一致才 PATCH 转正。
+- 新增 workflow_dispatch 恢复入口：在主线读取修复后的 workflow，但 checkout 既有稳定标签作为打包源码；沿用同一 Release／tag，不移动 v0.5.3 或变更应用代码。仅允许稳定版本且必须匹配 package.json，已公开版本仍拒绝覆盖。
+- 新增 8 个真实 PowerShell 门禁回归：单页／多页精确草稿可发布，缺附件、错误摘要／大小、重复草稿和已发布版本均不得转正。
+- 待验证：恢复流程远端 CI、Release 重试、五附件公开下载与摘要。
 - 未运行：真实用户数据覆盖升级、真实账户／Work 端到端、其他 Windows／ACL／UAC 组合；不借发布验证启动当前真实桌宠。
 
 ## 下一步
