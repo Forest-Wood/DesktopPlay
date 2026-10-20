@@ -2,7 +2,7 @@ import { afterEach, expect, it } from 'vitest';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -66,7 +66,9 @@ it.skipIf(process.platform !== 'win32')('replaces only the five draft assets wit
   const command = await readFile(path.join(f.directory, 'uploaded'), 'utf8');
   expect(command.split('|').slice(0, 3)).toEqual(['release', 'upload', 'v0.5.3']);
   expect(command).toContain('--repo|Forest-Wood/DesktopPlay|--clobber');
-  expect(command.split('|').filter(arg => arg.startsWith(f.directory + path.sep + 'release' + path.sep))).toHaveLength(5);
+  const uploaded = command.split('|').slice(3, -3).map(filename => realpathSync.native(filename)).sort();
+  const expected = ['DesktopPet-0.5.3-Setup-x64.exe', 'DesktopPet-0.5.3-Portable-x64.exe', 'SHA256SUMS.txt', 'latest.yml', 'DesktopPet-0.5.3-Setup-x64.exe.blockmap'].map(name => realpathSync.native(path.join(f.directory, 'release', name))).sort();
+  expect(uploaded).toEqual(expected);
   await expect(readFile(path.join(f.directory, 'published'))).rejects.toThrow();
 });
 it.skipIf(process.platform !== 'win32')('does not proceed after a failed draft asset upload', async () => {

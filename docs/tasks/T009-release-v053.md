@@ -31,6 +31,7 @@
 - 失败并定位：[Release #11](https://github.com/Forest-Wood/DesktopPlay/actions/runs/39397812854) 按既有标签完成 194 单测、构建和资源核实；action 找到草稿后 PATCH 元信息返回 403，尚未开始替换附件。GitHub 未提供更具体的拒绝原因，不把推测写为事实。
 - 恢复已有草稿时改用 `gh release upload --clobber`，仅替换五附件，不重写 tag／target；新草稿继续使用 action。既有正式版本、重复草稿均在上传前拒绝。凭据权限不增加，最终门禁仍逐一核对本轮产物，上传失败不得公开。
 - 通过：本地 13 个真实 PowerShell 回归，新增草稿／新建分流、重复草稿、精确五附件上传与失败阻断。
+- 失败并定位：PR #8 首次 CI #30 为 206／207，新上传断言直接比较 TEMP 路径前缀，再次遇到 runner 短路径与 PowerShell FullName 长路径的拼写差异；上传脚本本身成功。测试改为 canonical realpath 后逐一比较五个文件的完整路径，保留精确文件集合断言。
 - 待验证：最新上传修复的远端 CI、Release 重试、五附件公开下载与摘要。
 - 未运行：真实用户数据覆盖升级、真实账户／Work 端到端、其他 Windows／ACL／UAC 组合；不借发布验证启动当前真实桌宠。
 
