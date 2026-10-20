@@ -16,6 +16,8 @@ DesktopPet 是 Windows 10/11 x64 桌宠：DeepSeek 小鲸鱼显示余额与本�
 | `src/renderer/` | 桌宠气泡、额度排版、设置页及浏览器演示 API |
 | `tests/unit/`、`tests/smoke/` | Vitest 单元测试与 Playwright Electron 交互测试 |
 | `tests/helper-fixtures.ps1` | 卸载辅助脚本的隔离文件验证 |
+| `src/main/services/app-update.ts`、`src/main/portable-update.ts` | 更新状态机、NSIS／免安装后端及替换握手 |
+| `tests/update-packaged.mjs`、`tests/update-helper-fixtures.ps1` | 独立应用升级／回滚与更新助手文件验证 |
 | `scripts/`、`build/`、`.github/workflows/` | 开发／构建脚本、安装卸载资源、CI 与发布工作流 |
 | `public/assets/` | 随应用分发的内置素材 |
 
@@ -86,6 +88,9 @@ README 与 CI 使用 Windows x64、Node.js 24 和 npm；具体依赖与版本以
 | `npm.cmd run test:smoke` | 对构建产物执行 Playwright Electron 交互测试，需可运行 Electron 的桌面环境 |
 | `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tests/helper-fixtures.ps1` | 卸载辅助脚本的隔离文件测试；不包含在 `npm test` 中 |
 | `npm.cmd run dist` | 构建 Windows x64 NSIS 与 portable 包到 `release/`，配置为 `--publish never` |
+| `node scripts/verify-release.mjs`、`node scripts/verify-update-runtime.mjs` | 校验五个更新资源、生成校验文件，并核实打包运行依赖／固定发布源 |
+| `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tests/update-helper-fixtures.ps1` | 更新助手七场景，含约两分钟来源进程等待超时；不触碰真实程序 |
+| `node tests/update-packaged.mjs` | 构建独立 ID 的 0.0.1／0.0.2 测试程序，实际覆盖升级／回滚；需 Windows、打包工具和安装权限 |
 | `git diff --check` | 检查工作区差异中的空白问题；不能代替功能验证 |
 
 开发版默认也使用真实 `%APPDATA%\DesktopPlay`。开发或测试前按需设置独立 `DESKTOPPLAY_USER_DATA`，移除宿主可能带入的 `ELECTRON_RUN_AS_NODE`；测试额度界面时可使用现有 `DESKTOPPLAY_TEST_NO_CODEX=1`。现有 smoke 测试自行创建隔离目录。`DESKTOPPLAY_USER_DATA` 仅对非打包运行生效，不可据此假定打包版也已隔离。
@@ -95,6 +100,8 @@ README 与 CI 使用 Windows x64、Node.js 24 和 npm；具体依赖与版本以
 ChatGPT Work 通知日志同样隔离：上述测试开关开启时只使用测试 profile 的 `chatgpt-test-logs`，或显式的 `DESKTOPPLAY_TEST_CHATGPT_LOG_DIR`，不得自动发现真实桌面日志。模拟原生通知使用虚构账户／会话标识。真实来源调查只输出事件时间、类型和字段形状，不记录账户标识或对话正文；不得擅自改写 ChatGPT 通知配置。
 
 按改动选择必要检查：纯文档检查链接、内容、差异和范围；共享类型与行为改动运行类型检查及相关单测；界面改动在 build 后运行相关 smoke 并检查渲染结果；卸载、安装和真实账户验证与隔离测试分别记录。一次通过后，只有新改动、失败或未解决疑点才需要扩大或重复验证。
+
+更新测试必须使用独立 appId、安装目录、用户数据和专用 `DesktopPet-T008-*` 开机启动项。`tests/fixtures/update-app.ts` 只用于测试包，其本机 HTTP 注入、控制文件与隔离路径不得导入生产入口。不得增加打包版任意 URL／数据目录环境覆盖，或拿当前真实桌宠试升降级。测试失败时只让该 fixture 退出，不按文件名终止 Electron。更新助手只操作经校验的目标、暂存和备份文件，不复用卸载清理流程。
 
 ## 兼容性与实现边界
 

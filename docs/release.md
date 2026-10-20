@@ -1,10 +1,23 @@
 # 发布流程
 
-1. 同步更新 `package.json`、`package-lock.json` 根包和 `src/shared/defaults.ts` 中的 `APP_VERSION`，编写版本说明；需要远端发布时提交代码到 `main`。
-2. 本地在 Windows x64 环境执行 `npm ci`、`npm run typecheck`、`npm test`、`npm run build` 和 `npm run test:smoke`；按需用 `npm run dist` 检查安装包。
-3. 创建与 package.json 版本一致的标签，例如 `v0.1.0`，并推送标签。
-4. `.github/workflows/release.yml` 在 Windows runner 上验证标签版本，运行单元测试和打包，检查 `release/` 中恰有安装版与 portable 版两个 x64 exe，生成 SHA-256 校验文件并创建 GitHub Release。
+发布必须取得明确授权。T008 已授权本地实现、验证、提交，以及后续推送和创建 PR；合并、标签与 v0.5.3 正式发布仍需后续授权。
 
-发布产物名称为 `DesktopPet-<版本>-Setup-x64.exe`、`DesktopPet-<版本>-Portable-x64.exe` 和 `SHA256SUMS.txt`。普通分支提交和 PR 只运行 CI，不会创建 Release。发布使用工作流内置的 `GITHUB_TOKEN`，不需要设置额外的发布密钥；release job 只授予 `contents: write`。
+1. 同步 `package.json`、lock 根包、`src/shared/defaults.ts` 的版本，补充发行说明。核对最终差异、验收和 CI 后整合到 main。
+2. Windows x64／Node 24 执行 `npm ci`、`npm run build`、`npm test`、`npm run test:smoke`，运行两个 helper 文件测试。更新器改动还需 `node tests/update-packaged.mjs` 的独立 ID 升级／失败恢复验证，不使用当前真实桌宠。
+3. `npm run dist` 产生两个 EXE、latest.yml 和 NSIS blockmap。执行 `node scripts/verify-release.mjs` 核对文件名、版本、大小、SHA-512 并生成两个 EXE 的 SHA256SUMS.txt；执行 `node scripts/verify-update-runtime.mjs` 检查 asar 内运行依赖、助手和固定发布源。
+4. 经明确授权后创建并推送与包版本一致的新标签，例如 v0.5.3。保留旧标签，不修改已公开版本。
+5. Release workflow 先拒绝覆盖已发布的同标签 Release，再测试、打包、验证；创建／更新**草稿 Release** 并上传下面五项。全部上传后重新查询 API，逐个核对 uploaded、文件名、字节数及 GitHub SHA-256 digest，再把草稿设为正式／latest。任一不完整则保留草稿，客户端不能发现半成品。
+
+| 资源 | 用途 |
+| --- | --- |
+| `DesktopPet-<版本>-Setup-x64.exe` | NSIS 整包更新 |
+| `DesktopPet-<版本>-Portable-x64.exe` | 免安装整包替换 |
+| `SHA256SUMS.txt` | 免安装校验及人工核对 |
+| `latest.yml` | NSIS 版本、文件名、大小和 SHA-512 |
+| `DesktopPet-<版本>-Setup-x64.exe.blockmap` | 保留标准更新资源，首版关闭差分 |
+
+普通分支和 PR 只运行 CI，不会发布 Release。工作流使用仅限 release job 的 contents: write 和临时 GITHUB_TOKEN；应用不使用 GitHub 凭据。只接收固定仓库的正式新版本，不降级、不安装预发布。
+
+首次接入为 v0.5.3：v0.5.2 必须先手动覆盖升级一次，无需卸载或删除 `%APPDATA%\DesktopPlay`；此后可通过软件内更新。开发／演示禁用真实更新。官方参考：[electron-builder v26 更新文档](https://www.electron.build/v26/docs/features/auto-update/)。远端完成后另记 Release／latest、五项公开下载和摘要核对；本地打包不等于已发布。
 
 官方 Actions 文档：[`actions/checkout`](https://github.com/actions/checkout)、[`actions/setup-node`](https://github.com/actions/setup-node) 和 [`softprops/action-gh-release`](https://github.com/softprops/action-gh-release)。当前工作流使用其官方主版本标签：checkout v7、setup-node v7、action-gh-release v3。

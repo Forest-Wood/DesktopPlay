@@ -62,7 +62,7 @@ function powershellPath(): string {
   return path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
 }
 
-async function processChain(pid: number): Promise<ProcessIdentity[]> {
+export async function processChain(pid: number): Promise<ProcessIdentity[]> {
   if (!Number.isSafeInteger(pid) || pid < 1) throw new Error('无法识别应用进程。');
   // Only a validated integer is inserted; filenames never become PowerShell code.
   const script = `$ErrorActionPreference='Stop'; [Console]::OutputEncoding=New-Object Text.UTF8Encoding($false); $result=@(); $next=${pid}; $childCreated=[DateTime]::MaxValue; for($i=0;$i -lt 16 -and $next -gt 0;$i++){ $p=Get-CimInstance Win32_Process -Filter ('ProcessId='+$next); if(!$p -or !$p.ExecutablePath -or $p.CreationDate -gt $childCreated){break}; $result+=@{pid=[int]$p.ProcessId; created=$p.CreationDate.ToUniversalTime().ToString('o'); executable=[string]$p.ExecutablePath}; $childCreated=$p.CreationDate; $next=[int]$p.ParentProcessId }; ConvertTo-Json -InputObject @($result) -Compress`;

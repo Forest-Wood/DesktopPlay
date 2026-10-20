@@ -2,6 +2,18 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { AppState, CodexCompletionNotice, DesktopApi } from '../shared/types';
 
 const api: DesktopApi = {
+  checkForUpdates: () => ipcRenderer.invoke('desktopplay:check-update'),
+  downloadUpdate: () => ipcRenderer.invoke('desktopplay:download-update'),
+  cancelUpdateDownload: () => ipcRenderer.invoke('desktopplay:cancel-update'),
+  installUpdate: () => ipcRenderer.invoke('desktopplay:install-update'),
+  onUpdateAvailable: callback => {
+    const listener = (_: Electron.IpcRendererEvent, notice: { version: string }) => callback(notice);
+    ipcRenderer.on('desktopplay:update-available', listener); return () => ipcRenderer.removeListener('desktopplay:update-available', listener);
+  },
+  onSettingsPage: callback => {
+    const listener = (_: Electron.IpcRendererEvent, page: 'version') => callback(page);
+    ipcRenderer.on('desktopplay:settings-page', listener); return () => ipcRenderer.removeListener('desktopplay:settings-page', listener);
+  },
   chooseCodexCompletionDirectory: () => ipcRenderer.invoke('desktopplay:choose-codex-completion-directory'),
   onCodexCompletion: callback => {
     // Shared completion channel: only identifiers, timestamp and optional source.
@@ -31,7 +43,7 @@ const api: DesktopApi = {
   refreshCodexQuota: () => ipcRenderer.invoke('desktopplay:refresh-codex'),
   chooseCodexExecutable: () => ipcRenderer.invoke('desktopplay:choose-codex'),
   openCodexUsage: () => ipcRenderer.invoke('desktopplay:open-codex-usage'),
-  openSettings: () => ipcRenderer.invoke('desktopplay:open-settings'),
+  openSettings: page => ipcRenderer.invoke('desktopplay:open-settings', page),
   showMenu: () => ipcRenderer.invoke('desktopplay:show-menu'),
   hidePet: () => ipcRenderer.invoke('desktopplay:hide-pet'),
   quit: () => ipcRenderer.invoke('desktopplay:quit'),

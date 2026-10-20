@@ -69,6 +69,14 @@ describe('persona phrase storage', () => {
 });
 
 describe('bubble timing settings', () => {
+  it('migrates and persists the automatic update switch and rejects non-booleans atomically', async () => {
+    const { service, dataDir } = await fixture(); await service.updateSettings({ volume: 0.2 });
+    const file = path.join(dataDir, 'desktopplay.json'), legacy = JSON.parse(await fs.readFile(file, 'utf8')); delete legacy.settings.autoCheckUpdates; await fs.writeFile(file, JSON.stringify(legacy));
+    const restored = (await fixture([], { dataDir })).service; expect(restored.getState().settings.autoCheckUpdates).toBe(true);
+    await restored.updateSettings({ autoCheckUpdates: false });
+    const restarted = (await fixture([], { dataDir })).service; expect(restarted.getState().settings.autoCheckUpdates).toBe(false);
+    await expect(restarted.updateSettings({ autoCheckUpdates: 'yes' as any, volume: 0.9 })).rejects.toThrow(); expect(restarted.getState().settings.volume).toBe(0.2);
+  });
   it('restores legacy profiles with three-second defaults and persists custom times', async () => {
     const { service, dataDir } = await fixture();
     await service.updateSettings({ volume: 0.2 }); service.dispose();

@@ -11,6 +11,7 @@ export interface UninstallInfo {
   reason: string | null;
 }
 export interface AppSettings {
+  autoCheckUpdates: boolean;
   alwaysOnTop: boolean;
   launchAtLogin: boolean;
   snapToEdges: boolean;
@@ -120,6 +121,7 @@ export interface CodexResetCredits {
 }
 
 export interface AppState extends ServiceState {
+  appUpdate: AppUpdateState;
   codexCompletion: CodexCompletionState;
   chatgptCompletion: CodexCompletionState;
   sounds: SoundMetadataMap;
@@ -135,6 +137,12 @@ export interface AppState extends ServiceState {
 }
 
 export interface DesktopApi {
+  checkForUpdates(): Promise<AppUpdateState>;
+  downloadUpdate(): Promise<AppUpdateState>;
+  cancelUpdateDownload(): Promise<AppUpdateState>;
+  installUpdate(): Promise<{ started: boolean }>;
+  onUpdateAvailable(callback: (notice: { version: string }) => void): () => void;
+  onSettingsPage(callback: (page: 'version') => void): () => void;
   chooseCodexCompletionDirectory(): Promise<string | null>;
   onCodexCompletion(callback: (notice: CodexCompletionNotice) => void): () => void;
   onPetHidden(callback: () => void): () => void;
@@ -155,7 +163,7 @@ export interface DesktopApi {
   refreshCodexQuota(): Promise<AppState>;
   chooseCodexExecutable(): Promise<AppState>;
   openCodexUsage(): Promise<void>;
-  openSettings(): Promise<void>;
+  openSettings(page?: 'version'): Promise<void>;
   showMenu(): Promise<void>;
   hidePet(): Promise<void>;
   quit(): Promise<void>;
@@ -173,5 +181,19 @@ export interface CodexCompletionNotice { id: string; completedAt: string; source
 export interface CodexCompletionState {
   status: 'disabled' | 'starting' | 'watching' | 'unavailable' | 'error';
   directory: string;
+  error: string | null;
+}
+
+export interface AppUpdateState {
+  kind: 'installed' | 'portable' | 'unsupported';
+  status: 'idle' | 'checking' | 'current' | 'available' | 'downloading' | 'ready' | 'installing' | 'error' | 'unsupported';
+  currentVersion: string;
+  latestVersion: string | null;
+  releaseNotes: string;
+  releaseDate: string | null;
+  checkedAt: string | null;
+  progress: number;
+  transferred: number;
+  total: number;
   error: string | null;
 }

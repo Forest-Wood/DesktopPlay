@@ -7,6 +7,12 @@ import { DesktopService } from './services/desktop-service';
 import { CodexQuotaService } from './services/codex-quota';
 import { CodexCompletionService } from './services/codex-completion';
 import { ChatgptCompletionService, chatgptLogDirectories } from './services/chatgpt-completion';
+import { AppUpdateService } from './services/app-update';
+import { InstalledUpdateBackend } from './services/installed-update';
+import { PortableUpdateBackend } from './services/portable-update';
+import { PortableUpdateManager } from './portable-update';
+import { APP_VERSION } from '../shared/defaults';
+import { initialUpdateState } from '../shared/app-update';
 import { PetAssets } from './pet-assets';
 import { SoundAssets } from './sound-assets';
 import { UninstallManager } from './uninstall';
@@ -33,6 +39,9 @@ let uninstaller: UninstallManager;
 let codex: CodexQuotaService;
 let completion: CodexCompletionService;
 let chatgptCompletion: ChatgptCompletionService;
+let updates: AppUpdateService;
+let portableUpdates: PortableUpdateManager | undefined;
+let updateBusy = false;
 let petVisibleSince = Infinity;
 let codexTimer: ReturnType<typeof setInterval> | null = null;
 let flipped = false, bubbleVisible = false, quitting = false;
@@ -56,7 +65,7 @@ else {
 }
 app.on('window-all-closed', () => { /* The tray keeps the desktop pet alive. */ });
 app.on('before-quit', () => {
-  quitting = true; service?.dispose(); codex?.dispose(); completion?.dispose(); chatgptCompletion?.dispose();
+  quitting = true; service?.dispose(); codex?.dispose(); completion?.dispose(); chatgptCompletion?.dispose(); updates?.dispose();
   if (codexTimer) clearInterval(codexTimer);
   if (dragTimer) clearInterval(dragTimer);
   if (hitTimer) clearInterval(hitTimer);
@@ -65,7 +74,7 @@ app.on('before-quit', () => {
 });
 
 function orientation(): Orientation { return { flipped, verticalFlipped, bubblePlacement }; }
-function getState(): AppState { return { ...service.getState(), sounds: sounds.getMetadata(), pet: assets.get(), activePet: assets.getSelected(), gptAppearance: assets.getGptAppearance(), hasCustomGpt: assets.hasCustomGpt(), codex: codex.getState(), codexCompletion: completion.getState(), chatgptCompletion: chatgptCompletion.getState(), ...orientation(), effectiveScale: petWindow && !petWindow.isDestroyed() ? petWindow.getBounds().width / PET_WIDTH : service.getState().settings.scale }; }
+function getState(): AppState { return { ...service.getState(), appUpdate: updates?.getState() ?? initialUpdateState(), sounds: sounds.getMetadata(), pet: assets.get(), activePet: assets.getSelected(), gptAppearance: assets.getGptAppearance(), hasCustomGpt: assets.hasCustomGpt(), codex: codex.getState(), codexCompletion: completion.getState(), chatgptCompletion: chatgptCompletion.getState(), ...orientation(), effectiveScale: petWindow && !petWindow.isDestroyed() ? petWindow.getBounds().width / PET_WIDTH : service.getState().settings.scale }; }
 function publish(): void {
   const state = getState();
   for (const win of [petWindow, settingsWindow]) if (win && !win.isDestroyed() && !win.webContents.isLoadingMainFrame()) win.webContents.send('desktopplay:state', state);
@@ -94,6 +103,15 @@ async function start(): Promise<void> {
   };
   completion = new CodexCompletionService(completionOptions);
   chatgptCompletion = new ChatgptCompletionService(completionOptions);
+  const updateKind = app.isPackaged && process.platform === 'win32' && process.arch === 'x64' ? process.env.PORTABLE_EXECUTABLE_FILE ? 'portable' : 'installed' : 'unsupported';
+  if (updateKind === 'portable') portableUpdates = new PortableUpdateManager({ programPath: process.env.PORTABLE_EXECUTABLE_FILE!, exePath: process.execPath, dataDir, helperPath: path.join(__dirname, 'update-helper.ps1') });
+  const backend = updateKind === 'installed' ? new InstalledUpdateBackend() : updateKind === 'portable' ? new PortableUpdateBackend({ cacheDir: path.join(dataDir, 'updates', 'downloads'), prepare: (file, hash, version) => portableUpdates!.prepare(file, hash, version) }) : undefined;
+  updates = new AppUpdateService({ version: APP_VERSION, kind: updateKind, dataDir, backend,
+    onState: () => { publish(); updateTray(); },
+    onAvailable: version => { if (!shuttingDown && !quitting && petWindow?.isVisible() && !petWindow.webContents.isLoadingMainFrame()) petWindow.webContents.send('desktopplay:update-available', { version }); },
+  });
+  await updates.init();
+  if (await portableUpdates?.previousFailure()) updates.reportRecovery();
   codex.subscribe(publish);
   service.subscribe(() => { applySettings(); publish(); });
   registerIpc();
@@ -107,6 +125,7 @@ async function start(): Promise<void> {
   screen.on('display-metrics-changed', restoreToScreen);
   if (!service.getState().hasApiKey && !process.env.DESKTOPPLAY_TEST_NO_ONBOARDING) await openSettings();
   hitTimer = setInterval(updateHitRegion, 80);
+  await portableUpdates?.acknowledge(APP_VERSION);
 }
 
 function startCodexTimer(): void {
@@ -131,9 +150,10 @@ function securedWindow(options: Electron.BrowserWindowConstructorOptions): Brows
   return win;
 }
 
-async function loadWindow(win: BrowserWindow, view: string): Promise<void> {
-  if (devUrl) await win.loadURL(`${devUrl}/?view=${view}`);
-  else await win.loadFile(rendererFile, { query: { view } });
+async function loadWindow(win: BrowserWindow, view: string, page?: 'version'): Promise<void> {
+  const query = { view, ...(page ? { page } : {}) };
+  if (devUrl) await win.loadURL(`${devUrl}/?${new URLSearchParams(query)}`);
+  else await win.loadFile(rendererFile, { query });
 }
 
 async function createPet(): Promise<void> {
@@ -167,13 +187,13 @@ async function createPet(): Promise<void> {
   petWindow.showInactive();
 }
 
-async function openSettings(): Promise<void> {
+async function openSettings(page?: 'version'): Promise<void> {
   if (shuttingDown) return;
-  if (settingsWindow && !settingsWindow.isDestroyed()) { settingsWindow.show(); settingsWindow.focus(); return; }
+  if (settingsWindow && !settingsWindow.isDestroyed()) { settingsWindow.show(); settingsWindow.focus(); if (page) settingsWindow.webContents.send('desktopplay:settings-page', page); return; }
   const area = screen.getPrimaryDisplay().workArea;
   settingsWindow = securedWindow({ width: Math.min(1060, area.width), height: Math.min(800, area.height), minWidth: Math.min(760, area.width), minHeight: Math.min(560, area.height), show: false, autoHideMenuBar: true, backgroundColor: '#ffffff', title: 'DesktopPet · 设置', icon: path.join(__dirname, '../dist/assets/whale.png') });
   settingsWindow.on('closed', () => { settingsWindow = null; });
-  await loadWindow(settingsWindow, 'settings');
+  await loadWindow(settingsWindow, 'settings', page);
   settingsWindow.show();
 }
 
@@ -214,15 +234,17 @@ function updateTray(): void {
     { label: '切换桌宠', submenu: petMenu() },
     { label: 'GPT 造型', submenu: appearanceMenu() },
     { label: '设置、余额与额度', click: () => { void openSettings(); } },
+    { label: updates?.getState().latestVersion ? `发现新版本 v${updates.getState().latestVersion} · 查看更新` : '检查软件更新…', click: () => { if (!uninstallBusy && !updateBusy && !shuttingDown) void openSettings('version').then(() => updates.check()); } },
     { label: '刷新当前额度', click: refreshCurrent },
     { type: 'separator' },
     { label: '总在最前', type: 'checkbox', checked: service.getState().settings.alwaysOnTop, click: () => { if (!shuttingDown) void track(() => service.updateSettings({ alwaysOnTop: !service.getState().settings.alwaysOnTop })).catch(() => {}); } },
     { label: '隐藏桌宠', click: () => petWindow?.hide() },
-    { type: 'separator' }, { label: '退出 DesktopPet', click: () => { if (!uninstallBusy) app.quit(); } },
+    { type: 'separator' }, { label: '退出 DesktopPet', click: () => { if (!uninstallBusy && !updateBusy) app.quit(); } },
   ]));
 }
 function applySettings(): void {
   const settings = service.getState().settings;
+  updates?.configure(settings.autoCheckUpdates);
   if (!lastSettings || settings.codexCompletionEnabled !== lastSettings.codexCompletionEnabled || settings.codexCompletionDirectory !== lastSettings.codexCompletionDirectory) configureCompletion();
   if (petWindow && !petWindow.isDestroyed()) {
     petWindow.setAlwaysOnTop(settings.alwaysOnTop);
@@ -317,7 +339,7 @@ function assertSettingsSender(event: IpcMainInvokeEvent): void {
 async function requestUninstall(event: IpcMainInvokeEvent, removeData: unknown): Promise<{ started: boolean }> {
   assertSettingsSender(event);
   if (typeof removeData !== 'boolean') throw new Error('卸载选项无效。');
-  if (uninstallBusy || shuttingDown) throw new Error('卸载请求正在处理中。');
+  if (uninstallBusy || updateBusy || updates.busy || shuttingDown) throw new Error('更新或卸载正在处理中，请稍后重试。');
   uninstallBusy = true;
   let prepared: Awaited<ReturnType<UninstallManager['prepare']>> | undefined;
   try {
@@ -335,11 +357,12 @@ async function requestUninstall(event: IpcMainInvokeEvent, removeData: unknown):
     if (codexTimer) clearInterval(codexTimer);
     if (hitTimer) clearInterval(hitTimer);
     service.pause(); codex.pause();
+    updates.configure(false);
     void completion.configure(false, completion.getState().directory);
     void chatgptCompletion.configure(false, []);
     await Promise.allSettled([...pendingActions]);
     saveWindowPosition();
-    await Promise.all([service.drain(), codex.drain(), completion.drain(), chatgptCompletion.drain(), assets.drain(), sounds.drain(), geometryWrites, preferenceWrites.catch(() => {})]);
+    await Promise.all([service.drain(), codex.drain(), updates.drain(), completion.drain(), chatgptCompletion.drain(), assets.drain(), sounds.drain(), geometryWrites, preferenceWrites.catch(() => {})]);
     await prepared.commit();
     setTimeout(() => app.quit(), 100);
     return { started: true };
@@ -347,19 +370,51 @@ async function requestUninstall(event: IpcMainInvokeEvent, removeData: unknown):
     await prepared?.cancel().catch(() => {});
     if (shuttingDown) {
       shuttingDown = false; service.resume(); codex.resume(); startCodexTimer();
+      updates.configure(service.getState().settings.autoCheckUpdates);
       configureCompletion();
       hitTimer = setInterval(updateHitRegion, 80);
     }
     throw error;
   } finally { if (!shuttingDown) uninstallBusy = false; }
 }
+async function requestUpdate(event: IpcMainInvokeEvent): Promise<{ started: boolean }> {
+  assertSettingsSender(event); assertWritable();
+  if (uninstallBusy || updateBusy) throw new Error('更新或卸载正在处理中。');
+  updateBusy = true;
+  let prepared: Awaited<ReturnType<AppUpdateService['prepareInstall']>> | undefined;
+  try {
+    prepared = await updates.prepareInstall();
+    shuttingDown = true; finishDrag();
+    if (windowSaveTimer) clearTimeout(windowSaveTimer);
+    if (codexTimer) clearInterval(codexTimer);
+    if (hitTimer) clearInterval(hitTimer);
+    updates.configure(false); service.pause(); codex.pause();
+    void completion.configure(false, completion.getState().directory); void chatgptCompletion.configure(false, []);
+    await Promise.allSettled([...pendingActions]); saveWindowPosition();
+    await Promise.all([updates.drain(), service.drain(), codex.drain(), completion.drain(), chatgptCompletion.drain(), assets.drain(), sounds.drain(), geometryWrites, preferenceWrites]);
+    await prepared.commit();
+    if (updates.getState().kind === 'portable') setTimeout(() => app.quit(), 100);
+    return { started: true };
+  } catch (error) {
+    await prepared?.cancel().catch(() => {}); if (prepared) updates.installCancelled();
+    if (shuttingDown) {
+      shuttingDown = false; service.resume(); codex.resume(); startCodexTimer(); configureCompletion();
+      updates.configure(service.getState().settings.autoCheckUpdates); hitTimer = setInterval(updateHitRegion, 80);
+    }
+    throw error;
+  } finally { if (!shuttingDown) updateBusy = false; }
+}
 function registerIpc(): void {
-  const reads = new Set(['get-state', 'sound-data', 'uninstall-info', 'uninstall']);
+  const reads = new Set(['get-state', 'sound-data', 'uninstall-info', 'uninstall', 'install-update']);
   const handle = (channel: string, action: (event: IpcMainInvokeEvent, ...args: any[]) => unknown) => ipcMain.handle(`desktopplay:${channel}`, async (event, ...args) => {
     assertSender(event);
     return reads.has(channel) ? action(event, ...args) : track(() => action(event, ...args));
   });
   handle('get-state', () => getState());
+  handle('check-update', event => { assertSettingsSender(event); if (uninstallBusy || updateBusy) throw new Error('更新或卸载正在处理中。'); return updates.check(); });
+  handle('download-update', event => { assertSettingsSender(event); if (uninstallBusy || updateBusy) throw new Error('更新或卸载正在处理中。'); return updates.download(); });
+  handle('cancel-update', event => { assertSettingsSender(event); return updates.cancelDownload(); });
+  handle('install-update', requestUpdate);
   handle('choose-codex-completion-directory', async event => {
     assertSettingsSender(event);
     const selection = await dialog.showOpenDialog(settingsWindow!, { title: '选择 Codex 主目录（包含 sessions 子目录）', properties: ['openDirectory'] });
@@ -414,12 +469,12 @@ function registerIpc(): void {
     return getState();
   });
   handle('reset-pet', async () => { const anchor = petWindow ? characterOrigin(petWindow.getBounds(), orientation(), assets.get()) : null; await assets.reset(); if (anchor) positionPet(anchor, service.getState().settings.snapToEdges); updateTray(); publish(); return getState(); });
-  handle('open-settings', openSettings);
+  handle('open-settings', (_event, page) => { if (page !== undefined && page !== 'version') throw new Error('设置页面无效。'); return openSettings(page); });
   handle('show-menu', () => {
-    Menu.buildFromTemplate([{ label: '切换桌宠', submenu: petMenu() }, { label: 'GPT 造型', submenu: appearanceMenu() }, { label: '设置、余额与额度', click: () => { void openSettings(); } }, { label: '刷新当前额度', click: refreshCurrent }, { type: 'separator' }, { label: '隐藏桌宠', click: () => petWindow?.hide() }, { label: '退出', click: () => { if (!uninstallBusy) app.quit(); } }]).popup({ window: petWindow ?? undefined });
+    Menu.buildFromTemplate([{ label: '切换桌宠', submenu: petMenu() }, { label: 'GPT 造型', submenu: appearanceMenu() }, { label: '设置、余额与额度', click: () => { void openSettings(); } }, { label: '刷新当前额度', click: refreshCurrent }, { type: 'separator' }, { label: '隐藏桌宠', click: () => petWindow?.hide() }, { label: '退出', click: () => { if (!uninstallBusy && !updateBusy) app.quit(); } }]).popup({ window: petWindow ?? undefined });
   });
   handle('hide-pet', () => { finishDrag(); petWindow?.hide(); });
-  handle('quit', () => { if (!uninstallBusy) app.quit(); });
+  handle('quit', () => { if (!uninstallBusy && !updateBusy) app.quit(); });
   const onPet = (channel: string, action: (value: unknown) => void) => ipcMain.on(`desktopplay:${channel}`, (event, value) => {
     try { assertSender(event); if (!shuttingDown && BrowserWindow.fromWebContents(event.sender) === petWindow) action(value); } catch { /* Reject untrusted senders without crashing. */ }
   });

@@ -41,5 +41,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Update helper filesystem fixtures
+        shell: powershell
+        run: powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tests/update-helper-fixtures.ps1
+
       - name: Electron smoke test
         run: npm run test:smoke
