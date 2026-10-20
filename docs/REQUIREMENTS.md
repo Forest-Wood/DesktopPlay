@@ -16,7 +16,7 @@
 | R008 | 显示 Codex 重置卡张数和截止日期 | 已合并 | [T005](tasks/T005-reset-cards.md) |
 | R009 | 可编辑的角色化 Codex／ChatGPT Work 完成提醒 | 已合并（真实 Work 端到端未验证） | [T006](tasks/T006-completion-notice.md) |
 | R010 | 发布本阶段功能为 v0.5.2 并更新下载附件 | 已合并（发布已完成） | [T007](tasks/T007-release-v052.md) |
-| R011 | 安装版与免安装版的软件内检查、下载和重启更新 | 本地已实现；待审查，完整回归有既有失败 | [T008](tasks/T008-in-app-update.md) |
+| R011 | 安装版与免安装版的软件内检查、下载和重启更新 | [PR #5](https://github.com/Forest-Wood/DesktopPlay/pull/5) 待审查；完整回归有既有失败 | [T008](tasks/T008-in-app-update.md) |
 
 ## R001：默认气泡显示时间
 
