@@ -30,7 +30,9 @@ DesktopPet 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek �
 
 ![GPT 白龙造型预览](docs/screenshots/gpt-dragon-v2-preview.png)
 
-## v0.5.3 升级说明（待发布）
+## v0.5.3 升级说明
+
+已正式发布：[Release 与下载](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v0.5.3)。
 
 - 安装版和免安装版均支持“检查更新 → 下载更新 → 重启并更新”，普通退出不会安装；保留设置、密钥、记录、素材、位置与开机启动路径。
 - 更新说明、下载进度、取消和重试位于“关于 → 版本”，托盘也可进入。每个新版最多提示一次气泡，不抢焦点；完成／余额提醒优先，隐藏时不补弹。
