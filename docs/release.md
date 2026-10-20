@@ -1,6 +1,6 @@
 # 发布流程
 
-发布必须取得明确授权。T008 已授权本地实现、验证、提交，以及后续推送和创建 PR；合并、标签与 v0.5.3 正式发布仍需后续授权。
+发布必须取得明确授权。T008 已合并；用户于 2026-10-20 授权 T009 发布 v0.5.3，包括必要发布修复、验证、整合、标签与正式 Release。后续其他版本仍需各自授权。
 
 1. 同步 `package.json`、lock 根包、`src/shared/defaults.ts` 的版本，补充发行说明。核对最终差异、验收和 CI 后整合到 main。
 2. Windows x64／Node 24 执行 `npm ci`、`npm run build`、`npm test`、`npm run test:smoke`，运行两个 helper 文件测试。更新器改动还需 `node tests/update-packaged.mjs` 的独立 ID 升级／失败恢复验证，不使用当前真实桌宠。

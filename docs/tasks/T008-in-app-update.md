@@ -1,7 +1,7 @@
 # T008：软件内检测与更新
 
 - 日期：2026-10-20（Asia/Shanghai）；负责人／整合负责人：Codex；需求：R011。
-- 状态：已实现、已推送；[PR #5](https://github.com/Forest-Wood/DesktopPlay/pull/5) open、非草稿、待审查，未合并、未发布。
+- 状态：[PR #5](https://github.com/Forest-Wood/DesktopPlay/pull/5) 已合并，合并提交 `101477a`；v0.5.3 发布与主线 CI 短路径问题由 [T009](T009-release-v053.md) 接续，T008 原分支保留。
 - 目录：`D:\desktop1\DesktopPlay`；分支 `feat/T008-in-app-update`；目标 main。
 - 基准：获取远程后 origin/main 为 `34259f13837b52e641937fde6bc4cd168fc32c1f`；保留并快进带入 T007 交接 `7ed9cf3`。原分支、标签与 TODO 忽略规则未改写。
 - 结果提交：`2762baa`（feat(T008): add in-app updates for NSIS and portable）。本交接提交只更新任务与 PROJECT_STATE；开始时工作区干净，任务提交后无遗留未提交业务修改或其他任务修改。
@@ -44,7 +44,7 @@ NSIS 使用官方整包更新，关闭自动下载、普通退出安装和差分
 
 - 推送／PR **通过**：`37d719a` 授权与继承说明已推送；PR #5 的 base main、head、远端提交一致与 mergeable=true 已复核。后续交接只改文档，继续推送本分支。
 - 连接器创建 **403 失败后替代通过**：使用本机已有 Git 认证经官方 API 成功创建，凭据不输出、不落盘。
-- CI **运行中**：创建时 head `37d719a` 的 [初始运行](https://github.com/Forest-Wood/DesktopPlay/actions/runs/39391377434) 已触发，尚未判定通过。文档提交后的结果以 [最新 checks](https://github.com/Forest-Wood/DesktopPlay/pull/5/checks) 为准，不把过时 head 结果当作当前结果。
+- CI **失败**：PR #21／#22 与主线 #23 均因 Windows `RUNNER~1` 短路径校验导致 4 项更新单测失败，主线 187／191；发布任务 T009 修复并重新验证。此前本地 191 项通过不代表远端通过，保留完整事实。
 
 ## 未运行与边界
 
@@ -54,4 +54,4 @@ NSIS 使用官方整包更新，关闭自动下载、普通退出安装和差分
 
 ## 下一步
 
-推送和 PR 已完成；继承实现 `2762baa`、交接 `13f044e`、T007 发布交接 `7ed9cf3`，从 PR #5 最新 head／CI 继续，不重新建立同一任务。本次只调整交接资料，链接／差异检查通过，不重复未受影响的业务测试；提交推送后无遗留未提交业务工作。待审查并处理既有失败；合并／发布另行授权。发布后核实 latest、五附件、公开下载和摘要。下一编号 T009／R012。
+PR #5 已合并，继承实现 `2762baa`、交接 `13f044e` 与 T007 `7ed9cf3`。后续明确授权的发布与 CI 短路径修复由 [T009](T009-release-v053.md) 接续，不在已合并 T008 分支追加实现。原生鼠标与真实 Work 限制继续保留，不把本地通过当作远端通过。

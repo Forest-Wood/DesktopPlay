@@ -15,7 +15,16 @@ export async function plainPath(filename: string, file = false): Promise<void> {
     } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT' || file && current === path.resolve(filename)) throw error; }
     const parent = path.dirname(current); if (parent === current) break; current = parent;
   }
-  if (file && !samePath(await realpath(filename), filename)) throw updateFailure('UPDATE_PERMISSION');
+  if (file) {
+    const resolved = await realpath(filename);
+    if (!samePath(resolved, filename)) {
+      // Windows realpath expands legitimate 8.3 names (e.g. RUNNER~1).
+      // Parent reparse checks above remain mandatory; compare file identity,
+      // rather than treating a different spelling as a different executable.
+      const [requested, canonical] = await Promise.all([lstat(filename, { bigint: true }), lstat(resolved, { bigint: true })]);
+      if (!requested.isFile() || !canonical.isFile() || requested.isSymbolicLink() || canonical.isSymbolicLink() || requested.dev !== canonical.dev || requested.ino !== canonical.ino) throw updateFailure('UPDATE_PERMISSION');
+    }
+  }
 }
 export async function fileDigest(filename: string, algorithm = 'sha256', encoding: 'hex' | 'base64' = 'hex'): Promise<string> {
   const hash = createHash(algorithm); for await (const chunk of createReadStream(filename)) hash.update(chunk); return hash.digest(encoding);
