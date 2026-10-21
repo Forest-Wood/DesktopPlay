@@ -27,13 +27,13 @@ test('reset cards keep authoritative count, local cutoff detail and compact pers
     };
     const publish = () => application.evaluate(({ BrowserWindow }, state) => { for (const win of BrowserWindow.getAllWindows()) win.webContents.send('desktopplay:state', state); }, base);
     await publish();
-    await expect(settings.locator('.quota-reset-count')).toHaveText('重置卡 8 张');
-    await expect(settings.locator('.quota-reset-row')).toHaveCount(4);
-    await expect(settings.locator('.quota-reset-row').first()).toContainText('2031/06/01');
-    await expect(settings.locator('.quota-reset-row').first()).toContainText('GMT');
-    await expect(settings.locator('.quota-reset-list')).toContainText('无到期限制');
-    await expect(settings.locator('.quota-reset-list')).toContainText('截止时间未提供');
-    await expect(settings.locator('.quota-reset-credits')).toContainText('明细不完整');
+    await expect(settings.locator('#codex .quota-reset-count')).toHaveText('重置卡 8 张');
+    await expect(settings.locator('#codex .quota-reset-row')).toHaveCount(4);
+    await expect(settings.locator('#codex .quota-reset-row').first()).toContainText('2031/06/01');
+    await expect(settings.locator('#codex .quota-reset-row').first()).toContainText('GMT');
+    await expect(settings.locator('#codex .quota-reset-list')).toContainText('无到期限制');
+    await expect(settings.locator('#codex .quota-reset-list')).toContainText('截止时间未提供');
+    await expect(settings.locator('#codex .quota-reset-credits')).toContainText('明细不完整');
     await settings.screenshot({ path: 'test-results/reset-cards-settings-details.png' });
     for (const appearance of ['classic', 'dragon'] as const) {
       await pet.evaluate(appearance => window.desktopPlay.selectGptAppearance(appearance), appearance);
@@ -58,13 +58,13 @@ test('reset cards keep authoritative count, local cutoff detail and compact pers
       await pet.locator('.bubble-close').dispatchEvent('click');
     }
     base.codex.status = 'error'; await publish();
-    await expect(settings.locator('.quota-reset-count')).toContainText('8 张 · 待刷新');
+    await expect(settings.locator('#codex .quota-reset-count')).toContainText('8 张 · 待刷新');
     base.codex.status = 'ready'; base.codex.resetCredits = { availableCount: 0, credits: [] }; await publish();
-    await expect(settings.locator('.quota-reset-count')).toHaveText('重置卡 0 张');
+    await expect(settings.locator('#codex .quota-reset-count')).toHaveText('重置卡 0 张');
     base.codex.resetCredits = { availableCount: 2, credits: null }; await publish();
-    await expect(settings.locator('.quota-reset-credits')).toContainText('接口仅提供张数');
+    await expect(settings.locator('#codex .quota-reset-credits')).toContainText('接口仅提供张数');
     base.codex.resetCredits = null; await publish();
-    await expect(settings.locator('.quota-reset-count')).toHaveText('重置卡：未提供');
+    await expect(settings.locator('#codex .quota-reset-count')).toHaveText('重置卡：未提供');
     await settings.screenshot({ path: 'test-results/reset-cards-settings.png' });
   } finally { await application.close(); }
 });

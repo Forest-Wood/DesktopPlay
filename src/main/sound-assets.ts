@@ -1,3 +1,4 @@
+import { SOUND_SLOTS, builtinSound } from '../shared/bubble-settings';
 import { mkdir, open, rename, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -6,7 +7,7 @@ import type { PetPersona, SoundSlot, SoundMetadataMap, SoundData } from '../shar
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const PERSONAS = ['whale', 'gpt', 'dragon'] as const;
-const SLOTS = ['press', 'release'] as const;
+const SLOTS = SOUND_SLOTS;
 type Format = 'mp3' | 'wav' | 'ogg';
 interface Entry { name: string; revision: string; file: string; hash: string }
 type Manifest = Partial<Record<PetPersona, Partial<Record<SoundSlot, Entry>>>>;
@@ -168,7 +169,7 @@ export class SoundAssets {
           this.metadata[persona][slot] = { ...DEFAULT_SOUNDS[persona][slot], revision: `${entry.revision}-fallback`, warning: '自定义音效已丢失或损坏，已回退内置音效。' };
         }
       }
-      return { url: `./assets/${slot}.mp3`, revision: this.metadata[persona][slot].revision, warning: this.metadata[persona][slot].warning };
+      return { url: builtinSound(slot), revision: this.metadata[persona][slot].revision, warning: this.metadata[persona][slot].warning };
     });
   }
   import(filename: string, persona: PetPersona, slot: SoundSlot): Promise<void> {

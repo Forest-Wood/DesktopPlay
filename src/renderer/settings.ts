@@ -1,8 +1,9 @@
+import { mountBubbleEditor } from './bubble-editor';
 import './settings.css';
 import type { AppSettings, AppState, DesktopApi, PetPersona, SoundSlot } from '../shared/types';
 import { beijingTime, decimalSetting, money, updateMoney } from './format';
 import { localTime, quotaStatus, renderQuota } from './quota';
-import { APP_VERSION, DEFAULT_COMPLETION_MESSAGES, GPT_DRAGON_PET, GPT_PET } from '../shared/defaults';
+import { APP_VERSION, GPT_DRAGON_PET, GPT_PET } from '../shared/defaults';
 import { PersonaSoundPlayer } from './sounds';
 
 export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppState, demo: boolean) {
@@ -37,7 +38,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
             <div id="gpt-appearance-options"><p class="hint">GPT 造型切换不影响 Codex 额度，两种内置造型共用同一份额度。</p><div class="pet-selector" role="group" aria-label="GPT 造型"><button id="appearance-classic" type="button" class="pet-option" aria-pressed="false"><img src="${GPT_PET.url}" alt=""><span>原版 GPT<small>薄荷绿小伙伴</small></span></button><button id="appearance-dragon" type="button" class="pet-option" aria-pressed="false"><img src="${GPT_DRAGON_PET.url}" alt=""><span>GPT 白龙<small>淡紫色小伙伴</small></span></button><button id="appearance-custom" type="button" class="pet-option" aria-pressed="false"><span>自定义图片<small>保留已导入的造型</small></span></button></div></div>
             <div class="pet-preview-row"><div class="pet-preview"><img id="pet-preview-image" alt="当前桌宠角色"></div><div><h3 id="pet-name"></h3><p>点击桌宠查看余额或 Codex 额度，拖动它换个位置。<br>右键打开快捷菜单。</p><div class="button-row"><button id="choose-pet" type="button" class="secondary-button">换一张图片</button><button id="reset-pet" type="button" class="text-button">恢复当前角色</button></div></div></div>
             <div class="setting-row"><label for="scale">角色大小<small>屏幕空间不足时自动缩小，保留所选比例</small></label><div class="range-control"><input id="scale" name="scale" type="range" min="0.5" max="2" step="0.05"><output id="scale-output" for="scale"></output></div></div>
-            <div class="setting-row"><label for="volume">音效音量<small>按下与松开时的一点小声音</small></label><div class="range-control"><input id="volume" name="volume" type="range" min="0" max="1" step="0.05"><output id="volume-output" for="volume"></output></div></div>
+            <div class="setting-row"><label for="volume">音效音量<small>点击音效音量；完成音效在气泡与提示中独立设置</small></label><div class="range-control"><input id="volume" name="volume" type="range" min="0" max="1" step="0.05"><output id="volume-output" for="volume"></output></div></div>
             <div class="toggle-grid"><label class="toggle-label"><span>启用点击音效</span><input name="soundEnabled" type="checkbox"></label><label class="toggle-label"><span>始终置于顶层</span><input name="alwaysOnTop" type="checkbox"></label><label class="toggle-label"><span>贴近边缘时自动吸附</span><input name="snapToEdges" type="checkbox"></label><label class="toggle-label"><span>开机自动启动</span><input name="launchAtLogin" type="checkbox"></label></div>
             <label class="field-label" for="phrases">陪伴短句 <span>每行一句</span></label><textarea id="phrases" name="phrases" rows="3" maxlength="4000" placeholder="今天也要照顾好自己呀。"></textarea></div>
           </section>
@@ -57,9 +58,9 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const tabs = document.createElement('nav'); tabs.className = 'page-tabs'; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', '设置子页面');
   const pages = [
     { category: 'account', label: '账户与用量', icon: '◉', children: [['overview', 'DeepSeek'], ['codex', 'Codex']] },
-    { category: 'pet', label: '桌宠与陪伴', icon: '✧', children: [['appearance', '角色造型'], ['companionship', '陪伴短句']] },
+    { category: 'pet', label: '桌宠与陪伴', icon: '✧', children: [['appearance', '角色造型'], ['companionship', '陪伴短句'], ['bubbles', '气泡与提示']] },
     { category: 'preferences', label: '应用偏好', icon: '⌘', children: [['behavior', '桌面行为'], ['sound', '声音']] },
-    { category: 'reminders', label: '提醒与记录', icon: '◇', children: [['reminders', '余额提醒'], ['completion', 'GPT 完成提醒'], ['records', '消费记录']] },
+    { category: 'reminders', label: '提醒与记录', icon: '◇', children: [['reminders', '余额提醒'], ['completion', '对话完成提醒'], ['records', '消费记录']] },
     { category: 'about', label: '关于', icon: 'ⓘ', children: [['version', '版本'], ['guide', '使用说明'], ['licenses', '素材与许可证'], ['uninstall', '卸载']] },
   ];
   const makePage = (id: string, title: string, html: string) => {
@@ -68,16 +69,17 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   for (const id of ['overview', 'codex', 'appearance', 'reminders', 'records']) content.append(element(id));
   const behavior = makePage('behavior', '桌面行为', '<p class="page-description">让小伙伴按你的习惯，留在桌面上。</p>');
   const sound = makePage('sound', '声音', '<p class="page-description">给每次轻轻按下，留一点回应。</p>');
-  makePage('completion', 'GPT 完成提醒', `<label class="toggle-label"><span>输出结束时提醒<small>Codex 与 ChatGPT Work 共用开关；所有角色均可提醒，隐藏桌宠时保持安静。</small></span><input id="completion-enabled" name="codexCompletionEnabled" type="checkbox"></label>
-    <label class="field-label" for="completion-directory">Codex 会话目录</label><p id="completion-status" class="hint" role="status"></p><p id="completion-current-directory" class="hint completion-path"></p><input id="completion-directory" type="text" readonly><div class="button-row"><button id="completion-choose-directory" class="secondary-button" type="button">选择目录</button><button id="completion-default-directory" class="text-button" type="button">使用默认目录</button></div><p class="hint">选择 Codex 主目录（一般为用户目录下的 .codex）。只提醒本机保存的新成功完成事件；目录与开关保存后生效。</p>
-    <h3>ChatGPT Work 桌面对话</h3><p id="chatgpt-completion-status" class="hint" role="status"></p><p class="hint">请在 ChatGPT 桌面应用中将回合结束通知设为“始终”（Always），以便前台和后台都能提醒。这里接收原生结束通知，失败或中止也会提醒；启动前的通知不会补弹。</p>
-    <div class="persona-tabs" role="group" aria-label="完成提醒角色"><button type="button" data-completion-persona="whale">小鲸鱼</button><button type="button" data-completion-persona="gpt">原版 GPT</button><button type="button" data-completion-persona="dragon">白龙</button></div><label class="field-label" for="completion-message">完成提醒文案 <span>每个角色一条 · 1–200 字符 · 保存后生效</span></label><textarea id="completion-message" name="completionMessage" maxlength="200" rows="3"></textarea><div class="button-row"><button id="completion-reset-message" class="text-button" type="button">恢复该角色默认文案</button><span id="completion-message-length" class="hint"></span></div><p class="hint">两种来源共用角色文案。自定义 GPT 造型使用原版 GPT 文案。提醒沿用气泡显示时间和悬浮延长设置。</p>`);
+  makePage('bubbles', '气泡与提示', '<div id="bubble-editor"></div>');
+  makePage('completion', '对话完成提醒', `<label class="toggle-label"><span>监听 Codex 成功完成事件</span><input id="completion-enabled" name="codexCompletionEnabled" type="checkbox"></label>
+    <label class="field-label" for="completion-directory">Codex 主目录</label><p id="completion-status" class="hint" role="status"></p><p id="completion-current-directory" class="hint completion-path"></p><input id="completion-directory" type="text" readonly><div class="button-row"><button id="completion-choose-directory" class="secondary-button" type="button">选择目录</button><button id="completion-default-directory" class="text-button" type="button">使用默认目录</button><button type="button" class="text-button" data-edit-completion="codex">编辑 Codex 提示</button></div>
+    <p class="hint">选择包含 sessions 的 Codex 主目录，一般为 .codex。只读监听，不补发历史。</p>
+    <label class="toggle-label"><span>监听 ChatGPT Work 原生结束通知</span><input name="chatgptCompletionEnabled" type="checkbox"></label><p id="chatgpt-completion-status" class="hint" role="status"></p><p class="hint">请在 ChatGPT 桌面应用中将回合结束通知设为“始终”（Always）。这里只接收原生结束通知，失败或中止也会提醒；启动前的通知不会补弹。</p><button type="button" class="text-button" data-edit-completion="chatgpt-work">编辑 Work 提示</button>
+    <label class="toggle-label"><span>监听 DeepSeek Harness 成功完成事件</span><input name="deepseekCompletionEnabled" type="checkbox"></label><p id="dsh-completion-status" class="hint" role="status"></p><p id="dsh-current-directory" class="hint completion-path"></p><label class="field-label" for="dsh-directory">DSH 会话目录</label><input id="dsh-directory" type="text" readonly><div class="button-row"><button id="dsh-choose-directory" class="secondary-button" type="button">选择会话目录</button><button id="dsh-default-directory" class="text-button" type="button">使用默认目录</button><button type="button" class="text-button" data-edit-completion="deepseek-harness">编辑 DSH 提示</button></div><p class="hint">默认 DSH_HOME/sessions，未设置时为 ~/.dsh/sessions。支持本机 v4 普通与压缩日志；目录及开关保存后生效。隐藏桌宠时不提醒。</p>`);
   const phrases = makePage('companionship', '陪伴短句', '<p class="page-description">三套内容独立保存。自定义 GPT 图片使用原版 GPT 短句。</p><div class="persona-tabs" role="group" aria-label="短句人设"><button type="button" data-persona="whale">小鲸鱼</button><button type="button" data-persona="gpt">原版 GPT</button><button type="button" data-persona="dragon">白龙</button></div><div class="phrase-preview"><img id="phrase-preview-image" alt=""><p id="phrase-preview-text"></p></div><label class="field-label" for="phrases">陪伴短句 <span>每行一句 · 保存后生效</span></label>');
   phrases.querySelector('.panel')!.append(element<HTMLTextAreaElement>('phrases'));
   element('appearance').querySelector('label[for="phrases"]')!.remove();
   const toggles = element('appearance').querySelector('.toggle-grid')!;
   for (const name of ['alwaysOnTop', 'snapToEdges', 'launchAtLogin']) behavior.querySelector('.panel')!.append(root.querySelector(`input[name="${name}"]`)!.closest('label')!);
-  behavior.querySelector('.panel')!.insertAdjacentHTML('beforeend', '<div class="setting-row"><label for="bubble-duration">气泡显示时间<small>点击或翻页后自动收起，1–60 秒</small></label><div class="range-control"><input id="bubble-duration" name="bubbleDurationSeconds" type="range" min="1" max="60" step="1"><output id="bubble-duration-output" for="bubble-duration"></output></div></div><div class="setting-row"><label for="bubble-hover-delay">悬浮延长时间<small>0 秒为关闭；开启后悬停保留，移开后延迟收起</small></label><div class="range-control"><input id="bubble-hover-delay" name="bubbleHoverDelaySeconds" type="range" min="0" max="60" step="1"><output id="bubble-hover-delay-output" for="bubble-hover-delay"></output></div></div>');
   sound.querySelector('.panel')!.append(root.querySelector('input[name="soundEnabled"]')!.closest('label')!);
   sound.querySelector('.panel')!.append(element('volume').closest('.setting-row')!); toggles.remove();
   const soundProfiles = document.createElement('div'); soundProfiles.className = 'sound-profiles';
@@ -135,23 +137,20 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const form = element<HTMLFormElement>('settings-form');
   const input = (name: string) => form.elements.namedItem(name) as HTMLInputElement;
   const notify = (message: string, error = false) => { const el = element('operation-status'); el.textContent = message; el.classList.toggle('error', error); };
-  let completionPersona: PetPersona = persona;
-  let completionDraft = structuredClone(initial.settings.completionMessagesByPersona);
-  let directoryDraft = initial.settings.codexCompletionDirectory;
-  const completionInput = element<HTMLTextAreaElement>('completion-message');
-  const renderCompletionDraft = () => {
-    completionInput.value = completionDraft[completionPersona];
-    element('completion-message-length').textContent = `${completionInput.value.length}/200`;
-    element<HTMLInputElement>('completion-directory').value = directoryDraft ?? '默认 Codex 目录';
-    for (const button of root.querySelectorAll<HTMLButtonElement>('[data-completion-persona]')) button.setAttribute('aria-pressed', String(button.dataset.completionPersona === completionPersona));
-  };
   const markCompletionDirty = () => { dirty = true; draftRevision++; element('save-hint').textContent = '有尚未保存的调整'; };
-  completionInput.addEventListener('input', () => {
-    completionDraft[completionPersona] = completionInput.value;
-    element('completion-message-length').textContent = `${completionInput.value.length}/200`;
+  const bubbleEditor = mountBubbleEditor(element('bubble-editor'), api, initial, markCompletionDirty, notify, next => update(next));
+  for (const button of root.querySelectorAll<HTMLButtonElement>('[data-edit-completion]')) button.addEventListener('click', () => { showCategory('pet'); showPage('bubbles'); bubbleEditor.select(`completion-${button.dataset.editCompletion}` as import('../shared/types').BubbleScenario); });
+  let directoryDraft = initial.settings.codexCompletionDirectory;
+  let dshDirectoryDraft = initial.settings.deepseekCompletionDirectory;
+  const renderCompletionDraft = () => {
+    element<HTMLInputElement>('completion-directory').value = directoryDraft ?? '默认 Codex 目录';
+    element<HTMLInputElement>('dsh-directory').value = dshDirectoryDraft ?? '默认 DSH 会话目录';
+  };
+  element('dsh-default-directory').addEventListener('click', () => { dshDirectoryDraft = null; renderCompletionDraft(); markCompletionDirty(); });
+  element('dsh-choose-directory').addEventListener('click', () => {
+    const button = element<HTMLButtonElement>('dsh-choose-directory'); button.disabled = true;
+    void api.chooseDeepseekCompletionDirectory().then(directory => { if (!disposed && directory !== null) { dshDirectoryDraft = directory; renderCompletionDraft(); markCompletionDirty(); } }).catch(error => { if (!disposed) notify(error instanceof Error ? error.message : '无法选择 DSH 目录。', true); }).finally(() => { if (!disposed) button.disabled = false; });
   });
-  for (const button of root.querySelectorAll<HTMLButtonElement>('[data-completion-persona]')) button.addEventListener('click', () => { completionPersona = button.dataset.completionPersona as PetPersona; renderCompletionDraft(); });
-  element('completion-reset-message').addEventListener('click', () => { completionDraft[completionPersona] = DEFAULT_COMPLETION_MESSAGES[completionPersona]; renderCompletionDraft(); markCompletionDirty(); });
   element('completion-default-directory').addEventListener('click', () => { directoryDraft = null; renderCompletionDraft(); markCompletionDirty(); });
   element('completion-choose-directory').addEventListener('click', () => {
     const button = element<HTMLButtonElement>('completion-choose-directory'); button.disabled = true;
@@ -211,13 +210,13 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     input('autoCheckUpdates').checked = settings.autoCheckUpdates;
     for (const name of ['soundEnabled', 'alwaysOnTop', 'snapToEdges', 'launchAtLogin'] as const) input(name).checked = settings[name];
     input('scale').value = String(settings.scale); input('volume').value = String(settings.volume);
-    input('bubbleDurationSeconds').value = String(settings.bubbleDurationSeconds); input('bubbleHoverDelaySeconds').value = String(settings.bubbleHoverDelaySeconds);
     input('codexCompletionEnabled').checked = settings.codexCompletionEnabled;
-    completionDraft = structuredClone(settings.completionMessagesByPersona); directoryDraft = settings.codexCompletionDirectory; renderCompletionDraft();
+    input('chatgptCompletionEnabled').checked = settings.chatgptCompletionEnabled; input('deepseekCompletionEnabled').checked = settings.deepseekCompletionEnabled;
+    directoryDraft = settings.codexCompletionDirectory; dshDirectoryDraft = settings.deepseekCompletionDirectory; renderCompletionDraft(); bubbleEditor.fill(settings);
     input('lowBalanceThreshold').value = settings.lowBalanceThreshold ?? ''; input('dailyBudget').value = settings.dailyBudget ?? '';
     phraseDraft = structuredClone(settings.phrasesByPersona); phraseInput.value = phraseDraft[persona].join('\n'); previewPhrases(); ranges();
   };
-  const ranges = () => { element('scale-output').textContent = `${Number(input('scale').value).toFixed(2)}×`; element('volume-output').textContent = `${Math.round(Number(input('volume').value) * 100)}%`; element('bubble-duration-output').textContent = `${input('bubbleDurationSeconds').value} 秒`; element('bubble-hover-delay-output').textContent = Number(input('bubbleHoverDelaySeconds').value) === 0 ? '关闭' : `${input('bubbleHoverDelaySeconds').value} 秒`; };
+  const ranges = () => { element('scale-output').textContent = `${Number(input('scale').value).toFixed(2)}×`; element('volume-output').textContent = `${Math.round(Number(input('volume').value) * 100)}%`; };
   content.addEventListener('input', event => { if ((event.target as HTMLInputElement).form !== form) return; dirty = true; draftRevision++; ranges(); element('save-hint').textContent = '有尚未保存的调整'; });
   const update = (next: AppState) => {
     if (disposed) return;
@@ -233,7 +232,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     element<HTMLButtonElement>('update-check').disabled = ['unsupported', 'checking', 'downloading', 'installing'].includes(u.status);
     element('update-download').hidden = !u.latestVersion || !['available', 'error'].includes(u.status);
     element('update-cancel').hidden = u.status !== 'downloading'; element('update-install').hidden = u.status !== 'ready';
-    renderSounds();
+    renderSounds(); bubbleEditor.update(next);
     root.classList.toggle('gpt-theme', state.activePet === 'gpt');
     root.classList.toggle('dragon-theme', state.activePet === 'gpt' && state.gptAppearance === 'dragon');
     for (const id of ['deepseek', 'gpt'] as const) element(`select-${id}`).setAttribute('aria-pressed', String(state.activePet === id));
@@ -249,6 +248,9 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     element('completion-current-directory').textContent = `当前目录：${state.codexCompletion.directory}`;
     const workLabels = { disabled: 'ChatGPT Work 提醒已关闭', starting: '正在连接 ChatGPT 桌面通知…', watching: '正在监听 ChatGPT 桌面结束通知', unavailable: '未找到 ChatGPT 桌面通知日志，请先启动桌面应用', error: 'ChatGPT 桌面通知监听异常' };
     element('chatgpt-completion-status').textContent = [workLabels[state.chatgptCompletion.status], state.chatgptCompletion.error].filter(Boolean).join(' · ');
+    const dshLabels = { disabled: 'DSH 提醒已关闭', starting: '正在连接 DSH 会话…', watching: '正在监听 DSH 新的完成事件', unavailable: '等待 DSH 会话', error: 'DSH 会话监听异常' };
+    element('dsh-completion-status').textContent = [dshLabels[state.deepseekCompletion.status], state.deepseekCompletion.error].filter(Boolean).join(' · ');
+    element('dsh-current-directory').textContent = `当前目录：${state.deepseekCompletion.directory}`;
     element<HTMLButtonElement>('refresh-codex').disabled = state.codex.status === 'loading';
     if (!dirty) fill(next.settings);
     const labels = { unconfigured: '尚未连接', loading: '正在更新', ready: '已连接', error: '连接异常' };
@@ -308,12 +310,12 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   form.addEventListener('submit', event => {
     event.preventDefault();
     try {
-      const patch: AppSettings = { ...state.settings, autoCheckUpdates: input('autoCheckUpdates').checked, codexCompletionEnabled: input('codexCompletionEnabled').checked, codexCompletionDirectory: directoryDraft, completionMessagesByPersona: structuredClone(completionDraft), scale: Math.max(0.5, Math.min(2, Number(input('scale').value))), volume: Math.max(0, Math.min(1, Number(input('volume').value))), bubbleDurationSeconds: Number(input('bubbleDurationSeconds').value), bubbleHoverDelaySeconds: Number(input('bubbleHoverDelaySeconds').value), lowBalanceThreshold: decimalSetting(input('lowBalanceThreshold').value), dailyBudget: decimalSetting(input('dailyBudget').value), phrasesByPersona: Object.fromEntries(Object.entries(phraseDraft).map(([key, lines]) => [key, lines.map(line => line.trim()).filter(Boolean)])) as Record<PetPersona, string[]>, soundEnabled: input('soundEnabled').checked, alwaysOnTop: input('alwaysOnTop').checked, snapToEdges: input('snapToEdges').checked, launchAtLogin: input('launchAtLogin').checked };
+      const patch: AppSettings = { ...state.settings, autoCheckUpdates: input('autoCheckUpdates').checked, codexCompletionEnabled: input('codexCompletionEnabled').checked, codexCompletionDirectory: directoryDraft, bubbleProfilesByPersona: bubbleEditor.getProfiles(), chatgptCompletionEnabled: input('chatgptCompletionEnabled').checked, deepseekCompletionEnabled: input('deepseekCompletionEnabled').checked, deepseekCompletionDirectory: dshDirectoryDraft, scale: Math.max(0.5, Math.min(2, Number(input('scale').value))), volume: Math.max(0, Math.min(1, Number(input('volume').value))), lowBalanceThreshold: decimalSetting(input('lowBalanceThreshold').value), dailyBudget: decimalSetting(input('dailyBudget').value), phrasesByPersona: Object.fromEntries(Object.entries(phraseDraft).map(([key, lines]) => [key, lines.map(line => line.trim()).filter(Boolean)])) as Record<PetPersona, string[]>, soundEnabled: input('soundEnabled').checked, alwaysOnTop: input('alwaysOnTop').checked, snapToEdges: input('snapToEdges').checked, launchAtLogin: input('launchAtLogin').checked };
       const savingRevision = draftRevision;
       void run(element('save-settings'), async () => { const next = await api.updateSettings(patch); if (savingRevision === draftRevision) { dirty = false; fill(next.settings); element('save-hint').textContent = '设置已保存'; } else { element('save-hint').textContent = '已保存先前调整；新草稿尚未保存'; } return next; }, '设置已保存，桌宠已经收到啦。');
     } catch (error) { notify(error instanceof Error ? error.message : '请检查输入。', true); }
   });
   update(initial); fill(initial.settings);
   const countdown = setInterval(() => { renderQuota(element('codex-quotas'), state.codex, false, demo); element('codex-status').textContent = quotaStatus(state.codex, demo); }, 30000);
-  return { update, dispose: () => { disposed = true; stopSettingsPage(); preview.dispose(); clearInterval(countdown); } };
+  return { update, dispose: () => { disposed = true; stopSettingsPage(); preview.dispose(); bubbleEditor.dispose(); clearInterval(countdown); } };
 }

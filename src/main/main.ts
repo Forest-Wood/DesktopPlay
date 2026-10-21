@@ -1,3 +1,5 @@
+import { SOUND_SLOTS, sourceEnabled } from '../shared/bubble-settings';
+import { DeepseekCompletionService } from './services/deepseek-completion';
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, safeStorage, screen, shell, Tray } from 'electron';
 import type { IpcMainEvent, IpcMainInvokeEvent } from 'electron';
 import path from 'node:path';
@@ -39,6 +41,7 @@ let uninstaller: UninstallManager;
 let codex: CodexQuotaService;
 let completion: CodexCompletionService;
 let chatgptCompletion: ChatgptCompletionService;
+let deepseekCompletion: DeepseekCompletionService;
 let updates: AppUpdateService;
 let portableUpdates: PortableUpdateManager | undefined;
 let updateBusy = false;
@@ -61,11 +64,11 @@ let lastSettings: AppSettings | null = null;
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => { showPet(); if (settingsWindow) settingsWindow.focus(); });
-  app.whenReady().then(start).catch(() => { dialog.showErrorBox('DesktopPet 启动失败', '无法初始化本地数据，请检查应用数据目录的访问权限后重试。'); app.quit(); });
+  app.whenReady().then(start).catch(() => { if (!quitting) { dialog.showErrorBox('DesktopPet 启动失败', '无法初始化本地数据，请检查应用数据目录的访问权限后重试。'); app.quit(); } });
 }
 app.on('window-all-closed', () => { /* The tray keeps the desktop pet alive. */ });
 app.on('before-quit', () => {
-  quitting = true; service?.dispose(); codex?.dispose(); completion?.dispose(); chatgptCompletion?.dispose(); updates?.dispose();
+  quitting = true; service?.dispose(); codex?.dispose(); completion?.dispose(); chatgptCompletion?.dispose(); deepseekCompletion?.dispose(); updates?.dispose();
   if (codexTimer) clearInterval(codexTimer);
   if (dragTimer) clearInterval(dragTimer);
   if (hitTimer) clearInterval(hitTimer);
@@ -74,7 +77,7 @@ app.on('before-quit', () => {
 });
 
 function orientation(): Orientation { return { flipped, verticalFlipped, bubblePlacement }; }
-function getState(): AppState { return { ...service.getState(), appUpdate: updates?.getState() ?? initialUpdateState(), sounds: sounds.getMetadata(), pet: assets.get(), activePet: assets.getSelected(), gptAppearance: assets.getGptAppearance(), hasCustomGpt: assets.hasCustomGpt(), codex: codex.getState(), codexCompletion: completion.getState(), chatgptCompletion: chatgptCompletion.getState(), ...orientation(), effectiveScale: petWindow && !petWindow.isDestroyed() ? petWindow.getBounds().width / PET_WIDTH : service.getState().settings.scale }; }
+function getState(): AppState { return { ...service.getState(), petVisible: !!petWindow && !petWindow.isDestroyed() && petWindow.isVisible(), appUpdate: updates?.getState() ?? initialUpdateState(), sounds: sounds.getMetadata(), pet: assets.get(), activePet: assets.getSelected(), gptAppearance: assets.getGptAppearance(), hasCustomGpt: assets.hasCustomGpt(), codex: codex.getState(), codexCompletion: completion.getState(), chatgptCompletion: chatgptCompletion.getState(), deepseekCompletion: deepseekCompletion.getState(), ...orientation(), effectiveScale: petWindow && !petWindow.isDestroyed() ? petWindow.getBounds().width / PET_WIDTH : service.getState().settings.scale }; }
 function publish(): void {
   const state = getState();
   for (const win of [petWindow, settingsWindow]) if (win && !win.isDestroyed() && !win.webContents.isLoadingMainFrame()) win.webContents.send('desktopplay:state', state);
@@ -98,11 +101,12 @@ async function start(): Promise<void> {
   const completionOptions = {
     onState: publish,
     onNotice: (notice: CodexCompletionNotice) => {
-      if (!shuttingDown && !quitting && Date.parse(notice.completedAt) >= petVisibleSince && service.getState().settings.codexCompletionEnabled && petWindow?.isVisible() && !petWindow.webContents.isLoadingMainFrame()) petWindow.webContents.send('desktopplay:codex-completion', notice);
+      if (!shuttingDown && !quitting && Date.parse(notice.completedAt) >= petVisibleSince && sourceEnabled(service.getState().settings, notice.source ?? 'codex') && petWindow?.isVisible() && !petWindow.webContents.isLoadingMainFrame()) petWindow.webContents.send('desktopplay:codex-completion', notice);
     },
   };
   completion = new CodexCompletionService(completionOptions);
   chatgptCompletion = new ChatgptCompletionService(completionOptions);
+  deepseekCompletion = new DeepseekCompletionService(completionOptions);
   const updateKind = app.isPackaged && process.platform === 'win32' && process.arch === 'x64' ? process.env.PORTABLE_EXECUTABLE_FILE ? 'portable' : 'installed' : 'unsupported';
   if (updateKind === 'portable') portableUpdates = new PortableUpdateManager({ programPath: process.env.PORTABLE_EXECUTABLE_FILE!, exePath: process.execPath, dataDir, helperPath: path.join(__dirname, 'update-helper.ps1') });
   const backend = updateKind === 'installed' ? new InstalledUpdateBackend() : updateKind === 'portable' ? new PortableUpdateBackend({ cacheDir: path.join(dataDir, 'updates', 'downloads'), prepare: (file, hash, version) => portableUpdates!.prepare(file, hash, version) }) : undefined;
@@ -116,6 +120,7 @@ async function start(): Promise<void> {
   service.subscribe(() => { applySettings(); publish(); });
   registerIpc();
   await createPet();
+  if (quitting) return;
   createTray();
   applySettings();
   startCodexTimer();
@@ -179,12 +184,12 @@ async function createPet(): Promise<void> {
   petWindow.on('close', (event) => { if (!quitting) { event.preventDefault(); petWindow?.hide(); } });
   petWindow.on('move', scheduleWindowSave);
   petWindow.on('blur', finishDrag);
-  petWindow.on('show', () => { petVisibleSince = Date.now(); completion.discardHiddenHistory(); });
+  petWindow.on('show', () => { petVisibleSince = Date.now(); completion.discardHiddenHistory(); deepseekCompletion.discardHiddenHistory(); publish(); });
   petWindow.on('hide', () => { if (petWindow && !petWindow.webContents.isDestroyed()) petWindow.webContents.send('desktopplay:pet-hidden'); });
   let recoveries = 0;
   petWindow.webContents.on('render-process-gone', () => { if (!quitting && recoveries++ < 2) petWindow?.reload(); });
   await loadWindow(petWindow, 'pet');
-  petWindow.showInactive();
+  if (!quitting && !petWindow.isDestroyed()) petWindow.showInactive();
 }
 
 async function openSettings(page?: 'version'): Promise<void> {
@@ -194,7 +199,7 @@ async function openSettings(page?: 'version'): Promise<void> {
   settingsWindow = securedWindow({ width: Math.min(1060, area.width), height: Math.min(800, area.height), minWidth: Math.min(760, area.width), minHeight: Math.min(560, area.height), show: false, autoHideMenuBar: true, backgroundColor: '#ffffff', title: 'DesktopPet · 设置', icon: path.join(__dirname, '../dist/assets/whale.png') });
   settingsWindow.on('closed', () => { settingsWindow = null; });
   await loadWindow(settingsWindow, 'settings', page);
-  settingsWindow.show();
+  if (!quitting && settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.show();
 }
 
 function showPet(): void { petWindow?.showInactive(); restoreToScreen(); }
@@ -245,7 +250,7 @@ function updateTray(): void {
 function applySettings(): void {
   const settings = service.getState().settings;
   updates?.configure(settings.autoCheckUpdates);
-  if (!lastSettings || settings.codexCompletionEnabled !== lastSettings.codexCompletionEnabled || settings.codexCompletionDirectory !== lastSettings.codexCompletionDirectory) configureCompletion();
+  if (!lastSettings || (['codexCompletionEnabled', 'codexCompletionDirectory', 'chatgptCompletionEnabled', 'deepseekCompletionEnabled', 'deepseekCompletionDirectory'] as const).some(key => settings[key] !== lastSettings![key])) configureCompletion();
   if (petWindow && !petWindow.isDestroyed()) {
     petWindow.setAlwaysOnTop(settings.alwaysOnTop);
     if (!lastSettings || settings.scale !== lastSettings.scale) {
@@ -269,7 +274,9 @@ function configureCompletion(): void {
   void completion.configure(settings.codexCompletionEnabled && !shuttingDown, directory);
   const logs = isolated ? [process.env.DESKTOPPLAY_TEST_CHATGPT_LOG_DIR || path.join(dataDir, 'chatgpt-test-logs')]
     : chatgptLogDirectories(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'));
-  void chatgptCompletion.configure(settings.codexCompletionEnabled && !shuttingDown, logs);
+  void chatgptCompletion.configure(settings.chatgptCompletionEnabled && !shuttingDown, logs);
+  const dshDirectory = settings.deepseekCompletionDirectory ?? (isolated ? process.env.DESKTOPPLAY_TEST_DSH_SESSIONS || path.join(dataDir, 'dsh-test-sessions') : path.join(process.env.DSH_HOME?.trim() ? process.env.DSH_HOME : path.join(os.homedir(), '.dsh'), 'sessions'));
+  void deepseekCompletion.configure(settings.deepseekCompletionEnabled && !shuttingDown, dshDirectory);
 }
 
 function scheduleWindowSave(): void {
@@ -359,10 +366,10 @@ async function requestUninstall(event: IpcMainInvokeEvent, removeData: unknown):
     service.pause(); codex.pause();
     updates.configure(false);
     void completion.configure(false, completion.getState().directory);
-    void chatgptCompletion.configure(false, []);
+    void chatgptCompletion.configure(false, []); void deepseekCompletion.configure(false, deepseekCompletion.getState().directory);
     await Promise.allSettled([...pendingActions]);
     saveWindowPosition();
-    await Promise.all([service.drain(), codex.drain(), updates.drain(), completion.drain(), chatgptCompletion.drain(), assets.drain(), sounds.drain(), geometryWrites, preferenceWrites.catch(() => {})]);
+    await Promise.all([service.drain(), codex.drain(), updates.drain(), completion.drain(), chatgptCompletion.drain(), deepseekCompletion.drain(), assets.drain(), sounds.drain(), geometryWrites, preferenceWrites.catch(() => {})]);
     await prepared.commit();
     setTimeout(() => app.quit(), 100);
     return { started: true };
@@ -389,9 +396,9 @@ async function requestUpdate(event: IpcMainInvokeEvent): Promise<{ started: bool
     if (codexTimer) clearInterval(codexTimer);
     if (hitTimer) clearInterval(hitTimer);
     updates.configure(false); service.pause(); codex.pause();
-    void completion.configure(false, completion.getState().directory); void chatgptCompletion.configure(false, []);
+    void completion.configure(false, completion.getState().directory); void chatgptCompletion.configure(false, []); void deepseekCompletion.configure(false, deepseekCompletion.getState().directory);
     await Promise.allSettled([...pendingActions]); saveWindowPosition();
-    await Promise.all([updates.drain(), service.drain(), codex.drain(), completion.drain(), chatgptCompletion.drain(), assets.drain(), sounds.drain(), geometryWrites, preferenceWrites]);
+    await Promise.all([updates.drain(), service.drain(), codex.drain(), completion.drain(), chatgptCompletion.drain(), deepseekCompletion.drain(), assets.drain(), sounds.drain(), geometryWrites, preferenceWrites]);
     await prepared.commit();
     if (updates.getState().kind === 'portable') setTimeout(() => app.quit(), 100);
     return { started: true };
@@ -415,6 +422,12 @@ function registerIpc(): void {
   handle('download-update', event => { assertSettingsSender(event); if (uninstallBusy || updateBusy) throw new Error('更新或卸载正在处理中。'); return updates.download(); });
   handle('cancel-update', event => { assertSettingsSender(event); return updates.cancelDownload(); });
   handle('install-update', requestUpdate);
+  handle('choose-deepseek-completion-directory', async event => {
+    assertSettingsSender(event);
+    const selection = await dialog.showOpenDialog(settingsWindow!, { title: '选择 DSH 会话目录（sessions）', properties: ['openDirectory'] });
+    assertWritable();
+    return selection.canceled ? null : selection.filePaths[0] ?? null;
+  });
   handle('choose-codex-completion-directory', async event => {
     assertSettingsSender(event);
     const selection = await dialog.showOpenDialog(settingsWindow!, { title: '选择 Codex 主目录（包含 sessions 子目录）', properties: ['openDirectory'] });
@@ -430,8 +443,8 @@ function registerIpc(): void {
   });
   handle('choose-sound', async (event, persona, slot) => {
     assertSettingsSender(event);
-    if (!['whale', 'gpt', 'dragon'].includes(persona) || !['press', 'release'].includes(slot)) throw new Error('音效槽位无效。');
-    const selection = await dialog.showOpenDialog(settingsWindow!, { title: '选择点击音效（不超过 5 MiB）', properties: ['openFile'], filters: [{ name: '音频文件', extensions: ['mp3', 'wav', 'ogg'] }] });
+    if (!['whale', 'gpt', 'dragon'].includes(persona) || !SOUND_SLOTS.includes(slot)) throw new Error('音效槽位无效。');
+    const selection = await dialog.showOpenDialog(settingsWindow!, { title: '选择音效（不超过 5 MiB）', properties: ['openFile'], filters: [{ name: '音频文件', extensions: ['mp3', 'wav', 'ogg'] }] });
     assertWritable();
     if (!selection.canceled && selection.filePaths[0]) { await sounds.import(selection.filePaths[0], persona, slot); publish(); }
     return getState();
@@ -439,7 +452,7 @@ function registerIpc(): void {
   handle('reset-sound', async (event, persona, slot) => { assertSettingsSender(event); await sounds.reset(persona, slot); publish(); return getState(); });
   handle('uninstall-info', (event) => { assertSettingsSender(event); return uninstaller.getInfo(); });
   handle('uninstall', requestUninstall);
-  handle('update-settings', async (_event, patch) => { await service.updateSettings(patch); await Promise.all([completion.drain(), chatgptCompletion.drain()]); return getState(); });
+  handle('update-settings', async (_event, patch) => { await service.updateSettings(patch); await Promise.all([completion.drain(), chatgptCompletion.drain(), deepseekCompletion.drain()]); return getState(); });
   handle('set-key', async (_event, key) => { await service.setApiKey(key); return getState(); });
   handle('clear-key', async () => { await service.clearApiKey(); return getState(); });
   handle('refresh', async () => { await service.refresh(); return getState(); });

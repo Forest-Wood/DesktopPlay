@@ -27,3 +27,16 @@
 .completion-path { overflow-wrap: anywhere; }
 /* Update notes remain plain text and scroll within the version page. */
 .app-update{margin-top:24px;padding-top:20px;border-top:1px solid #dce6e1}.app-update progress{width:100%;height:12px;accent-color:#247e6c}.update-notes{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:13px;max-height:240px;overflow:auto;margin:12px 0}.update-notes:empty{display:none}.update-dirty-dialog{padding:16px;margin-top:14px;background:#fff7df;border-radius:12px}.app-update .toggle-label{margin-top:18px}
+
+.settings-view #bubbles select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:white;color:var(--ink);font:inherit;margin:7px 0 14px}
+.bubble-editor-grid{display:grid;grid-template-columns:minmax(0,1fr) 245px;gap:22px;margin-top:16px;align-items:start}
+.bubble-editor-fields{min-width:0}.bubble-editor-fields fieldset{border:1px solid var(--line);border-radius:12px;padding:12px;margin:12px 0;min-width:0}
+.bubble-editor-fields fieldset:disabled{opacity:.55}.bubble-editor-fields legend{font-size:12px;padding:0 6px}
+.bubble-editor-fields fieldset>label{display:block;font-size:12px;margin:9px 0}.bubble-editor-fields input[type=range]{width:100%}
+.bubble-editor-fields input[type=number]{width:100%;margin-bottom:9px}.bubble-editor-fields input[type=color]{width:100%;height:36px;padding:3px}
+.bubble-colors{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.bubble-colors label{font-size:11px;display:grid;gap:5px}
+.bubble-editor-preview{position:sticky;top:0;min-width:0;overflow:hidden;border:1px solid var(--line);border-radius:14px;background:#f4f6f3;padding:8px 0}
+.bubble-editor-preview>strong,.bubble-editor-preview>label,.bubble-editor-preview>p{display:block;margin:8px 12px;font-size:11px}.bubble-editor-preview>select{max-width:calc(100% - 24px);margin-left:12px!important}
+.bubble-editor-preview #bubble-preview-pet{margin:0 auto}.bubble-editor-preview .pet-demo{display:none}
+#bubble-completion-audio{margin:18px 0;padding-top:14px;border-top:1px solid var(--line)}
+@media(max-width:950px){.bubble-editor-grid{grid-template-columns:minmax(0,1fr)}.bubble-editor-preview{position:static;width:245px;max-width:100%}}

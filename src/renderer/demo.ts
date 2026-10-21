@@ -1,3 +1,4 @@
+import { builtinSound } from '../shared/bubble-settings';
 import { BUILTIN_PETS, DEFAULT_SETTINGS, GPT_DRAGON_PET, DEFAULT_SOUNDS } from '../shared/defaults';
 import type { AppState, DesktopApi } from '../shared/types';
 import { initialUpdateState } from '../shared/app-update';
@@ -6,11 +7,13 @@ export function createDemoApi(): DesktopApi {
   const activePet = localStorage.getItem('desktopplay-demo-pet') === 'gpt' ? 'gpt' : 'deepseek';
   const gptAppearance = localStorage.getItem('desktopplay-demo-appearance') === 'dragon' ? 'dragon' : 'classic';
   let state: AppState = {
+    petVisible: true,
     appUpdate: initialUpdateState(),
     codexCompletion: { status: 'disabled', directory: '浏览器演示不读取本机会话', error: null },
+    deepseekCompletion: { status: 'disabled', directory: '浏览器演示不读取 DSH 会话', error: null },
     chatgptCompletion: { status: 'disabled', directory: '浏览器演示不读取桌面通知', error: null },
     sounds: structuredClone(DEFAULT_SOUNDS),
-    settings: { ...DEFAULT_SETTINGS }, hasApiKey: false, balance: { currency: 'CNY', total: '28.36000000', granted: '0.00000000', toppedUp: '28.36000000', observedAt: new Date().toISOString(), isAvailable: true },
+    settings: structuredClone(DEFAULT_SETTINGS), hasApiKey: false, balance: { currency: 'CNY', total: '28.36000000', granted: '0.00000000', toppedUp: '28.36000000', observedAt: new Date().toISOString(), isAvailable: true },
     ledger: { today: { date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date()), currency: 'CNY', spent: '1.24000000', increased: '0.00000000', startedAt: new Date().toISOString() }, history: [] },
     status: 'ready', error: null, warning: null, alert: null, pet: { ...(activePet === 'gpt' && gptAppearance === 'dragon' ? GPT_DRAGON_PET : BUILTIN_PETS[activePet]) }, activePet, gptAppearance, hasCustomGpt: false, flipped: false, verticalFlipped: false, bubblePlacement: 'above',
     codex: { resetCredits: { availableCount: 2, credits: [{ id: 'demo-reset', status: 'available', expiresAt: new Date(Date.now() + 604800000).toISOString() }] }, planType: 'pro', status: 'ready', source: 'codex-app-server', available: true, updatedAt: new Date().toISOString(), error: null, buckets: [{ id: 'demo', name: 'Codex · 演示数据', planType: 'pro', primary: { usedPercent: 24, remainingPercent: 76, windowMinutes: 300, resetsAt: new Date(Date.now() + 10800000).toISOString() }, secondary: { usedPercent: 42, remainingPercent: 58, windowMinutes: 10080, resetsAt: new Date(Date.now() + 345600000).toISOString() }, creditsRemaining: null, unlimitedCredits: false }] },
@@ -24,6 +27,7 @@ export function createDemoApi(): DesktopApi {
     installUpdate: async () => ({ started: false }),
     onUpdateAvailable: () => () => {},
     onSettingsPage: () => () => {},
+    chooseDeepseekCompletionDirectory: async () => { throw new Error('请在桌面应用中选择 DSH 会话目录。'); },
     chooseCodexCompletionDirectory: async () => { throw new Error('请在桌面应用中选择 Codex 目录。'); },
     onCodexCompletion: () => () => {},
     onPetHidden: () => () => {},
@@ -35,7 +39,7 @@ export function createDemoApi(): DesktopApi {
     choosePet: async () => { throw new Error('本地演示模式无法导入文件，请在桌面应用中使用。'); },
     chooseSound: async () => { throw new Error('请在桌面应用中导入音效。'); },
     resetSound: async (persona, slot) => { state.sounds[persona][slot] = { ...DEFAULT_SOUNDS[persona][slot], revision: String(Date.now()) }; return emit(); },
-    getSoundData: async (persona, slot) => ({ url: `./assets/${slot}.mp3`, revision: state.sounds[persona][slot].revision, warning: null }),
+    getSoundData: async (persona, slot) => ({ url: builtinSound(slot), revision: state.sounds[persona][slot].revision, warning: null }),
     getUninstallInfo: async () => ({ kind: 'unsupported', programPath: null, dataPath: '%APPDATA%\\DesktopPlay', available: false, reason: '浏览器演示不提供卸载，请在桌面应用中使用。' }),
     requestUninstall: async () => ({ started: false }),
     resetPet: async () => { if (state.activePet === 'gpt') localStorage.setItem('desktopplay-demo-appearance', 'classic'); state = { ...state, gptAppearance: state.activePet === 'gpt' ? 'classic' : state.gptAppearance, pet: { ...BUILTIN_PETS[state.activePet] } }; return emit(); },
