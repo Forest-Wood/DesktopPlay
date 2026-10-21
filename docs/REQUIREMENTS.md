@@ -18,10 +18,10 @@
 | R010 | 发布本阶段功能为 v0.5.2 并更新下载附件 | 已合并（发布已完成） | [T007](tasks/T007-release-v052.md) |
 | R011 | 安装版与免安装版的软件内检查、下载和重启更新 | 已合并，已随 v0.5.3 发布；真实匿名源检查遇限流 | [T008](tasks/T008-in-app-update.md) |
 | R012 | 发布 v0.5.3 并核实软件内更新资源 | 已正式发布；按用户精简要求人工恢复，自动上传恢复待实测 | [T009](tasks/T009-release-v053.md) |
-| R013 | 本机 DSH v4 成功完成提醒 | 已合并，待随 v0.5.4 发布 | [T010](tasks/T010-persona-notifications.md) |
-| R014 | 三桌宠 × 三来源独立完成音效 | 已合并，待随 v0.5.4 发布 | [T010](tasks/T010-persona-notifications.md) |
-| R015 | 全部气泡按桌宠配置与预览 | 已合并，待随 v0.5.4 发布 | [T010](tasks/T010-persona-notifications.md) |
-| R016 | 发布 v0.5.4 并核实下载与更新资源 | 准备中 | [T011](tasks/T011-release-v054.md) |
+| R013 | 本机 DSH v4 成功完成提醒 | 已合并并随 v0.5.4 发布 | [T010](tasks/T010-persona-notifications.md) |
+| R014 | 三桌宠 × 三来源独立完成音效 | 已合并并随 v0.5.4 发布 | [T010](tasks/T010-persona-notifications.md) |
+| R015 | 全部气泡按桌宠配置与预览 | 已合并并随 v0.5.4 发布 | [T010](tasks/T010-persona-notifications.md) |
+| R016 | 发布 v0.5.4 并核实下载与更新资源 | 已正式发布，五附件公开下载与摘要核实通过 | [T011](tasks/T011-release-v054.md) |
 
 ## R001：默认气泡显示时间
 
