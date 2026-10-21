@@ -2,7 +2,7 @@
 
 DesktopPet 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek 余额，GPT 小伙伴查看 Codex 编程额度。GPT 角色可在原版与白龙两种内置造型间切换，也可继续使用自定义图片。面向 Windows 10/11 x64，提供 NSIS 安装版和 portable 免安装版。桌宠本身不需要 Node.js 或 DeepSeek Harness（DSH）；实时 Codex 额度需要本机已有原生 Codex 程序，并已使用 ChatGPT 账户登录。
 
-v0.5.4 正在准备发布，包含 DSH 提醒和气泡独立配置；当前正式版仍为 v0.5.3。发布状态见 [T011 任务记录](docs/tasks/T011-release-v054.md)，功能实现与验证见 [T010](docs/tasks/T010-persona-notifications.md)。
+已发布 [v0.5.4](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v0.5.4)，包含 DSH 提醒、气泡独立配置和完成音效。发布核实见 [T011 任务记录](docs/tasks/T011-release-v054.md)，功能实现与验证见 [T010](docs/tasks/T010-persona-notifications.md)。
 
 ## 桌宠与功能
 
@@ -33,6 +33,8 @@ v0.5.4 正在准备发布，包含 DSH 提醒和气泡独立配置；当前正�
 ![GPT 白龙造型预览](docs/screenshots/gpt-dragon-v2-preview.png)
 
 ## v0.5.4 升级说明
+
+已正式发布：[Release 与下载](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v0.5.4)。
 
 - 新增 Windows 本机 DeepSeek Harness v4 完成提醒，支持普通及 Zstandard 日志；仅提醒主会话成功完成，不补发历史。
 - 全部气泡可按小鲸鱼、原版 GPT、白龙分别设置文案、时间与外观，提供分类覆盖和实际渲染预览。
