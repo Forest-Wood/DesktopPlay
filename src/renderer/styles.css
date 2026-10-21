@@ -40,3 +40,13 @@
 .pet-bubble .bubble-footer button:hover,.pet-bubble .bubble-retention-actions button:hover{background:var(--bubble-bg);outline:1px solid var(--bubble-border)}
 .pet-bubble .bubble-retention-actions button{font-size:11px;padding:5px 9px}
 .pet-bubble [hidden]{display:none!important}
+
+/* Profile styles apply to the pet and the same renderer inside the editor. */
+.pet-bubble .bubble-label{font-size:calc(10px * var(--bubble-font-scale,1));overflow-wrap:anywhere;max-height:42px;overflow:auto}
+.pet-bubble .bubble-message{font-size:calc(24px * var(--bubble-font-scale,1));white-space:pre-wrap}
+.pet-bubble .bubble-message.bubble-caption{font-size:calc(12px * var(--bubble-font-scale,1));margin-top:5px}
+.pet-bubble .bubble-balances strong{font-size:calc(34px * var(--bubble-font-scale,1));max-width:calc(100% - 55px);min-width:0}
+.pet-bubble .bubble-balances .pet-spent{font-size:calc(28px * var(--bubble-font-scale,1))}
+.pet-bubble .bubble-content{overflow-x:hidden;overflow-wrap:anywhere}
+.pet-bubble .bubble-quota{font-family:inherit;font-size:calc(12px * var(--bubble-font-scale,1))}
+.pet-bubble .bubble-quota .quota-window-title,.pet-bubble .bubble-quota .quota-reset,.pet-bubble .bubble-quota .quota-countdown{color:var(--bubble-ink)}

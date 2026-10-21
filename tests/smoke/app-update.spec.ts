@@ -38,9 +38,9 @@ test('version routing, safe development mode, typed IPC, progress/cancel, drafts
     await expect.poll(() => application.evaluate(() => (globalThis as any).updateFixture.installs)).toBe(1);
     await settings.bringToFront(); const focus = await application.evaluate(({ BrowserWindow }) => BrowserWindow.getFocusedWindow()?.id);
     const emit = async (channel: string, value: unknown) => application.evaluate(({ BrowserWindow }, { channel, value }) => { BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('view=pet'))!.webContents.send(`desktopplay:${channel}`, value); }, { channel, value });
-    await emit('codex-completion', { id: 'fixture-complete', completedAt: new Date().toISOString() }); await expect(pet.locator('.bubble-label')).toHaveText('GPT 完成提醒');
-    await emit('update-available', { version: '0.5.4' }); await expect(pet.locator('.bubble-label')).toHaveText('GPT 完成提醒');
-    await pet.locator('.bubble-close').evaluate((node: HTMLElement) => node.click()); await expect(pet.locator('.bubble-label')).toHaveText('发现软件更新');
+    await emit('codex-completion', { id: 'fixture-complete', completedAt: new Date().toISOString() }); await expect(pet.locator('.bubble-label')).toHaveText('Codex 完成提醒');
+    await emit('update-available', { version: '0.5.4' }); await expect(pet.locator('.bubble-label')).toHaveText('Codex 完成提醒');
+    await pet.locator('.bubble-close').evaluate((node: HTMLElement) => node.click()); await expect(pet.locator('.bubble-label')).toHaveText('软件更新');
     expect(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getFocusedWindow()?.id)).toBe(focus);
     await pet.screenshot({ path: 'test-results/update-bubble.png', omitBackground: true });
     await pet.locator('.bubble-update').evaluate((node: HTMLElement) => node.click()); await expect(settings.locator('#version')).toBeVisible();
@@ -53,7 +53,7 @@ test('version routing, safe development mode, typed IPC, progress/cancel, drafts
     const now = Date.now(); await pet.clock.install({ time: now }); await pet.clock.pauseAt(now + 1000);
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 }); await pet.locator('.bubble-switch').dispatchEvent('click');
     await emit('update-available', { version: '0.5.6' }); await pet.clock.runFor(5000); await expect(pet.locator('.bubble-confirm')).toBeVisible();
-    await pet.locator('.bubble-cancel').dispatchEvent('click'); await pet.clock.runFor(3000); await expect(pet.locator('.bubble-label')).toHaveText('发现软件更新');
+    await pet.locator('.bubble-cancel').dispatchEvent('click'); await pet.clock.runFor(3000); await expect(pet.locator('.bubble-label')).toHaveText('软件更新');
     await pet.evaluate(() => window.desktopPlay.updateSettings({ bubbleDurationSeconds: 2, bubbleHoverDelaySeconds: 1 }));
     await pet.locator('.pet-bubble').dispatchEvent('pointerenter'); await pet.clock.runFor(9000); await expect(pet.locator('.pet-bubble')).toBeVisible();
     await pet.locator('.pet-bubble').dispatchEvent('pointerleave'); await pet.clock.runFor(999); await expect(pet.locator('.pet-bubble')).toBeVisible();

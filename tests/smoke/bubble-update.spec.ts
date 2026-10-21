@@ -137,10 +137,10 @@ test('full weekly reset countdown stays on one line and fits both GPT appearance
       await expect(settings.locator('body')).toHaveCSS('color-scheme', 'light');
     }
     await settings.screenshot({ path: path.join(previews, 'settings-white.png') });
-    await settings.locator('[data-category="preferences"]').click();
-    await settings.locator('#tab-behavior').click();
-    await expect(settings.locator('#bubble-duration-output')).toHaveText('3 秒');
-    await expect(settings.locator('#bubble-hover-delay-output')).toHaveText('关闭');
+    await settings.locator('[data-category="pet"]').click();
+    await settings.locator('#tab-bubbles').click();
+    await expect(settings.locator('#bubble-profile-duration')).toHaveValue('3');
+    await expect(settings.locator('#bubble-profile-hover')).toHaveValue('0');
     await settings.screenshot({ path: path.join(previews, 'bubble-settings.png') });
     await expect(pet.locator('body')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   } finally { await application.close(); }

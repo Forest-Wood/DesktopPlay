@@ -1,3 +1,4 @@
+import { SOUND_SLOTS, builtinSound } from '../../src/shared/bubble-settings';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, readFile, readdir, rm, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -79,26 +80,26 @@ describe('sound format validation', () => {
 });
 
 describe('SoundAssets', () => {
-  it('defaults old installations to six independent built-in slots', async () => {
+  it('defaults old installations to fifteen independent built-in slots', async () => {
     const assets = new SoundAssets(directory); await assets.init();
-    for (const persona of ['whale', 'gpt', 'dragon'] as const) for (const slot of ['press', 'release'] as const) {
+    for (const persona of ['whale', 'gpt', 'dragon'] as const) for (const slot of SOUND_SLOTS) {
       expect(assets.getMetadata()[persona][slot]).toMatchObject({ isCustom: false, revision: 'default', warning: null });
-      expect((await assets.getData(persona, slot)).url).toBe(`./assets/${slot}.mp3`);
+      expect((await assets.getData(persona, slot)).url).toBe(builtinSound(slot));
     }
     const copy = assets.getMetadata(); copy.whale.press.name = 'mutated'; expect(assets.getMetadata().whale.press.name).not.toBe('mutated');
   });
-  it('persists all six slots and continues playing after source deletion', async () => {
+  it('persists all fifteen slots and continues playing after source deletion', async () => {
     const dataDir = path.join(directory, 'data'), assets = new SoundAssets(dataDir); await assets.init();
     const pending: Promise<void>[] = [];
-    for (const [index, persona] of (['whale', 'gpt', 'dragon'] as const).entries()) for (const [offset, slot] of (['press', 'release'] as const).entries()) {
+    for (const [index, persona] of (['whale', 'gpt', 'dragon'] as const).entries()) for (const [offset, slot] of (SOUND_SLOTS).entries()) {
       const filename = path.join(directory, `${persona}-${slot}.wav`); await writeFile(filename, wav(index * 10 + offset));
       pending.push(assets.import(filename, persona, slot));
     }
     await assets.drain(); await Promise.all(pending);
-    const before = assets.getMetadata(); expect(new Set(Object.values(before).flatMap(value => Object.values(value).map(sound => sound.revision))).size).toBe(6);
+    const before = assets.getMetadata(); expect(new Set(Object.values(before).flatMap(value => Object.values(value).map(sound => sound.revision))).size).toBe(15);
     for (const file of await readdir(directory)) if (file.endsWith('.wav')) await unlink(path.join(directory, file));
     const restarted = new SoundAssets(dataDir); await restarted.init(); expect(restarted.getMetadata()).toEqual(before);
-    for (const persona of ['whale', 'gpt', 'dragon'] as const) for (const slot of ['press', 'release'] as const) {
+    for (const persona of ['whale', 'gpt', 'dragon'] as const) for (const slot of SOUND_SLOTS) {
       expect(restarted.getMetadata()[persona][slot].isCustom).toBe(true);
       expect((await restarted.getData(persona, slot)).url).toMatch(/^data:audio\/wav;base64,/);
     }
@@ -121,7 +122,7 @@ describe('SoundAssets', () => {
     await unlink(path.join(dataDir, 'sounds', manifest.dragon.release.file));
     for (const [persona, slot] of [['whale', 'press'], ['dragon', 'release']] as const) {
       const data = await assets.getData(persona, slot);
-      expect(data.url).toBe(`./assets/${slot}.mp3`); expect(data.warning).toBeTruthy(); expect(data.revision).not.toBe(before[persona][slot].revision);
+      expect(data.url).toBe(builtinSound(slot)); expect(data.warning).toBeTruthy(); expect(data.revision).not.toBe(before[persona][slot].revision);
       expect(assets.getMetadata()[persona][slot].isCustom).toBe(false);
       expect(await assets.getData(persona, slot)).toEqual(data);
     }

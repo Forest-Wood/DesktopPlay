@@ -1,5 +1,19 @@
 export type PetPersona = 'whale' | 'gpt' | 'dragon';
-export type SoundSlot = 'press' | 'release';
+export type CompletionSource = 'codex' | 'chatgpt-work' | 'deepseek-harness';
+export type SoundSlot = 'press' | 'release' | `completion-${CompletionSource}`;
+export type BubbleScenario = 'usage' | 'summary' | 'phrases' | 'retention' | 'low-balance' | 'daily-budget' | 'update' | `completion-${CompletionSource}`;
+export interface BubbleStyle {
+  background: string; ink: string; border: string; ring: string;
+  font: 'system' | 'yahei' | 'dengxian' | 'kaiti'; fontScale: number; backgroundOpacity: number;
+}
+export interface BubbleTiming { durationSeconds: number; hoverDelaySeconds: number }
+export interface BubbleRule {
+  enabled: boolean; title: string; message: string;
+  style: Partial<BubbleStyle>; timing: Partial<BubbleTiming>;
+  soundEnabled: boolean; volume: number;
+}
+export interface BubbleProfile { style: BubbleStyle; timing: BubbleTiming; rules: Record<BubbleScenario, BubbleRule> }
+export type BubbleProfiles = Record<PetPersona, BubbleProfile>;
 export interface SoundMetadata { name: string; isCustom: boolean; revision: string; warning: string | null }
 export type SoundMetadataMap = Record<PetPersona, Record<SoundSlot, SoundMetadata>>;
 export interface SoundData { url: string; revision: string; warning: string | null }
@@ -21,6 +35,10 @@ export interface AppSettings {
   bubbleDurationSeconds: number;
   bubbleHoverDelaySeconds: number;
   codexCompletionEnabled: boolean;
+  chatgptCompletionEnabled: boolean;
+  deepseekCompletionEnabled: boolean;
+  deepseekCompletionDirectory: string | null;
+  bubbleProfilesByPersona: BubbleProfiles;
   codexCompletionDirectory: string | null;
   completionMessagesByPersona: Record<PetPersona, string>;
   phrases: string[];
@@ -121,9 +139,11 @@ export interface CodexResetCredits {
 }
 
 export interface AppState extends ServiceState {
+  petVisible: boolean;
   appUpdate: AppUpdateState;
   codexCompletion: CodexCompletionState;
   chatgptCompletion: CodexCompletionState;
+  deepseekCompletion: CodexCompletionState;
   sounds: SoundMetadataMap;
   pet: PetAsset;
   activePet: BuiltinPetId;
@@ -144,6 +164,7 @@ export interface DesktopApi {
   onUpdateAvailable(callback: (notice: { version: string }) => void): () => void;
   onSettingsPage(callback: (page: 'version') => void): () => void;
   chooseCodexCompletionDirectory(): Promise<string | null>;
+  chooseDeepseekCompletionDirectory(): Promise<string | null>;
   onCodexCompletion(callback: (notice: CodexCompletionNotice) => void): () => void;
   onPetHidden(callback: () => void): () => void;
   getState(): Promise<AppState>;
@@ -177,7 +198,7 @@ export interface DesktopApi {
 declare global { interface Window { desktopPlay: DesktopApi; } }
 
 /** Source is optional for compatibility with existing Codex notices. No conversation text. */
-export interface CodexCompletionNotice { id: string; completedAt: string; source?: 'codex' | 'chatgpt-work' }
+export interface CodexCompletionNotice { id: string; completedAt: string; source?: CompletionSource }
 export interface CodexCompletionState {
   status: 'disabled' | 'starting' | 'watching' | 'unavailable' | 'error';
   directory: string;

@@ -1,3 +1,4 @@
+import { PERSONAS, validateBubbleProfiles } from '../../shared/bubble-settings';
 import { createHash, randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -35,10 +36,12 @@ function settings(patch: unknown, base = DEFAULT_SETTINGS): AppSettings {
       if (typeof value !== 'number' || !Number.isFinite(value) || value < (key === 'scale' ? 0.5 : 0) || value > (key === 'scale' ? 2 : 1)) throw new Error('数值设置无效');
     } else if (key === 'bubbleDurationSeconds' || key === 'bubbleHoverDelaySeconds') {
       if (typeof value !== 'number' || !Number.isInteger(value) || value < (key === 'bubbleDurationSeconds' ? 1 : 0) || value > 60) throw new Error('气泡时间设置无效');
-    } else if (key === 'codexCompletionEnabled') {
+    } else if (['codexCompletionEnabled', 'chatgptCompletionEnabled', 'deepseekCompletionEnabled'].includes(key)) {
       if (typeof value !== 'boolean') throw new Error('完成提醒开关无效');
-    } else if (key === 'codexCompletionDirectory') {
-      if (value !== null && (typeof value !== 'string' || !path.isAbsolute(value) || value.startsWith('\\\\') || value.includes('\0') || value.length > 4096)) throw new Error('请选择本机 Codex 目录');
+    } else if (key === 'codexCompletionDirectory' || key === 'deepseekCompletionDirectory') {
+      if (value !== null && (typeof value !== 'string' || !path.isAbsolute(value) || value.startsWith('\\\\') || value.includes('\0') || value.length > 4096)) throw new Error('请选择有效的本机会话目录');
+    } else if (key === 'bubbleProfilesByPersona') {
+      validateBubbleProfiles(value);
     } else if (key === 'completionMessagesByPersona') {
       if (!plain(value) || Reflect.ownKeys(value).length !== 3 || ['whale', 'gpt', 'dragon'].some(persona => !Object.hasOwn(value, persona) || !Object.hasOwn(Object.getOwnPropertyDescriptor(value, persona)!, 'value') || typeof value[persona] !== 'string' || !value[persona].trim() || value[persona].length > 200)) throw new Error('每个角色的完成提醒需为 1–200 字符的非空文本');
     } else if (key === 'phrases') {
@@ -47,6 +50,16 @@ function settings(patch: unknown, base = DEFAULT_SETTINGS): AppSettings {
       if (!plain(value) || Reflect.ownKeys(value).length !== 3 || ['whale', 'gpt', 'dragon'].some(persona => !Object.hasOwn(value, persona) || !Object.hasOwn(Object.getOwnPropertyDescriptor(value, persona)!, 'value') || !validPhrases(value[persona]))) throw new Error('人设短句设置无效');
     } else if (value !== null) amount(value);
     Object.assign(result, { [key]: structuredClone(value) });
+  }
+  // Legacy callers remain supported; the profile is authoritative when explicitly supplied.
+  if (!Object.hasOwn(patch, 'bubbleProfilesByPersona')) for (const persona of PERSONAS) {
+    const profile = result.bubbleProfilesByPersona[persona];
+    if (Object.hasOwn(patch, 'bubbleDurationSeconds')) profile.timing.durationSeconds = result.bubbleDurationSeconds;
+    if (Object.hasOwn(patch, 'bubbleHoverDelaySeconds')) profile.timing.hoverDelaySeconds = result.bubbleHoverDelaySeconds;
+    if (Object.hasOwn(patch, 'completionMessagesByPersona')) {
+      profile.rules['completion-codex'].message = result.completionMessagesByPersona[persona];
+      profile.rules['completion-chatgpt-work'].message = result.completionMessagesByPersona[persona];
+    }
   }
   return result;
 }
@@ -74,6 +87,7 @@ function disk(value: unknown): Disk {
     accounts[id] = { balance: raw.balance === null ? null : snapshot(raw.balance), days: days.slice(-365), low: raw.low, budgetDays: raw.budgetDays.slice(-365) as string[] };
   }
   const restoredSettings = settings(value.settings);
+  if (plain(value.settings) && !Object.hasOwn(value.settings, 'chatgptCompletionEnabled')) restoredSettings.chatgptCompletionEnabled = restoredSettings.codexCompletionEnabled;
   if (plain(value.settings) && !Object.hasOwn(value.settings, 'phrasesByPersona')) {
     restoredSettings.phrasesByPersona = { whale: structuredClone(restoredSettings.phrases), gpt: [...DEFAULT_PHRASES_BY_PERSONA.gpt], dragon: [...DEFAULT_PHRASES_BY_PERSONA.dragon] };
   }

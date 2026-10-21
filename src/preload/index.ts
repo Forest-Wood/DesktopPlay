@@ -14,6 +14,7 @@ const api: DesktopApi = {
     const listener = (_: Electron.IpcRendererEvent, page: 'version') => callback(page);
     ipcRenderer.on('desktopplay:settings-page', listener); return () => ipcRenderer.removeListener('desktopplay:settings-page', listener);
   },
+  chooseDeepseekCompletionDirectory: () => ipcRenderer.invoke('desktopplay:choose-deepseek-completion-directory'),
   chooseCodexCompletionDirectory: () => ipcRenderer.invoke('desktopplay:choose-codex-completion-directory'),
   onCodexCompletion: callback => {
     // Shared completion channel: only identifiers, timestamp and optional source.

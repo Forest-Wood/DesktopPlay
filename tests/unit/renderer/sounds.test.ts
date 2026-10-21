@@ -8,6 +8,18 @@ const mockAudio = () => ({ volume: 1, currentTime: 0, play: vi.fn(async () => {}
 const tick = async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); };
 
 describe('per-persona sound playback lifecycle', () => {
+  it('waits for sound-only playback to end and releases waits/listeners when hidden or disposed', async () => {
+    const slot = 'completion-deepseek-harness' as const;
+    const sounds = metadata(); for (const persona of ['whale', 'gpt', 'dragon'] as const) sounds[persona][slot] = { name: 'chime', isCustom: false, revision: '1', warning: null };
+    const listeners = new Map<string, () => void>();
+    const audio = { ...mockAudio(), addEventListener: (name: string, callback: () => void) => listeners.set(name, callback), removeEventListener: (name: string) => listeners.delete(name) };
+    const player = new PersonaSoundPlayer({ getSoundData: async () => ({ url: './assets/completion.wav', revision: '1', warning: null }) }, vi.fn(), () => audio as never, [slot]);
+    player.sync('whale', sounds); let ended = false;
+    const playing = player.play(slot, .6, true).then(() => { ended = true; }); await tick(); expect(ended).toBe(false);
+    listeners.get('ended')!(); await playing; expect(ended).toBe(true); expect(listeners.size).toBe(0);
+    const hidden = player.play(slot, .4, true); await tick(); player.stop(); await hidden; expect(listeners.size).toBe(0); expect(audio.pause).toHaveBeenCalled();
+    const disposed = player.play(slot, .4, true); await tick(); player.dispose(); await disposed; expect(listeners.size).toBe(0);
+  });
   it('loads only two sounds, reuses unchanged revisions, and stops audio on persona changes', async () => {
     const sounds = metadata(), audios: ReturnType<typeof mockAudio>[] = [];
     const getSoundData = vi.fn(async (persona: PetPersona, slot: SoundSlot): Promise<SoundData> => ({ url: `${persona}/${slot}`, revision: sounds[persona][slot].revision, warning: null }));
