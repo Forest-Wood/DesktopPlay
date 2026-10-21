@@ -3,9 +3,9 @@
 - 日期：2026-10-21（Asia/Shanghai）；负责人：Codex。
 - 关联：R013、R014、R015；目标 main。
 - 工作目录：`D:\desktop1\DesktopPlay`；分支：`feat/T010-persona-notifications`。
-- 基准：`35dc22e`；结果：未提交。开始时工作区干净，无带入的未提交修改。
-- 状态：已实现并完成本地验证；用户已授权提交、推送和创建 PR，正在交付；未审查、未合并、未发布，版本保持 0.5.3。
-- 远程核实：建分支时受限 fetch 连接失败，提权重试曾发生 TLS unexpected EOF；交付前提权 `git fetch origin main` 成功，远程 main 为 `35dc22e`，与基准一致，远程尚无同名 T010 分支。无需同步或解决冲突，不改写其他分支。
+- 基准：`35dc22e`；实现提交：`f09bba4`（已推送）。开始时工作区干净，无带入的未提交修改；后续交接文档提交见本分支历史。
+- 状态：已实现并完成本地验证；用户明确授权后已推送并创建 [PR #10](https://github.com/Forest-Wood/DesktopPlay/pull/10)（非草稿，目标 main）；待审查、未合并、未发布，版本保持 0.5.3。
+- 远程核实：建分支时受限 fetch 连接失败，提权重试曾发生 TLS unexpected EOF；交付前提权 `git fetch origin main` 成功，远程 main 为 `35dc22e`，与基准一致，新分支正常推送。无需同步或解决冲突，不改写其他分支。GitHub 插件创建 PR 返回 403（Resource not accessible by integration），改用本机现有 Git 认证调用官方 API 创建成功，凭据未写入文件或输出。
 
 ## 范围与决策
 
@@ -39,4 +39,4 @@
 
 参考：[DSH 格式与版本](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/session-format-status.md)、[会话事件](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/core/session/src/types.ts)、[持久化格式](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/session/session-persistence-jsonl/README.md)。
 
-下一步：按本次授权提交、推送并创建 T010 → main PR，补齐实际提交与 PR 链接；审查、合并和发布仍待后续处理。完整回归原生鼠标间歇失败及真实客户端试用限制继续保留。
+下一步：审查 PR #10，查看远程 CI 实际结果；本地记录不代表 CI 已通过。合并和发布仍待后续授权。完整回归原生鼠标间歇失败及真实客户端试用限制继续保留。
