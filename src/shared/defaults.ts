@@ -1,6 +1,6 @@
 import { DEFAULT_BUBBLE_PROFILES, SOUND_SLOTS } from './bubble-settings';
 import type { AppSettings, BuiltinPetId, PetAsset, PetPersona, SoundMetadataMap } from './types';
-export const APP_VERSION = '0.5.3';
+export const APP_VERSION = '0.5.4';
 export const DEFAULT_COMPLETION_MESSAGES: Record<PetPersona, string> = {
   whale: 'GPT 已经回复完啦，快去看看吧～',
   gpt: '这轮输出完成了，来看看结果吧。',
