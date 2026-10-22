@@ -27,6 +27,22 @@ test('version routing, safe development mode, typed IPC, progress/cancel, drafts
     });
     await settings.evaluate(() => window.desktopPlay.checkForUpdates()); await expect(settings.locator('#update-status')).toContainText('0.5.4');
     await expect(settings.locator('#update-notes')).toHaveText('<b>纯文本更新说明</b>'); expect(await settings.locator('#update-notes b').count()).toBe(0);
+    await expect(settings.locator('#update-notes-title')).toHaveText('更新公告');
+    await expect(settings.locator('#update-notes-version')).toContainText('0.5.4');
+    const setAnnouncement = async (patch: Record<string, unknown>) => {
+      await application.evaluate((_electron, patch) => { Object.assign((globalThis as any).updateFixture.patch, patch); }, patch);
+      await settings.evaluate(() => window.desktopPlay.checkForUpdates());
+    };
+    await setAnnouncement({ releaseNotes: '  ' });
+    await expect(settings.locator('#update-notes')).toHaveText('本版本未提供更新公告。');
+    await setAnnouncement({ releaseNotes: '- 改进所有桌宠的更新公告展示。\n'.repeat(100), latestVersion: '1.0.0', releaseDate: '2026-10-22T00:00:00Z' });
+    await expect(settings.locator('#update-notes-version')).toContainText('1.0.0');
+    expect(await settings.locator('#update-notes').evaluate(el => el.scrollHeight > el.clientHeight && el.scrollWidth <= el.clientWidth)).toBe(true);
+    await settings.locator('#update-download').scrollIntoViewIfNeeded(); await expect(settings.locator('#update-download')).toBeVisible();
+    await settings.locator('#update-announcement').screenshot({ path: '.tmp/T012-update-announcement.png' });
+    await setAnnouncement({ status: 'error', latestVersion: null, releaseNotes: '旧公告不应可见', error: '网络不可用' });
+    await expect(settings.locator('#update-announcement')).toBeHidden();
+    await setAnnouncement({ status: 'available', latestVersion: '0.5.4', releaseNotes: '- 完善公告。\n- 修复显示。\n- 保留设置。', error: null });
     await settings.locator('#auto-check-updates').uncheck();
     await settings.locator('#update-download').click(); await expect(settings.locator('#update-progress')).toHaveAttribute('value', '50'); await settings.locator('#update-cancel').click();
     await application.evaluate(() => { (globalThis as any).updateFixture.patch.status = 'ready'; }); await settings.evaluate(() => window.desktopPlay.checkForUpdates());

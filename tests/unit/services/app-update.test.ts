@@ -22,6 +22,11 @@ it.each(['0.5.2', '0.5.3', '0.5.4-beta.1', 'junk'])('never offers downgrade/curr
   expect((await service.download()).status).toBe('current');
 });
 it('accepts only stable versions', () => { expect(stableVersion('v0.5.4')).toBe('0.5.4'); expect(stableVersion(null)).toBeNull(); });
+it('accepts a major release and clears its announcement after a failed subsequent check', async () => {
+  const f = await fixture({ check: vi.fn().mockResolvedValueOnce({ version: '1.0.0', notes: '- 所有桌宠新增功能。', date: '2026-10-22T00:00:00Z' }).mockRejectedValueOnce(new Error('offline')) });
+  expect(await f.service.check()).toMatchObject({ status: 'available', latestVersion: '1.0.0', releaseNotes: '- 所有桌宠新增功能。' });
+  expect(await f.service.check()).toMatchObject({ status: 'error', latestVersion: null, releaseNotes: '', releaseDate: null });
+});
 it('schedules automatic checks, suppresses repeats across restart, manual bypasses interval and disabled auto', async () => {
   const dataDir = await dir(), f = await fixture({}, dataDir); vi.useFakeTimers(); f.service.configure(true);
   await vi.advanceTimersByTimeAsync(29); expect(f.adapter.check).not.toHaveBeenCalled();

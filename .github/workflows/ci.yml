@@ -31,6 +31,9 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      - name: Validate release policy
+        run: npm run release:check
+
       - name: Unit tests
         run: npm test
 

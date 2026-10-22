@@ -40,3 +40,5 @@
 .bubble-editor-preview #bubble-preview-pet{margin:0 auto}.bubble-editor-preview .pet-demo{display:none}
 #bubble-completion-audio{margin:18px 0;padding-top:14px;border-top:1px solid var(--line)}
 @media(max-width:950px){.bubble-editor-grid{grid-template-columns:minmax(0,1fr)}.bubble-editor-preview{position:static;width:245px;max-width:100%}}
+
+#update-announcement{min-width:0;max-width:100%}#update-announcement h4{margin:16px 0 6px}.update-notes{min-width:0;max-width:100%;box-sizing:border-box}

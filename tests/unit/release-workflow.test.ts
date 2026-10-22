@@ -13,13 +13,14 @@ const steps = workflow.jobs['build-and-release'].steps;
 const directories: string[] = [];
 afterEach(async () => { for (const directory of directories.splice(0)) { if (!path.resolve(directory).startsWith(path.resolve(os.tmpdir()) + path.sep) || !path.basename(directory).startsWith('desktoppet-release-gate-')) throw new Error('Unexpected cleanup target'); await rm(directory, { recursive: true, force: true }); } });
 async function fixture(mode = 'valid', stepName = 'Publish only after every asset is verified') {
-  const directory = await mkdtemp(path.join(os.tmpdir(), 'desktoppet-release-gate-')); directories.push(directory); await mkdir(path.join(directory, 'release'));
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'desktoppet-release-gate-')); directories.push(directory); await mkdir(path.join(directory, 'release')); await mkdir(path.join(directory, 'docs/releases'), { recursive: true });
+  await writeFile(path.join(directory, 'docs/releases/v0.5.3.md'), mode === 'notes-blank' ? '  ' : '- User-facing change.\n');
   const names = ['DesktopPet-0.5.3-Setup-x64.exe', 'DesktopPet-0.5.3-Portable-x64.exe', 'SHA256SUMS.txt', 'latest.yml', 'DesktopPet-0.5.3-Setup-x64.exe.blockmap'];
   const assets = await Promise.all(names.map(async name => { const data = Buffer.from(`fixture ${name}`); await writeFile(path.join(directory, 'release', name), data); return { name, size: data.length, state: 'uploaded', digest: `sha256:${createHash('sha256').update(data).digest('hex')}` }; }));
   if (mode === 'missing') assets.pop();
   if (mode === 'digest') assets[0].digest = 'sha256:' + '0'.repeat(64);
   if (mode === 'size') assets[0].size++;
-  const release = { id: 123, tag_name: 'v0.5.3', draft: mode !== 'published', assets };
+  const release = { id: 123, tag_name: 'v0.5.3', draft: mode !== 'published', body: mode === 'notes-missing' ? undefined : mode === 'notes-mismatch' ? 'old announcement' : '- User-facing change.', assets };
   const old = { id: 1, tag_name: 'v0.5.2', draft: false, assets: [] };
   const pages = mode === 'none' ? [[old]] : mode === 'single' ? [[old, release]] : [[old], mode === 'duplicate' ? [release, { ...release, id: 124 }] : [release]];
   await writeFile(path.join(directory, 'pages.json'), JSON.stringify(pages));
@@ -28,10 +29,16 @@ Set-Location -LiteralPath $PSScriptRoot
 $env:GITHUB_REPOSITORY='Forest-Wood/DesktopPlay'
 $env:RELEASE_TAG='v0.5.3'
 $env:GITHUB_OUTPUT=Join-Path $PSScriptRoot 'output'
+function node {
+  [IO.File]::WriteAllText((Join-Path $PSScriptRoot 'baseline-check'), ($args -join '|'))
+  $global:LASTEXITCODE=${mode === 'stale-base' ? '1' : '0'}
+}
 function gh {
   $global:LASTEXITCODE=0
   if ($args -contains 'upload') { [IO.File]::WriteAllText((Join-Path $PSScriptRoot 'uploaded'), ($args -join '|')); ${mode === 'upload-fails' ? '$global:LASTEXITCODE=1' : ''}; return }
+  if ($args -contains 'edit') { [IO.File]::WriteAllText((Join-Path $PSScriptRoot 'notes-updated'), ($args -join '|')); ${mode === 'notes-edit-fails' ? '$global:LASTEXITCODE=1' : ''}; return }
   if ($args -contains 'PATCH') { [IO.File]::WriteAllText((Join-Path $PSScriptRoot 'published'), ($args -join '|')); return }
+  if (($args -join ' ') -match '/releases/latest') { return '{"tag_name":"v0.5.2"}' }
   if ($args -notcontains '--paginate' -or $args -notcontains '--slurp' -or ($args -join ' ') -match '/releases/tags/') { throw 'Draft lookup must use paginated release collection' }
   return [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'pages.json'))
 }
@@ -48,7 +55,7 @@ ${steps.find(s => s.name === stepName)!.run}
 it.skipIf(process.platform !== 'win32').each(['valid', 'single'])('publishes only the exact verified draft with %s pagination', async mode => {
   const f = await fixture(mode); expect(f.result.status, f.result.stderr).toBe(0); expect(await readFile(path.join(f.directory, 'published'), 'utf8')).toContain('releases/123');
 });
-it.skipIf(process.platform !== 'win32').each(['missing', 'digest', 'size', 'duplicate', 'published'])('keeps %s resources unpublished', async mode => {
+it.skipIf(process.platform !== 'win32').each(['missing', 'digest', 'size', 'duplicate', 'published', 'notes-missing', 'notes-mismatch', 'notes-blank', 'stale-base'])('keeps %s resources unpublished', async mode => {
   const f = await fixture(mode); expect(f.result.status).not.toBe(0); await expect(readFile(path.join(f.directory, 'published'))).rejects.toThrow();
 });
 it.skipIf(process.platform !== 'win32')('refuses to overwrite an already published version', async () => {
@@ -62,16 +69,29 @@ it.skipIf(process.platform !== 'win32')('rejects ambiguous drafts before replaci
   const f = await fixture('duplicate', 'Refuse to overwrite a published release'); expect(f.result.status).not.toBe(0);
 });
 it.skipIf(process.platform !== 'win32')('replaces only the five draft assets without patching tag or target', async () => {
-  const f = await fixture('valid', 'Replace assets in an existing draft without rewriting release metadata'); expect(f.result.status, f.result.stderr).toBe(0);
+  const f = await fixture('valid', 'Replace draft assets and announcement'); expect(f.result.status, f.result.stderr).toBe(0);
   const command = await readFile(path.join(f.directory, 'uploaded'), 'utf8');
   expect(command.split('|').slice(0, 3)).toEqual(['release', 'upload', 'v0.5.3']);
   expect(command).toContain('--repo|Forest-Wood/DesktopPlay|--clobber');
+  expect(await readFile(path.join(f.directory, 'notes-updated'), 'utf8')).toContain('--notes-file|');
   const uploaded = command.split('|').slice(3, -3).map(filename => realpathSync.native(filename)).sort();
   const expected = ['DesktopPet-0.5.3-Setup-x64.exe', 'DesktopPet-0.5.3-Portable-x64.exe', 'SHA256SUMS.txt', 'latest.yml', 'DesktopPet-0.5.3-Setup-x64.exe.blockmap'].map(name => realpathSync.native(path.join(f.directory, 'release', name))).sort();
   expect(uploaded).toEqual(expected);
   await expect(readFile(path.join(f.directory, 'published'))).rejects.toThrow();
 });
 it.skipIf(process.platform !== 'win32')('does not proceed after a failed draft asset upload', async () => {
-  const f = await fixture('upload-fails', 'Replace assets in an existing draft without rewriting release metadata'); expect(f.result.status).not.toBe(0);
+  const f = await fixture('upload-fails', 'Replace draft assets and announcement'); expect(f.result.status).not.toBe(0);
   await expect(readFile(path.join(f.directory, 'published'))).rejects.toThrow();
+});
+
+it.skipIf(process.platform !== 'win32')('keeps the draft unpublished if its announcement cannot be updated', async () => {
+  const f = await fixture('notes-edit-fails', 'Replace draft assets and announcement'); expect(f.result.status).not.toBe(0);
+  await expect(readFile(path.join(f.directory, 'published'))).rejects.toThrow();
+});
+it('requires a declared release plan and uses authored notes instead of generated PR lists', () => {
+  const policy = steps.find(step => step.name === 'Validate release policy and announcement')!;
+  expect(policy.run).toContain('--require-plan --latest-version $latest.tag_name --tag $env:RELEASE_TAG');
+  expect(readFileSync('.github/workflows/release.yml', 'utf8')).not.toContain('generate_release_notes: true');
+  expect(readFileSync('.github/workflows/release.yml', 'utf8')).toContain('body_path: docs/releases/${{ env.RELEASE_TAG }}.md');
+  expect(workflow.jobs['build-and-release'].steps.find(step => step.name === 'Publish only after every asset is verified')!.run).toContain('--require-plan --latest-version $latest.tag_name --tag $env:RELEASE_TAG');
 });

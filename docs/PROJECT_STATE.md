@@ -4,16 +4,14 @@
 
 ## 当前工作
 
-- [T010](tasks/T010-persona-notifications.md) 已由 [PR #10](https://github.com/Forest-Wood/DesktopPlay/pull/10) 合并到 `fcf3f30`；[PR CI #36](https://github.com/Forest-Wood/DesktopPlay/actions/runs/39629868426) 通过。包含 DSH v4 普通／Zstandard 提醒、三桌宠全部气泡档案、三来源独立文案和完成音效。
-- [T011](tasks/T011-release-v054.md) 已完成 v0.5.4 发布。发布准备 `912cc30` 经 [PR #11](https://github.com/Forest-Wood/DesktopPlay/pull/11) 合并到 `9be3fd6`，新标签 v0.5.4 指向该提交。工作目录 `D:\desktop1\DesktopPlay`，分支 `release/T011-v054`；开始时干净，后续发布交接文档提交见分支历史。
-- [v0.5.4](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v0.5.4) 已于 2026-10-22 00:16:36（Asia/Shanghai）自动发布为正式 latest，Release `419779328`；标签源码 `9be3fd6`。五附件由工作流核实后转正，公开完整下载与摘要复核通过；旧发布不变。
+- [T012](tasks/T012-release-policy.md) 已实现版本规范、统一发布准备／CI 校验及简短更新公告，本地验证通过并推送，已创建 [PR #13](https://github.com/Forest-Wood/DesktopPlay/pull/13)，待审查；未合并／发布。
+- 工作目录 `D:\desktop1\DesktopPlay`，分支 `feat/T012-release-policy`，交付前 fetch 核实 main 仍为基准 `5a978af`；实现提交 `5c6a286`。开始时干净，无带入修改。保留版本 0.5.4，不在普通开发阶段提前升版本。
+- [v0.5.4](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v0.5.4) 发布记录见 [T011](tasks/T011-release-v054.md)，标签源码 `9be3fd6`，Release `419779328`；本任务未更改历史标签／Release／附件。
 
 ## 验证状态
 
-- **通过**：T010 PR CI 与[主线 CI](https://github.com/Forest-Wood/DesktopPlay/actions/runs/39631043773) 完整通过，含两个 helper 和 Electron；T011 v0.5.4 工作区本地构建／类型与 223 单测通过。
-- **通过**：[T011 PR CI #38](https://github.com/Forest-Wood/DesktopPlay/actions/runs/39632121271) 全部通过。本地 NSIS／portable 打包、五资源校验、asar 运行依赖／内置完成音效检查通过；发布提交树与已验证 PR 一致。
-- **通过**：[Release #13](https://github.com/Forest-Wood/DesktopPlay/actions/runs/39632962647) 与[发布主线 CI #39](https://github.com/Forest-Wood/DesktopPlay/actions/runs/39632936724) 全部成功。五附件已自动校验后发布，正式 latest 已确认；公开 Portable HEAD／校验文件 GET 与元数据一致。
-- **通过**：五附件公开 GET 200／完整下载／大小／SHA-256 与 GitHub 元数据一致，SHA256SUMS 及 latest.yml 的版本、文件名、大小、SHA-512 交叉核实通过；远程标签指向一致。摘要与证据位置见 T011。
+- **通过**：T012 本地构建／类型、23 文件／252 单测、版本开发基线校验；隔离更新公告 Electron smoke 1/1。细节与证据位置见 T012。
+- **通过**：隔离副本准备为 0.5.5、NSIS／portable 打包、公告实际写入 latest.yml、版本／校验和／asar 依赖核实；实际工作区仍为 0.5.4。最终差异、文档链接及 UTF-8 检查通过。本地通过不代表远程 CI 或真实发布已验证。
 - **保留限制**：T010 本地完整 Electron 一轮 15/16，原生鼠标偏移 26px、容差 1px；原样单独重试通过，未解决根因。更早失败／恢复记录见 T010／T009，不用新的通过结果抹除。
 - **未运行**：真实账户与真实 DSH／Work 端到端、真实用户数据覆盖升级、WSL／远程／其他 DSH 格式。本次不改更新器实现，不重复独立两版本升级实验；隔离测试不代替真实试用。
 
@@ -25,4 +23,4 @@ v0.5.3 用户可在软件内更新；更早版本可直接手动覆盖升级，�
 
 ## 下一步
 
-发布已完成，不重跑或覆盖 v0.5.4。后续可补真实客户端与真实数据验证、既有草稿上传恢复路径实测；新独立任务下一编号 T012／R017。
+审查 [PR #13](https://github.com/Forest-Wood/DesktopPlay/pull/13)，查看远程 CI 实际结果；合并及发布按后续授权处理。新独立任务下一编号 T013／R019。既有真实客户端、真实数据和草稿恢复路径验证继续保留待办，不重跑或覆盖 v0.5.4。
