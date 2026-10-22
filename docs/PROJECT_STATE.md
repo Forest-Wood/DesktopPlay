@@ -4,18 +4,19 @@
 
 ## 当前工作
 
-- [T013](tasks/T013-conversation-attention.md) 已实现三来源等待回应、常驻对话气泡及短句候选／数量／随机顺序控制，本地验证通过，已提交并推送。[PR #14](https://github.com/Forest-Wood/DesktopPlay/pull/14) **已创建，待审查，未合并、未发布**。
-- 工作目录 `D:\desktop1\DesktopPlay`；分支 `feat/T013-conversation-attention`；基准为 main `f43b0154619b77145374a3c21fd49ecbdbc786a8`，推送前再次 fetch 核实未变化；实现提交 `369344a3a1312d9496a67f61d3309f9fa522d1af`，交接记录后续提交见分支历史。开始时干净，无带入修改；普通开发保留版本 0.5.4。
-- 开始时受限 fetch 失败，提权 `git fetch origin main` 成功，核实 [T012／PR #13](https://github.com/Forest-Wood/DesktopPlay/pull/13) 已合并。版本规则与更新公告仍有效。
+- 用户已授权 [T014：发布 v1.0.0](tasks/T014-release-v100.md)，当前**发布准备中，尚未正式发布**。最新正式版仍为 v0.5.4。
+- 工作目录 `D:\desktop1\DesktopPlay`；分支 `release/T014-v100`；基准为最新 main `7ac74a2ef2f09d33269f3a61bd5b2880f53dfec0`（[PR #14](https://github.com/Forest-Wood/DesktopPlay/pull/14) 已合并），结果提交：未提交。开始时干净，无带入修改。
+- [T013](tasks/T013-conversation-attention.md) 实现三来源等待回应、常驻对话气泡及短句候选／数量／随机顺序控制，已验证并合并；PR CI #46 完整通过。按已合并 T012 的规则，三桌宠新增功能为 major，已有完成提醒完善为 patch；本次从 0.5.4 一次升至 1.0.0，保留旧版本。
 - [v0.5.4](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v0.5.4) 发布记录见 [T011](tasks/T011-release-v054.md)，标签源码 `9be3fd6`，Release `419779328`；本任务未更改历史标签／Release／附件。
 
 ## 验证状态
 
-- **通过**：T013 类型检查、构建、25 文件／262 单测；最终完整隔离 Electron **18/18（1.2 分钟）**，包括旧原生鼠标和新常驻／短句交互。截图已目视检查。
+- **通过**：T014 的 v1.0.0 版本／公告校验、构建、25 文件／262 单测、卸载 helper 三场景、更新 helper 七场景、本地安装／免安装打包与更新资源／运行依赖核对。T013 的 PR CI #46 和合并主线 CI #47 完整通过。
+- **失败／保留**：T014 本地 Electron 17/18，原生鼠标位置偏移；原样单项复跑仍失败。其余新旧交互通过。该历史间歇问题不修改断言掩盖；发布准备仍需远程完整 CI 通过。T013 最终本地完整 18/18 及失败恢复见其任务记录。
 - **通过**：真实 Codex 0.162.0-alpha.17.2 的独立 CLI TUI 提问／审批及 IDE 捆绑 app-server 协议链路；回环合成模型、隔离 CODEX_HOME，无真实账户或付费推理。转发不可用时原审批请求仍出现；含空格、美元符、单引号路径验证通过。命令、证据、适用范围见 T013。
 - **失败后修复**：完整 Electron 初轮 15/18 的旧语义断言；修正后相关 11/11、最终完整 18/18。PowerShell 命令引号／模板替换、测试 stdin／迁移文件名和模型 fixture 的失败均保留在 T013。
-- **环境限制**：受限 Electron 因已有 AppContainer ACL 失败，提权隔离测试通过；未改 ACL、未关闭应用沙箱。T010 旧原生鼠标间歇偏移根因仍未解决，不能用本轮通过抹除历史。
-- **未运行**：真实 Work／DSH 端到端、真实账户、完整 IDE GUI、打包／安装卸载／覆盖升级、WSL／远程和其他 DSH 版本。运行时合成验证与真实客户端试用分别记录。
+- **环境限制**：受限 Electron 因已有 AppContainer ACL 失败，沿用提权隔离环境；未改 ACL、未关闭应用沙箱。本次更新 helper 初轮受限进程查询权限失败，提权原样七场景通过。T010 原生鼠标间歇偏移根因仍未解决。
+- **未运行**：真实 Work／DSH 端到端、真实账户、完整 IDE GUI、真实安装卸载／覆盖升级、WSL／远程和其他 DSH 版本。运行时合成验证与真实客户端试用分别记录。
 
 ## 兼容与发布约定
 
@@ -29,4 +30,4 @@ v0.5.3 用户可在软件内更新；更早版本可直接手动覆盖升级，�
 
 ## 下一步
 
-审查 T013／PR #14 并检查远程 CI；真实 Work／DSH 与 IDE GUI 试用分别补记录。合并与正式发布按后续授权。下一独立任务编号 T014／R022，不覆盖已发布 v0.5.4。
+完成 T014 发布准备与验证，整合到 main，推送新标签并核对正式 Release／latest、公告及五附件公开下载。真实 Work／DSH 与 IDE GUI 试用分别补记录。下一独立任务编号 T015／R023，不覆盖已发布版本。

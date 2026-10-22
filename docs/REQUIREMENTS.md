@@ -24,9 +24,10 @@
 | R016 | 发布 v0.5.4 并核实下载与更新资源 | 已正式发布，五附件公开下载与摘要核实通过 | [T011](tasks/T011-release-v054.md) |
 | R017 | 按修改类型与桌宠覆盖范围规范版本命名 | 已合并（f43b015） | [T012](tasks/T012-release-policy.md) |
 | R018 | GitHub 与软件内共用简短更新公告 | 已合并（f43b015） | [T012](tasks/T012-release-policy.md) |
-| R019 | 三来源等待回应提醒及 Codex CLI／IDE hook 接入 | 已实现并本地验证，已推送／[PR #14 待审查](https://github.com/Forest-Wood/DesktopPlay/pull/14) | [T013](tasks/T013-conversation-attention.md) |
-| R020 | 对话提醒保持到点击气泡 | 已实现并本地验证，已推送／[PR #14 待审查](https://github.com/Forest-Wood/DesktopPlay/pull/14) | [T013](tasks/T013-conversation-attention.md) |
-| R021 | 陪伴短句候选、每轮数量与随机／顺序模式 | 已实现并本地验证，已推送／[PR #14 待审查](https://github.com/Forest-Wood/DesktopPlay/pull/14) | [T013](tasks/T013-conversation-attention.md) |
+| R019 | 三来源等待回应提醒及 Codex CLI／IDE hook 接入 | 已合并（7ac74a2），待随 v1.0.0 发布 | [T013](tasks/T013-conversation-attention.md) |
+| R020 | 对话提醒保持到点击气泡 | 已合并（7ac74a2），待随 v1.0.0 发布 | [T013](tasks/T013-conversation-attention.md) |
+| R021 | 陪伴短句候选、每轮数量与随机／顺序模式 | 已合并（7ac74a2），待随 v1.0.0 发布 | [T013](tasks/T013-conversation-attention.md) |
+| R022 | 发布 v1.0.0 并核实公告、下载与更新资源 | 发布准备中 | [T014](tasks/T014-release-v100.md) |
 
 ## R001：默认气泡显示时间
 
@@ -177,3 +178,9 @@ ChatGPT Work 识别原生提问、权限及异步提问通知；Codex 桌面／C
 三桌宠分别保存候选索引、每轮 N 和随机／顺序模式，自定义 GPT 使用原版档案。N 为 0–20，0 关闭短句页；候选至少 N 条，不足时拒绝保存。每轮恰好 N 条、每页一句，随机同轮不重复，顺序从上轮实际看过的位置继续。完成翻页一轮或收起重开时开启新轮，普通状态广播不重抽；运行时顺序游标不跨软件重启保存。
 
 验收：旧配置默认全选、N 为原列表长度、顺序展示；列表编辑同步保留未改短句的勾选。草稿跨桌宠／分页保留，保存重启保持数量、模式与候选；非法范围、重复／越界索引及候选不足原子拒绝，覆盖零数量、随机不重复、顺序续接及中途关闭。
+
+## R022：v1.0.0 发布（T014）
+
+行为：用户于 2026-10-22 明确要求发布新的 Release，将已合并的 T012／T013 变更正式发布。按 R017 的范围规则，三桌宠新增功能为 major，完成气泡完善为 patch，从最新正式 v0.5.4 一次升至 v1.0.0；同步版本、发布计划、简短公告和交接，核对后整合到 main，创建新标签并沿用草稿上传／核实后转正流程。保留旧正式版本及标签，不触碰真实用户数据。
+
+验收：版本字段、标签、发布计划计算一致；发布准备 CI、两个 helper、Electron 与包资源验证通过。正式 latest 为 v1.0.0，GitHub Release 正文与软件更新公告一致，两个 EXE、SHA256SUMS.txt、latest.yml 和 NSIS blockmap 均完整上传，公开下载与字节数、SHA-256／SHA-512 交叉核对一致。记录失败恢复及未运行限制，提供正式下载入口。
