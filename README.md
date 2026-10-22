@@ -4,6 +4,14 @@ DesktopPet 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek �
 
 已发布 [v0.5.4](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v0.5.4)，包含 DSH 提醒、气泡独立配置和完成音效。发布核实见 [T011 任务记录](docs/tasks/T011-release-v054.md)，功能实现与验证见 [T010](docs/tasks/T010-persona-notifications.md)。
 
+## 当前开发功能（尚未发布）
+
+- GPT Work、Codex、DeepSeek Harness 支持等待回答／审批提醒；等待及完成气泡保持到点击正文或现有关闭控件，隐藏桌宠或退出时清空。普通用量与短句气泡仍按设置自动收起。
+- “提醒与记录 → 对话完成提醒”增加各来源等待开关。Codex 桌面／CLI／IDE 需勾选 hook 接入、保存，再在原客户端 `/hooks` 中信任转发项；关闭接入只移除本程序的 hook，已有配置保留并备份。Work 需开启原生提问／权限通知，DSH 支持 v4 普通／压缩日志。
+- “桌宠与陪伴 → 陪伴短句”可勾选候选库、设置每轮 0–20 条及随机／顺序模式。0 关闭短句页，候选数至少等于每轮数量；顺序接着上轮实际看过的位置继续，重启从头开始。
+
+实现、验证和限制见 [T013](docs/tasks/T013-conversation-attention.md)。本机 CLI 与 IDE 引擎已用隔离合成模型验证；真实 Work／DSH 和完整 IDE 界面试用仍需另行验证。下方版本说明保留已发布行为。
+
 ## 桌宠与功能
 
 - 紧凑的漫画气泡、清晰的大字额度、按压弹性动画和音效；DeepSeek 使用蓝紫配色，GPT 原版使用薄荷绿，白龙使用淡紫配色。

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { AppState, CodexCompletionNotice, DesktopApi } from '../shared/types';
+import type { AppState, CodexCompletionNotice, ConversationNotice, DesktopApi } from '../shared/types';
 
 const api: DesktopApi = {
   checkForUpdates: () => ipcRenderer.invoke('desktopplay:check-update'),
@@ -16,6 +16,11 @@ const api: DesktopApi = {
   },
   chooseDeepseekCompletionDirectory: () => ipcRenderer.invoke('desktopplay:choose-deepseek-completion-directory'),
   chooseCodexCompletionDirectory: () => ipcRenderer.invoke('desktopplay:choose-codex-completion-directory'),
+  onConversationNotice: callback => {
+    const listener = (_: Electron.IpcRendererEvent, notice: ConversationNotice) => callback(notice);
+    ipcRenderer.on('desktopplay:conversation-notice', listener);
+    return () => ipcRenderer.removeListener('desktopplay:conversation-notice', listener);
+  },
   onCodexCompletion: callback => {
     // Shared completion channel: only identifiers, timestamp and optional source.
     const listener = (_: Electron.IpcRendererEvent, notice: CodexCompletionNotice) => callback(notice);

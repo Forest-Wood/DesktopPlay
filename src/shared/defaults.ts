@@ -1,4 +1,5 @@
 import { DEFAULT_BUBBLE_PROFILES, SOUND_SLOTS } from './bubble-settings';
+import { phraseDisplays } from './phrases';
 import type { AppSettings, BuiltinPetId, PetAsset, PetPersona, SoundMetadataMap } from './types';
 export const APP_VERSION = '0.5.4';
 export const DEFAULT_COMPLETION_MESSAGES: Record<PetPersona, string> = {
@@ -25,12 +26,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
   codexCompletionEnabled: true,
   chatgptCompletionEnabled: true,
   deepseekCompletionEnabled: true,
+  attentionEnabledBySource: { codex: true, 'chatgpt-work': true, 'deepseek-harness': true },
+  codexHookEnabled: false,
   deepseekCompletionDirectory: null,
   bubbleProfilesByPersona: structuredClone(DEFAULT_BUBBLE_PROFILES),
   codexCompletionDirectory: null,
   completionMessagesByPersona: { ...DEFAULT_COMPLETION_MESSAGES },
   phrases: ['今天也要照顾好自己呀。', '小鲸鱼正在替你看着余额～', '工作一会儿，记得眺望远方。'],
   phrasesByPersona: structuredClone(DEFAULT_PHRASES_BY_PERSONA),
+  phraseDisplayByPersona: phraseDisplays(DEFAULT_PHRASES_BY_PERSONA),
   lowBalanceThreshold: null,
   dailyBudget: null,
 };

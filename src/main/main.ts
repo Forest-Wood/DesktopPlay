@@ -1,4 +1,6 @@
-import { SOUND_SLOTS, sourceEnabled } from '../shared/bubble-settings';
+import { SOUND_SLOTS, sourceEnabled, conversationEnabled } from '../shared/bubble-settings';
+import { CodexAttentionService, supportsCodexHooks } from './services/codex-attention';
+import { createHash } from 'node:crypto';
 import { DeepseekCompletionService } from './services/deepseek-completion';
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, safeStorage, screen, shell, Tray } from 'electron';
 import type { IpcMainEvent, IpcMainInvokeEvent } from 'electron';
@@ -21,7 +23,7 @@ import { UninstallManager } from './uninstall';
 import { characterOrigin, fitScale, petSize, placeCharacter } from './geometry';
 import type { Orientation, Point } from './geometry';
 import { contains, getPetLayout, PET_WIDTH } from '../shared/pet-layout';
-import type { AppState, AppSettings, BuiltinPetId, GptAppearance, BubblePlacement, CodexCompletionNotice } from '../shared/types';
+import type { AppState, AppSettings, BuiltinPetId, GptAppearance, BubblePlacement, CodexCompletionNotice, ConversationNotice } from '../shared/types';
 
 app.setName('DesktopPet');
 app.setAppUserModelId('io.github.forestwood.desktopplay');
@@ -42,6 +44,7 @@ let codex: CodexQuotaService;
 let completion: CodexCompletionService;
 let chatgptCompletion: ChatgptCompletionService;
 let deepseekCompletion: DeepseekCompletionService;
+let codexAttention: CodexAttentionService;
 let updates: AppUpdateService;
 let portableUpdates: PortableUpdateManager | undefined;
 let updateBusy = false;
@@ -68,7 +71,7 @@ else {
 }
 app.on('window-all-closed', () => { /* The tray keeps the desktop pet alive. */ });
 app.on('before-quit', () => {
-  quitting = true; service?.dispose(); codex?.dispose(); completion?.dispose(); chatgptCompletion?.dispose(); deepseekCompletion?.dispose(); updates?.dispose();
+  quitting = true; service?.dispose(); codex?.dispose(); completion?.dispose(); chatgptCompletion?.dispose(); deepseekCompletion?.dispose(); codexAttention?.dispose(); updates?.dispose();
   if (codexTimer) clearInterval(codexTimer);
   if (dragTimer) clearInterval(dragTimer);
   if (hitTimer) clearInterval(hitTimer);
@@ -76,8 +79,12 @@ app.on('before-quit', () => {
   tray?.destroy();
 });
 
+function sendConversationNotice(notice: ConversationNotice): void {
+  if (!shuttingDown && !quitting && Date.parse(notice.occurredAt) >= petVisibleSince && conversationEnabled(service.getState().settings, notice) && petWindow?.isVisible() && !petWindow.webContents.isLoadingMainFrame()) petWindow.webContents.send('desktopplay:conversation-notice', { ...notice, id: createHash('sha256').update(`${notice.source}:${notice.id}`).digest('hex') });
+}
+
 function orientation(): Orientation { return { flipped, verticalFlipped, bubblePlacement }; }
-function getState(): AppState { return { ...service.getState(), petVisible: !!petWindow && !petWindow.isDestroyed() && petWindow.isVisible(), appUpdate: updates?.getState() ?? initialUpdateState(), sounds: sounds.getMetadata(), pet: assets.get(), activePet: assets.getSelected(), gptAppearance: assets.getGptAppearance(), hasCustomGpt: assets.hasCustomGpt(), codex: codex.getState(), codexCompletion: completion.getState(), chatgptCompletion: chatgptCompletion.getState(), deepseekCompletion: deepseekCompletion.getState(), ...orientation(), effectiveScale: petWindow && !petWindow.isDestroyed() ? petWindow.getBounds().width / PET_WIDTH : service.getState().settings.scale }; }
+function getState(): AppState { return { ...service.getState(), petVisible: !!petWindow && !petWindow.isDestroyed() && petWindow.isVisible(), appUpdate: updates?.getState() ?? initialUpdateState(), sounds: sounds.getMetadata(), pet: assets.get(), activePet: assets.getSelected(), gptAppearance: assets.getGptAppearance(), hasCustomGpt: assets.hasCustomGpt(), codex: codex.getState(), codexCompletion: completion.getState(), chatgptCompletion: chatgptCompletion.getState(), deepseekCompletion: deepseekCompletion.getState(), codexAttention: codexAttention.getState(), ...orientation(), effectiveScale: petWindow && !petWindow.isDestroyed() ? petWindow.getBounds().width / PET_WIDTH : service.getState().settings.scale }; }
 function publish(): void {
   const state = getState();
   for (const win of [petWindow, settingsWindow]) if (win && !win.isDestroyed() && !win.webContents.isLoadingMainFrame()) win.webContents.send('desktopplay:state', state);
@@ -100,13 +107,16 @@ async function start(): Promise<void> {
   await codex.init();
   const completionOptions = {
     onState: publish,
+    onAttention: sendConversationNotice,
     onNotice: (notice: CodexCompletionNotice) => {
       if (!shuttingDown && !quitting && Date.parse(notice.completedAt) >= petVisibleSince && sourceEnabled(service.getState().settings, notice.source ?? 'codex') && petWindow?.isVisible() && !petWindow.webContents.isLoadingMainFrame()) petWindow.webContents.send('desktopplay:codex-completion', notice);
+      sendConversationNotice({ id: notice.id, source: notice.source ?? 'codex', occurredAt: notice.completedAt, kind: 'completion' });
     },
   };
   completion = new CodexCompletionService(completionOptions);
   chatgptCompletion = new ChatgptCompletionService(completionOptions);
   deepseekCompletion = new DeepseekCompletionService(completionOptions);
+  codexAttention = new CodexAttentionService({ dataDir, helperPath: path.join(__dirname, 'conversation-hook.ps1'), onState: publish, onNotice: sendConversationNotice, isSupported: () => supportsCodexHooks(codex.getExecutablePath()) });
   const updateKind = app.isPackaged && process.platform === 'win32' && process.arch === 'x64' ? process.env.PORTABLE_EXECUTABLE_FILE ? 'portable' : 'installed' : 'unsupported';
   if (updateKind === 'portable') portableUpdates = new PortableUpdateManager({ programPath: process.env.PORTABLE_EXECUTABLE_FILE!, exePath: process.execPath, dataDir, helperPath: path.join(__dirname, 'update-helper.ps1') });
   const backend = updateKind === 'installed' ? new InstalledUpdateBackend() : updateKind === 'portable' ? new PortableUpdateBackend({ cacheDir: path.join(dataDir, 'updates', 'downloads'), prepare: (file, hash, version) => portableUpdates!.prepare(file, hash, version) }) : undefined;
@@ -250,7 +260,7 @@ function updateTray(): void {
 function applySettings(): void {
   const settings = service.getState().settings;
   updates?.configure(settings.autoCheckUpdates);
-  if (!lastSettings || (['codexCompletionEnabled', 'codexCompletionDirectory', 'chatgptCompletionEnabled', 'deepseekCompletionEnabled', 'deepseekCompletionDirectory'] as const).some(key => settings[key] !== lastSettings![key])) configureCompletion();
+  if (!lastSettings || (['codexCompletionEnabled', 'codexCompletionDirectory', 'chatgptCompletionEnabled', 'deepseekCompletionEnabled', 'deepseekCompletionDirectory', 'codexHookEnabled', 'attentionEnabledBySource'] as const).some(key => settings[key] !== lastSettings![key])) configureCompletion();
   if (petWindow && !petWindow.isDestroyed()) {
     petWindow.setAlwaysOnTop(settings.alwaysOnTop);
     if (!lastSettings || settings.scale !== lastSettings.scale) {
@@ -271,12 +281,13 @@ function configureCompletion(): void {
   const settings = service.getState().settings;
   const isolated = !app.isPackaged && process.env.DESKTOPPLAY_TEST_NO_CODEX === '1';
   const directory = settings.codexCompletionDirectory ?? (isolated ? process.env.DESKTOPPLAY_TEST_CODEX_HOME || path.join(dataDir, 'codex-test-home') : process.env.CODEX_HOME || path.join(os.homedir(), '.codex'));
+  void codexAttention.configure(settings.codexHookEnabled, directory);
   void completion.configure(settings.codexCompletionEnabled && !shuttingDown, directory);
   const logs = isolated ? [process.env.DESKTOPPLAY_TEST_CHATGPT_LOG_DIR || path.join(dataDir, 'chatgpt-test-logs')]
     : chatgptLogDirectories(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'));
-  void chatgptCompletion.configure(settings.chatgptCompletionEnabled && !shuttingDown, logs);
+  void chatgptCompletion.configure((settings.chatgptCompletionEnabled || settings.attentionEnabledBySource['chatgpt-work']) && !shuttingDown, logs, `${settings.chatgptCompletionEnabled}:${settings.attentionEnabledBySource['chatgpt-work']}`);
   const dshDirectory = settings.deepseekCompletionDirectory ?? (isolated ? process.env.DESKTOPPLAY_TEST_DSH_SESSIONS || path.join(dataDir, 'dsh-test-sessions') : path.join(process.env.DSH_HOME?.trim() ? process.env.DSH_HOME : path.join(os.homedir(), '.dsh'), 'sessions'));
-  void deepseekCompletion.configure(settings.deepseekCompletionEnabled && !shuttingDown, dshDirectory);
+  void deepseekCompletion.configure((settings.deepseekCompletionEnabled || settings.attentionEnabledBySource['deepseek-harness']) && !shuttingDown, dshDirectory, `${settings.deepseekCompletionEnabled}:${settings.attentionEnabledBySource['deepseek-harness']}`);
 }
 
 function scheduleWindowSave(): void {
@@ -364,12 +375,14 @@ async function requestUninstall(event: IpcMainInvokeEvent, removeData: unknown):
     if (codexTimer) clearInterval(codexTimer);
     if (hitTimer) clearInterval(hitTimer);
     service.pause(); codex.pause();
+    codexAttention.pause();
     updates.configure(false);
     void completion.configure(false, completion.getState().directory);
     void chatgptCompletion.configure(false, []); void deepseekCompletion.configure(false, deepseekCompletion.getState().directory);
     await Promise.allSettled([...pendingActions]);
     saveWindowPosition();
-    await Promise.all([service.drain(), codex.drain(), updates.drain(), completion.drain(), chatgptCompletion.drain(), deepseekCompletion.drain(), assets.drain(), sounds.drain(), geometryWrites, preferenceWrites.catch(() => {})]);
+    await Promise.all([service.drain(), codex.drain(), updates.drain(), completion.drain(), chatgptCompletion.drain(), deepseekCompletion.drain(), codexAttention.drain(), assets.drain(), sounds.drain(), geometryWrites, preferenceWrites.catch(() => {})]);
+    await codexAttention.removeForUninstall();
     await prepared.commit();
     setTimeout(() => app.quit(), 100);
     return { started: true };
@@ -396,9 +409,10 @@ async function requestUpdate(event: IpcMainInvokeEvent): Promise<{ started: bool
     if (codexTimer) clearInterval(codexTimer);
     if (hitTimer) clearInterval(hitTimer);
     updates.configure(false); service.pause(); codex.pause();
+    codexAttention.pause();
     void completion.configure(false, completion.getState().directory); void chatgptCompletion.configure(false, []); void deepseekCompletion.configure(false, deepseekCompletion.getState().directory);
     await Promise.allSettled([...pendingActions]); saveWindowPosition();
-    await Promise.all([updates.drain(), service.drain(), codex.drain(), completion.drain(), chatgptCompletion.drain(), deepseekCompletion.drain(), assets.drain(), sounds.drain(), geometryWrites, preferenceWrites]);
+    await Promise.all([updates.drain(), service.drain(), codex.drain(), completion.drain(), chatgptCompletion.drain(), deepseekCompletion.drain(), codexAttention.drain(), assets.drain(), sounds.drain(), geometryWrites, preferenceWrites]);
     await prepared.commit();
     if (updates.getState().kind === 'portable') setTimeout(() => app.quit(), 100);
     return { started: true };
@@ -452,7 +466,7 @@ function registerIpc(): void {
   handle('reset-sound', async (event, persona, slot) => { assertSettingsSender(event); await sounds.reset(persona, slot); publish(); return getState(); });
   handle('uninstall-info', (event) => { assertSettingsSender(event); return uninstaller.getInfo(); });
   handle('uninstall', requestUninstall);
-  handle('update-settings', async (_event, patch) => { await service.updateSettings(patch); await Promise.all([completion.drain(), chatgptCompletion.drain(), deepseekCompletion.drain()]); return getState(); });
+  handle('update-settings', async (_event, patch) => { await service.updateSettings(patch); await Promise.all([completion.drain(), chatgptCompletion.drain(), deepseekCompletion.drain(), codexAttention.drain()]); return getState(); });
   handle('set-key', async (_event, key) => { await service.setApiKey(key); return getState(); });
   handle('clear-key', async () => { await service.clearApiKey(); return getState(); });
   handle('refresh', async () => { await service.refresh(); return getState(); });

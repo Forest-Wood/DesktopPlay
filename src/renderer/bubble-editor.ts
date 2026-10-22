@@ -16,7 +16,7 @@ export function mountBubbleEditor(root: HTMLElement, api: DesktopApi, initial: A
       <label class="field-label" for="bubble-title">提示标题 · 最多 40 字符</label><input id="bubble-title" maxlength="40">
       <label class="field-label" for="bubble-copy">提示短句 · 最多 200 字符</label><textarea id="bubble-copy" maxlength="200" rows="3"></textarea><p class="hint">数据类气泡保留真实数据，在数据之外显示这段短句。陪伴短句列表继续在“陪伴短句”编辑。</p></div>
       <label id="bubble-time-override-row" class="toggle-label"><span>为此类提示单独设置时间</span><input id="bubble-time-override" type="checkbox"></label>
-      <fieldset id="bubble-time-fields"><legend>显示时间</legend><label for="bubble-profile-duration">自动收起（1–60 秒）</label><input id="bubble-profile-duration" type="number" min="1" max="60" step="1"><label for="bubble-profile-hover">悬浮延长（0–60 秒，0 为关闭）</label><input id="bubble-profile-hover" type="number" min="0" max="60" step="1"></fieldset>
+      <fieldset id="bubble-time-fields"><legend>显示时间</legend><label for="bubble-profile-duration">自动收起（1–60 秒）</label><input id="bubble-profile-duration" type="number" min="1" max="60" step="1"><label for="bubble-profile-hover">悬浮延长（0–60 秒，0 为关闭）</label><input id="bubble-profile-hover" type="number" min="0" max="60" step="1"></fieldset><p id="bubble-persistent-hint" class="hint" hidden>对话提醒常驻至点击，沿用当前外观；显示时间不适用于此类提醒。</p>
       <label id="bubble-style-override-row" class="toggle-label"><span>为此类提示单独设置外观</span><input id="bubble-style-override" type="checkbox"></label>
       <fieldset id="bubble-style-fields"><legend>气泡外观</legend><div class="bubble-colors">${(['background', 'ink', 'border', 'ring'] as const).map((key, i) => `<label for="bubble-color-${key}">${['背景', '文字', '边框与尾巴', '外圈'][i]}<input id="bubble-color-${key}" data-style="${key}" type="color"></label>`).join('')}</div>
       <label for="bubble-font">字体</label><select id="bubble-font" data-style="font"><option value="system">系统默认</option><option value="yahei">微软雅黑</option><option value="dengxian">等线</option><option value="kaiti">楷体</option></select>
@@ -36,7 +36,7 @@ export function mountBubbleEditor(root: HTMLElement, api: DesktopApi, initial: A
     ledger: { today: { date: '2026-10-21', currency: 'CNY', spent: '1.24', increased: '0', startedAt: '' }, history: [] },
     codex: { resetCredits: null, planType: 'pro', status: 'ready', source: 'codex-app-server', available: true, updatedAt: new Date().toISOString(), error: null, buckets: [{ id: 'example', name: '示例额度', planType: 'pro', primary: { usedPercent: 24, remainingPercent: 76, windowMinutes: 300, resetsAt: new Date(Date.now() + 7200000).toISOString() }, secondary: { usedPercent: 42, remainingPercent: 58, windowMinutes: 10080, resetsAt: new Date(Date.now() + 604800000).toISOString() }, creditsRemaining: null, unlimitedCredits: false }] },
   });
-  const previewApi: DesktopApi = { ...api, onCodexCompletion: () => () => {}, onPetHidden: () => () => {}, onUpdateAvailable: () => () => {}, setBubbleVisible: () => {}, setInteractive: () => {} };
+  const previewApi: DesktopApi = { ...api, onConversationNotice: () => () => {}, onCodexCompletion: () => () => {}, onPetHidden: () => () => {}, onUpdateAvailable: () => () => {}, setBubbleVisible: () => {}, setInteractive: () => {} };
   const preview = mountPet(q('#bubble-preview-pet'), previewApi, fakeState(), true);
   const updatePreview = () => { preview.update(fakeState()); preview.preview(kind === 'base' ? 'completion-deepseek-harness' : kind); };
   const soundSlot = () => kind as SoundSlot;
@@ -55,9 +55,13 @@ export function mountBubbleEditor(root: HTMLElement, api: DesktopApi, initial: A
     for (const button of root.querySelectorAll<HTMLButtonElement>('[data-bubble-persona]')) button.setAttribute('aria-pressed', String(button.dataset.bubblePersona === persona));
     q<HTMLSelectElement>('#bubble-scenario').value = kind;
     q('#bubble-copy-fields').hidden = !rule;
-    q('#bubble-enabled-row').hidden = !kind.startsWith('completion-') && !['low-balance', 'daily-budget', 'update'].includes(kind);
+    q('#bubble-enabled-row').hidden = !kind.startsWith('completion-') && !kind.startsWith('attention-') && !['low-balance', 'daily-budget', 'update'].includes(kind);
     q<HTMLInputElement>('#bubble-enabled').checked = rule?.enabled ?? true; q<HTMLInputElement>('#bubble-title').value = rule?.title ?? ''; q<HTMLTextAreaElement>('#bubble-copy').value = rule?.message ?? '';
     q('#bubble-time-override-row').hidden = !rule; q('#bubble-style-override-row').hidden = !rule;
+    const persistent = kind.startsWith('completion-') || kind.startsWith('attention-');
+    q('#bubble-time-override-row').hidden = !rule || persistent;
+    q('#bubble-time-fields').hidden = persistent;
+    q('#bubble-persistent-hint').hidden = !persistent;
     q<HTMLInputElement>('#bubble-time-override').checked = !!rule && Object.keys(rule.timing).length > 0;
     q<HTMLInputElement>('#bubble-style-override').checked = !!rule && Object.keys(rule.style).length > 0;
     q<HTMLFieldSetElement>('#bubble-time-fields').disabled = !!rule && !Object.keys(rule.timing).length;

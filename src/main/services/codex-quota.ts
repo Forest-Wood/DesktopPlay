@@ -210,6 +210,7 @@ export class CodexQuotaService {
     this.executable = executable;
     this.update({ status: 'idle', available: true, planType: null, buckets: [], resetCredits: null, updatedAt: null, error: null });
   }
+  getExecutablePath(): string | null { return this.executable; }
   refresh(): Promise<CodexQuotaState> {
     if (this.inFlight) return this.inFlight;
     if (this.disposed || this.paused || !this.executable) return Promise.resolve(this.getState());

@@ -9,6 +9,7 @@ export function createDemoApi(): DesktopApi {
   let state: AppState = {
     petVisible: true,
     appUpdate: initialUpdateState(),
+    codexAttention: { status: 'disabled', directory: '浏览器演示不配置 hook', error: null },
     codexCompletion: { status: 'disabled', directory: '浏览器演示不读取本机会话', error: null },
     deepseekCompletion: { status: 'disabled', directory: '浏览器演示不读取 DSH 会话', error: null },
     chatgptCompletion: { status: 'disabled', directory: '浏览器演示不读取桌面通知', error: null },
@@ -29,6 +30,7 @@ export function createDemoApi(): DesktopApi {
     onSettingsPage: () => () => {},
     chooseDeepseekCompletionDirectory: async () => { throw new Error('请在桌面应用中选择 DSH 会话目录。'); },
     chooseCodexCompletionDirectory: async () => { throw new Error('请在桌面应用中选择 Codex 目录。'); },
+    onConversationNotice: () => () => {},
     onCodexCompletion: () => () => {},
     onPetHidden: () => () => {},
     getState: async () => state,

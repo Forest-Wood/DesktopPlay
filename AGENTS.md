@@ -99,6 +99,8 @@ README 与 CI 使用 Windows x64、Node.js 24 和 npm；具体依赖与版本以
 
 ChatGPT Work 通知日志同样隔离：上述测试开关开启时只使用测试 profile 的 `chatgpt-test-logs`，或显式的 `DESKTOPPLAY_TEST_CHATGPT_LOG_DIR`，不得自动发现真实桌面日志。模拟原生通知使用虚构账户／会话标识。真实来源调查只输出事件时间、类型和字段形状，不记录账户标识或对话正文；不得擅自改写 ChatGPT 通知配置。
 
+Codex 等待 hook 测试也使用上述隔离主目录，不能修改真实 hooks.json 或信任配置。独立运行时测试入口为 `tests/hook-runtime.mjs`，通过 `DESKTOPPLAY_HOOK_TEST_CODEX` 显式指定待验证原生程序；使用 .tmp 内 CODEX_HOME、回环合成模型和可审查的测试 hook。隔离信任绕过只用于该 fixture，禁止加入生产配置。CLI TUI 测试不得安装／修改系统沙箱或执行真实审批操作。
+
 按改动选择必要检查：纯文档检查链接、内容、差异和范围；共享类型与行为改动运行类型检查及相关单测；界面改动在 build 后运行相关 smoke 并检查渲染结果；卸载、安装和真实账户验证与隔离测试分别记录。一次通过后，只有新改动、失败或未解决疑点才需要扩大或重复验证。
 
 更新测试必须使用独立 appId、安装目录、用户数据和专用 `DesktopPet-T008-*` 开机启动项。`tests/fixtures/update-app.ts` 只用于测试包，其本机 HTTP 注入、控制文件与隔离路径不得导入生产入口。不得增加打包版任意 URL／数据目录环境覆盖，或拿当前真实桌宠试升降级。测试失败时只让该 fixture 退出，不按文件名终止 Electron。更新助手只操作经校验的目标、暂存和备份文件，不复用卸载清理流程。

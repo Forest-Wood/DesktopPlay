@@ -249,6 +249,7 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
     for (const persona of ['whale', 'gpt', 'dragon']) {
       await settings.locator(`[data-persona="${persona}"]`).click();
       await settings.locator('#phrases').fill(`smoke-${persona}`);
+      await settings.locator('#phrase-count').fill('1');
     }
     await settingsPage(settings, 'about', 'guide');
     await settingsPage(settings, 'pet', 'companionship');

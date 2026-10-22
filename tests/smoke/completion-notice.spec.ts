@@ -149,22 +149,22 @@ test('local events use editable persona text, preserve drafts and focus, respect
   } finally { await application.close(); }
 });
 
-test('completion bubbles reuse timing/hover, merge deferred events, use the displayed persona and clear pending on hide', async () => {
+test('completion bubbles persist through timing/hover, merge deferred events, use the displayed persona and clear pending on hide', async () => {
   const f = await profile(), application = await launch(f.directory, f.home);
   try {
     const pet = await application.firstWindow(); await expect(pet.locator('.pet-character')).toBeVisible();
     const now = Date.now(); await pet.clock.install({ time: now }); await pet.clock.pauseAt(now + 1000);
-    const emit = (id: string, source?: 'chatgpt-work') => application.evaluate(({ BrowserWindow }, event) => { BrowserWindow.getAllWindows().find(win => win.webContents.getURL().includes('view=pet'))!.webContents.send('desktopplay:codex-completion', { ...event, completedAt: new Date().toISOString() }); }, { id, source });
+    const emit = (id: string, source: 'chatgpt-work' | 'codex' = 'codex') => application.evaluate(({ BrowserWindow }, event) => { BrowserWindow.getAllWindows().find(win => win.webContents.getURL().includes('view=pet'))!.webContents.send('desktopplay:conversation-notice', { ...event, kind: 'completion', occurredAt: new Date().toISOString() }); }, { id, source });
     const bubble = pet.locator('.pet-bubble');
     await emit('timer'); await pet.clock.runFor(150); await expect(bubble).toBeVisible();
     await pet.clock.runFor(1000); await emit('timer');
-    await pet.clock.runFor(1999); await expect(bubble).toBeVisible(); await pet.clock.runFor(1); await expect(bubble).toBeHidden();
+    await pet.clock.runFor(1999); await expect(bubble).toBeVisible(); await pet.clock.runFor(60001); await expect(bubble).toBeVisible(); await pet.locator('.bubble-message').dispatchEvent('click'); await expect(bubble).toBeHidden();
 
     await pet.evaluate(() => window.desktopPlay.updateSettings({ bubbleDurationSeconds: 2, bubbleHoverDelaySeconds: 1 }));
     await emit('hover', 'chatgpt-work'); await pet.clock.runFor(150); await expect(pet.locator('.bubble-label')).toHaveText('ChatGPT Work 结束提醒'); await bubble.dispatchEvent('pointerenter');
     await pet.clock.runFor(9000); await expect(bubble).toBeVisible();
     await bubble.dispatchEvent('pointerleave'); await pet.clock.runFor(999); await expect(bubble).toBeVisible();
-    await pet.clock.runFor(1); await expect(bubble).toBeHidden();
+    await pet.clock.runFor(60001); await expect(bubble).toBeVisible(); await pet.locator('.bubble-message').dispatchEvent('click'); await expect(bubble).toBeHidden();
     await pet.evaluate(() => window.desktopPlay.updateSettings({ bubbleDurationSeconds: 3, bubbleHoverDelaySeconds: 0 }));
 
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });

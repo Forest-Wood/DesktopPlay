@@ -5,12 +5,12 @@ import { createHash } from 'node:crypto';
 import { zstdDecompress } from 'node:zlib';
 import { promisify } from 'node:util';
 import { completionFileAnchor } from './completion-file-anchor';
-import type { CodexCompletionNotice, CodexCompletionState } from '../../shared/types';
+import type { CodexCompletionNotice, CodexCompletionState, ConversationNotice } from '../../shared/types';
 
 const decompress = promisify(zstdDecompress);
 const MAX_FRAME = 16 * 1024 * 1024, MAX_LINE = 1024 * 1024;
 const missing = (error: unknown) => (error as NodeJS.ErrnoException)?.code === 'ENOENT';
-type Candidate = { turn: number; seq: number; time: number };
+type Candidate = { turn: number; seq: number; time: number; kind?: 'question' | 'approval'; request?: string };
 type Cursor = {
   offset: number; identity: string; prefix: string; prefixBytes: number; anchor: string; pending: Buffer; line: Buffer; oversized: boolean;
   meta: { id: string; root: boolean; seeded: boolean } | null; seedCut: number; candidates: Candidate[];
@@ -46,18 +46,20 @@ export function completeZstdFrame(bytes: Buffer): number | null {
 export class DeepseekCompletionService {
   private state: CodexCompletionState = { status: 'disabled', directory: '', error: null };
   private enabled = false;
+  private scope = '';
   private disposed = false;
   private generation = 0;
   private armedAt = 0;
   private baseline = true;
   private cursors = new Map<string, Cursor>();
   private completed = new Map<string, number>();
+  private attentionSeen = new Set<string>();
   private watcher: FSWatcher | undefined;
   private timer?: ReturnType<typeof setInterval>;
   private debounce?: ReturnType<typeof setTimeout>;
   private inflight: Promise<void> | undefined;
   private active = new Set<Promise<void>>();
-  constructor(private options: { onNotice: (notice: CodexCompletionNotice) => void; onState?: () => void; now?: () => number; pollMs?: number; watchDirectory?: typeof watch }) {}
+  constructor(private options: { onNotice: (notice: CodexCompletionNotice) => void; onAttention?: (notice: ConversationNotice) => void; onState?: () => void; now?: () => number; pollMs?: number; watchDirectory?: typeof watch }) {}
   getState(): CodexCompletionState { return { ...this.state }; }
   /** Millisecond watermark on show also discards a completion not scanned while hidden. */
   discardHiddenHistory(): void { this.armedAt = this.now(); }
@@ -68,11 +70,12 @@ export class DeepseekCompletionService {
     if (JSON.stringify(next) !== JSON.stringify(this.state)) { this.state = next; this.options.onState?.(); }
   }
   private stop() { clearInterval(this.timer); clearTimeout(this.debounce); this.watcher?.close(); this.watcher = undefined; }
-  async configure(enabled: boolean, directory: string): Promise<void> {
+  async configure(enabled: boolean, directory: string, scope = ''): Promise<void> {
     directory = path.resolve(directory);
-    if (this.disposed || (this.enabled === enabled && directory === this.state.directory)) return this.inflight;
+    if (this.disposed || (this.enabled === enabled && this.scope === scope && directory === this.state.directory)) return this.inflight;
+    this.scope = scope;
     this.stop(); this.generation++; this.enabled = enabled; this.armedAt = this.now(); this.baseline = true;
-    this.cursors.clear(); this.completed.clear(); this.inflight = undefined;
+    this.cursors.clear(); this.completed.clear(); this.attentionSeen.clear(); this.inflight = undefined;
     this.update({ directory, status: enabled ? 'starting' : 'disabled', error: null });
     if (!enabled) return;
     const generation = this.generation;
@@ -129,7 +132,7 @@ export class DeepseekCompletionService {
       if (!cursor.oversized && cursor.line.length + part.length <= MAX_LINE) {
         const line = Buffer.concat([cursor.line, part]).toString('utf8');
         // Skip body records before parsing. Only a bounded metadata row is materialized.
-        if (!cursor.meta || /"type"\s*:\s*"(?:turn\/end|session\/end-seed)"/.test(line)) this.row(cursor, line);
+        if (!cursor.meta || /"type"\s*:\s*"(?:turn\/end|session\/end-seed|tool\/call|approval\/asked|approval\/decided)"/.test(line)) this.row(cursor, line);
       }
       cursor.line = Buffer.alloc(0); cursor.oversized = false;
     }
@@ -146,6 +149,11 @@ export class DeepseekCompletionService {
       cursor.meta = { id: row.id, root: row.origin !== 'subagent' && row.delegationDepth === 0, seeded: row.isSeeded }; return;
     }
     if (row?.type === 'session/end-seed' && row.data?.inherited === true && Number.isSafeInteger(row.seq)) cursor.seedCut = row.seq;
+    const request = row.type === 'tool/call' && row.data?.name === 'ask_user_question' ? row.data.callId : row.type === 'approval/asked' ? row.data?.id : null;
+    if (cursor.meta.root && typeof request === 'string' && request.length > 0 && request.length <= 512 && Number.isSafeInteger(row.seq) && Number.isSafeInteger(row.time) && row.time > this.armedAt && row.time <= this.now() + 60000) {
+      cursor.candidates.push({ turn: row.data.turn ?? 0, seq: row.seq, time: row.time, kind: row.type === 'tool/call' ? 'question' : 'approval', request });
+    }
+    if (row.type === 'approval/decided') cursor.candidates = cursor.candidates.filter(candidate => candidate.kind !== 'approval' || candidate.request !== row.data?.id);
     if (cursor.meta.root && row?.type === 'turn/end' && row.data?.reason?.kind === 'completed' && Number.isSafeInteger(row.data.turn) && row.data.turn >= 0 && Number.isSafeInteger(row.seq) && row.seq >= 0 && Number.isSafeInteger(row.time) && row.time > this.armedAt && row.time <= this.now() + 60000) {
       cursor.candidates.push({ turn: row.data.turn, seq: row.seq, time: row.time });
     }
@@ -186,6 +194,11 @@ export class DeepseekCompletionService {
         if (!cursor.pending.length && !cursor.line.length) {
           for (const candidate of cursor.candidates) {
             if (baseline || candidate.time <= this.armedAt || !cursor.meta?.root || (cursor.meta.seeded && (cursor.seedCut < 0 || candidate.seq <= cursor.seedCut))) continue;
+            if (candidate.kind) {
+              const id = createHash('sha256').update(JSON.stringify([cursor.meta.id, candidate.kind, candidate.request])).digest('hex');
+              if (!this.attentionSeen.has(id)) { this.attentionSeen.add(id); this.options.onAttention?.({ id, source: 'deepseek-harness', kind: candidate.kind, occurredAt: new Date(candidate.time).toISOString() }); }
+              continue;
+            }
             const previous = this.completed.get(cursor.meta.id) ?? -1;
             if (candidate.turn <= previous) continue;
             this.completed.set(cursor.meta.id, candidate.turn);

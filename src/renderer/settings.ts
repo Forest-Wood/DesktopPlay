@@ -1,6 +1,7 @@
 import { mountBubbleEditor } from './bubble-editor';
 import './settings.css';
-import type { AppSettings, AppState, DesktopApi, PetPersona, SoundSlot } from '../shared/types';
+import type { AppSettings, AppState, DesktopApi, PetPersona, SoundSlot, CompletionSource } from '../shared/types';
+import { validatePhraseDisplays } from '../shared/phrases';
 import { beijingTime, decimalSetting, money, updateMoney } from './format';
 import { localTime, quotaStatus, renderQuota } from './quota';
 import { APP_VERSION, GPT_DRAGON_PET, GPT_PET } from '../shared/defaults';
@@ -77,6 +78,8 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     <label class="toggle-label"><span>监听 DeepSeek Harness 成功完成事件</span><input name="deepseekCompletionEnabled" type="checkbox"></label><p id="dsh-completion-status" class="hint" role="status"></p><p id="dsh-current-directory" class="hint completion-path"></p><label class="field-label" for="dsh-directory">DSH 会话目录</label><input id="dsh-directory" type="text" readonly><div class="button-row"><button id="dsh-choose-directory" class="secondary-button" type="button">选择会话目录</button><button id="dsh-default-directory" class="text-button" type="button">使用默认目录</button><button type="button" class="text-button" data-edit-completion="deepseek-harness">编辑 DSH 提示</button></div><p class="hint">默认 DSH_HOME/sessions，未设置时为 ~/.dsh/sessions。支持本机 v4 普通与压缩日志；目录及开关保存后生效。隐藏桌宠时不提醒。</p>`);
   const phrases = makePage('companionship', '陪伴短句', '<p class="page-description">三套内容独立保存。自定义 GPT 图片使用原版 GPT 短句。</p><div class="persona-tabs" role="group" aria-label="短句人设"><button type="button" data-persona="whale">小鲸鱼</button><button type="button" data-persona="gpt">原版 GPT</button><button type="button" data-persona="dragon">白龙</button></div><div class="phrase-preview"><img id="phrase-preview-image" alt=""><p id="phrase-preview-text"></p></div><label class="field-label" for="phrases">陪伴短句 <span>每行一句 · 保存后生效</span></label>');
   phrases.querySelector('.panel')!.append(element<HTMLTextAreaElement>('phrases'));
+  phrases.querySelector('.panel')!.insertAdjacentHTML('beforeend', '<div class="phrase-display-controls"><label class="field-label" for="phrase-count">每轮展示数量 N</label><input id="phrase-count" name="phraseCount" form="settings-form" type="number" min="0" max="20" step="1"><label class="field-label" for="phrase-mode">展示模式</label><select id="phrase-mode" name="phraseMode" form="settings-form"><option value="sequential">按顺序切换</option><option value="random">随机展示</option></select><p class="hint">0 表示关闭短句页。勾选至少 N 条候选；每轮每页展示一句。顺序模式接着上轮看过的位置继续。</p><div id="phrase-candidates" role="group" aria-label="候选短句"></div></div>');
+  element('completion').querySelector('.panel')!.insertAdjacentHTML('beforeend', `<h3>等待回应提醒</h3><p class="hint">提问、审批及完成提醒保持到点击气泡。隐藏或退出时清空；回应仍在原客户端完成。</p>${(['codex', 'chatgpt-work', 'deepseek-harness'] as const).map(source => `<label class="toggle-label"><span>${source === 'codex' ? 'Codex' : source === 'chatgpt-work' ? 'ChatGPT Work' : 'DeepSeek Harness'} 等待回应</span><input name="attention-${source}" type="checkbox"></label>`).join('')}<label class="toggle-label"><span>启用 Codex CLI／IDE hook 接入<small>保存后合并 hooks.json 并备份；关闭后移除本程序的配置。请在原客户端 /hooks 中信任新增转发项。</small></span><input name="codexHookEnabled" type="checkbox"></label><p id="codex-attention-status" class="hint" role="status"></p><p class="hint">需要客户端支持官方 PreToolUse／PermissionRequest hook；未收到事件前显示等待接入。ChatGPT Work 需开启提问及权限通知。</p>`);
   element('appearance').querySelector('label[for="phrases"]')!.remove();
   const toggles = element('appearance').querySelector('.toggle-grid')!;
   for (const name of ['alwaysOnTop', 'snapToEdges', 'launchAtLogin']) behavior.querySelector('.panel')!.append(root.querySelector(`input[name="${name}"]`)!.closest('label')!);
@@ -125,13 +128,35 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   root.querySelector('.brand')!.addEventListener('click', event => { event.preventDefault(); showCategory('account'); });
   let persona: PetPersona = initial.activePet === 'deepseek' ? 'whale' : initial.gptAppearance === 'dragon' ? 'dragon' : 'gpt';
   let phraseDraft: Record<PetPersona, string[]> = structuredClone(initial.settings.phrasesByPersona);
+  let phraseDisplayDraft = structuredClone(initial.settings.phraseDisplayByPersona);
   const phraseInput = element<HTMLTextAreaElement>('phrases');
-  const capturePhrases = () => { phraseDraft[persona] = phraseInput.value.split('\n'); };
+  const capturePhrases = () => {
+    const old = phraseDraft[persona], selected = new Set(phraseDisplayDraft[persona].selectedIndices), used = new Set<number>();
+    const lines = phraseInput.value.split('\n').map(line => line.trim()).filter(Boolean);
+    phraseDisplayDraft[persona].selectedIndices = lines.flatMap((line, index) => {
+      const previous = old.findIndex((text, at) => text.trim() === line && !used.has(at));
+      if (previous >= 0) used.add(previous);
+      return previous < 0 || selected.has(previous) ? [index] : [];
+    });
+    phraseDraft[persona] = lines;
+  };
   const previewPhrases = () => {
     element<HTMLImageElement>('phrase-preview-image').src = persona === 'whale' ? './assets/whale.png' : persona === 'dragon' ? GPT_DRAGON_PET.url : GPT_PET.url;
     element('phrase-preview-text').textContent = phraseInput.value.split('\n').find(line => line.trim()) ?? '写一句话，给今天一点陪伴。';
     for (const button of root.querySelectorAll<HTMLButtonElement>('[data-persona]')) button.setAttribute('aria-pressed', String(button.dataset.persona === persona));
+    element<HTMLInputElement>('phrase-count').value = String(phraseDisplayDraft[persona].count);
+    element<HTMLSelectElement>('phrase-mode').value = phraseDisplayDraft[persona].mode;
+    const candidates = element('phrase-candidates'); candidates.replaceChildren();
+    for (const [index, text] of phraseDraft[persona].entries()) {
+      const label = document.createElement('label'); label.className = 'toggle-label';
+      const caption = document.createElement('span'); caption.textContent = text;
+      const check = document.createElement('input'); check.type = 'checkbox'; check.setAttribute('form', 'settings-form'); check.dataset.phraseIndex = String(index); check.checked = phraseDisplayDraft[persona].selectedIndices.includes(index);
+      check.addEventListener('change', () => { const indices = new Set(phraseDisplayDraft[persona].selectedIndices); if (check.checked) indices.add(index); else indices.delete(index); phraseDisplayDraft[persona].selectedIndices = [...indices].sort((a, b) => a - b); });
+      label.append(caption, check); candidates.append(label);
+    }
   };
+  element('phrase-count').addEventListener('input', () => { phraseDisplayDraft[persona].count = Number(element<HTMLInputElement>('phrase-count').value); });
+  element('phrase-mode').addEventListener('change', () => { phraseDisplayDraft[persona].mode = element<HTMLSelectElement>('phrase-mode').value as 'random' | 'sequential'; dirty = true; draftRevision++; });
   for (const button of root.querySelectorAll<HTMLButtonElement>('[data-persona]')) button.addEventListener('click', () => { capturePhrases(); persona = button.dataset.persona as PetPersona; phraseInput.value = phraseDraft[persona].join('\n'); previewPhrases(); });
   phraseInput.addEventListener('input', () => { capturePhrases(); previewPhrases(); });
   const form = element<HTMLFormElement>('settings-form');
@@ -212,9 +237,11 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     input('scale').value = String(settings.scale); input('volume').value = String(settings.volume);
     input('codexCompletionEnabled').checked = settings.codexCompletionEnabled;
     input('chatgptCompletionEnabled').checked = settings.chatgptCompletionEnabled; input('deepseekCompletionEnabled').checked = settings.deepseekCompletionEnabled;
+    input('codexHookEnabled').checked = settings.codexHookEnabled;
+    for (const source of ['codex', 'chatgpt-work', 'deepseek-harness'] as const) input(`attention-${source}`).checked = settings.attentionEnabledBySource[source];
     directoryDraft = settings.codexCompletionDirectory; dshDirectoryDraft = settings.deepseekCompletionDirectory; renderCompletionDraft(); bubbleEditor.fill(settings);
     input('lowBalanceThreshold').value = settings.lowBalanceThreshold ?? ''; input('dailyBudget').value = settings.dailyBudget ?? '';
-    phraseDraft = structuredClone(settings.phrasesByPersona); phraseInput.value = phraseDraft[persona].join('\n'); previewPhrases(); ranges();
+    phraseDraft = structuredClone(settings.phrasesByPersona); phraseDisplayDraft = structuredClone(settings.phraseDisplayByPersona); phraseInput.value = phraseDraft[persona].join('\n'); previewPhrases(); ranges();
   };
   const ranges = () => { element('scale-output').textContent = `${Number(input('scale').value).toFixed(2)}×`; element('volume-output').textContent = `${Math.round(Number(input('volume').value) * 100)}%`; };
   content.addEventListener('input', event => { if ((event.target as HTMLInputElement).form !== form) return; dirty = true; draftRevision++; ranges(); element('save-hint').textContent = '有尚未保存的调整'; });
@@ -250,6 +277,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     const completionLabels = { disabled: '完成提醒已关闭', starting: '正在连接本机会话…', watching: '正在监听新的完成事件', unavailable: '等待 Codex 会话', error: '会话监听异常' };
     element('completion-status').textContent = [completionLabels[state.codexCompletion.status], state.codexCompletion.error].filter(Boolean).join(' · ');
     element('completion-current-directory').textContent = `当前目录：${state.codexCompletion.directory}`;
+    element('codex-attention-status').textContent = state.codexAttention.error ?? ({ disabled: 'Codex hook 接入已关闭', starting: '等待 hook 接入', watching: '已收到 Codex hook 事件', unavailable: '客户端暂不支持 hook', error: 'Codex hook 接入异常' }[state.codexAttention.status]);
     const workLabels = { disabled: 'ChatGPT Work 提醒已关闭', starting: '正在连接 ChatGPT 桌面通知…', watching: '正在监听 ChatGPT 桌面结束通知', unavailable: '未找到 ChatGPT 桌面通知日志，请先启动桌面应用', error: 'ChatGPT 桌面通知监听异常' };
     element('chatgpt-completion-status').textContent = [workLabels[state.chatgptCompletion.status], state.chatgptCompletion.error].filter(Boolean).join(' · ');
     const dshLabels = { disabled: 'DSH 提醒已关闭', starting: '正在连接 DSH 会话…', watching: '正在监听 DSH 新的完成事件', unavailable: '等待 DSH 会话', error: 'DSH 会话监听异常' };
@@ -314,8 +342,12 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   form.addEventListener('submit', event => {
     event.preventDefault();
     try {
+      capturePhrases(); validatePhraseDisplays(phraseDisplayDraft, phraseDraft);
       const patch: AppSettings = { ...state.settings, autoCheckUpdates: input('autoCheckUpdates').checked, codexCompletionEnabled: input('codexCompletionEnabled').checked, codexCompletionDirectory: directoryDraft, bubbleProfilesByPersona: bubbleEditor.getProfiles(), chatgptCompletionEnabled: input('chatgptCompletionEnabled').checked, deepseekCompletionEnabled: input('deepseekCompletionEnabled').checked, deepseekCompletionDirectory: dshDirectoryDraft, scale: Math.max(0.5, Math.min(2, Number(input('scale').value))), volume: Math.max(0, Math.min(1, Number(input('volume').value))), lowBalanceThreshold: decimalSetting(input('lowBalanceThreshold').value), dailyBudget: decimalSetting(input('dailyBudget').value), phrasesByPersona: Object.fromEntries(Object.entries(phraseDraft).map(([key, lines]) => [key, lines.map(line => line.trim()).filter(Boolean)])) as Record<PetPersona, string[]>, soundEnabled: input('soundEnabled').checked, alwaysOnTop: input('alwaysOnTop').checked, snapToEdges: input('snapToEdges').checked, launchAtLogin: input('launchAtLogin').checked };
       const savingRevision = draftRevision;
+      patch.phraseDisplayByPersona = structuredClone(phraseDisplayDraft);
+      patch.codexHookEnabled = input('codexHookEnabled').checked;
+      patch.attentionEnabledBySource = Object.fromEntries((['codex', 'chatgpt-work', 'deepseek-harness'] as CompletionSource[]).map(source => [source, input(`attention-${source}`).checked])) as AppSettings['attentionEnabledBySource'];
       void run(element('save-settings'), async () => { const next = await api.updateSettings(patch); if (savingRevision === draftRevision) { dirty = false; fill(next.settings); element('save-hint').textContent = '设置已保存'; } else { element('save-hint').textContent = '已保存先前调整；新草稿尚未保存'; } return next; }, '设置已保存，桌宠已经收到啦。');
     } catch (error) { notify(error instanceof Error ? error.message : '请检查输入。', true); }
   });

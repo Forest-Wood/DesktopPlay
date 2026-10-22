@@ -50,6 +50,7 @@ test('ChatGPT Work native ends use role text without focus/role changes, dedupli
       expect(JSON.stringify(event)).not.toContain('fake-account'); expect(JSON.stringify(event)).not.toContain('fake-user');
       expect(await pet.locator('.bubble-top').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
       if (persona === 'dragon') await pet.screenshot({ path: 'test-results/chatgpt-completion-dragon.png', omitBackground: true });
+      await pet.locator('.bubble-message').dispatchEvent('click');
       await expect(pet.locator('.pet-bubble')).toBeHidden();
     }
     await expect(pet.locator('body')).toHaveAttribute('data-work-count', '3');
@@ -63,10 +64,10 @@ test('ChatGPT Work native ends use role text without focus/role changes, dedupli
     await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(win => win.webContents.getURL().includes('view=pet'))!.showInactive());
     await new Promise(resolve => setTimeout(resolve, 2200));
     await expect(pet.locator('.pet-bubble')).toBeHidden(); await expect(pet.locator('body')).toHaveAttribute('data-work-count', '3');
-    await pet.evaluate(() => window.desktopPlay.updateSettings({ chatgptCompletionEnabled: false }));
+    await pet.evaluate(async () => { const { settings } = await window.desktopPlay.getState(); await window.desktopPlay.updateSettings({ chatgptCompletionEnabled: false, attentionEnabledBySource: { ...settings.attentionEnabledBySource, 'chatgpt-work': false } }); });
     await expect(settings.locator('#chatgpt-completion-status')).toHaveText('ChatGPT Work 提醒已关闭');
     await appendFile(file, chatgptTurnEnd('off'));
-    await pet.evaluate(() => window.desktopPlay.updateSettings({ chatgptCompletionEnabled: true }));
+    await pet.evaluate(async () => { const { settings } = await window.desktopPlay.getState(); await window.desktopPlay.updateSettings({ chatgptCompletionEnabled: true, attentionEnabledBySource: { ...settings.attentionEnabledBySource, 'chatgpt-work': true } }); });
     await appendFile(file, chatgptTurnEnd('back-on'));
     await expect(pet.locator('.bubble-label')).toHaveText('ChatGPT Work 结束提醒');
     await expect(pet.locator('body')).toHaveAttribute('data-work-count', '4');
