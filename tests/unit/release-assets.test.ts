@@ -26,3 +26,13 @@ it.each(['file', 'version', 'size', 'sha512', 'blockmap', 'extra'])('refuses to 
   if (kind === 'extra') await writeFile(path.join(f.dir, 'old-x64.exe'), 'old');
   await expect(verifyRelease(f.dir, '0.5.3')).rejects.toThrow();
 });
+it.each([undefined, '', ' \n', 'different announcement'])('rejects missing or mismatched updater announcement %j', async notes => {
+  const f = await fixture();
+  if (notes !== undefined) await writeFile(path.join(f.dir, 'latest.yml'), (await readFile(path.join(f.dir, 'latest.yml'), 'utf8')) + `releaseNotes: ${JSON.stringify(notes)}\n`);
+  await expect(verifyRelease(f.dir, '0.5.3', true, '- 更新摘要')).rejects.toThrow();
+});
+it('uses the same canonical announcement as the release body', async () => {
+  const f = await fixture();
+  await writeFile(path.join(f.dir, 'latest.yml'), (await readFile(path.join(f.dir, 'latest.yml'), 'utf8')) + `releaseNotes: ${JSON.stringify('- 更新摘要\r\n- 修复问题\n')}\n`);
+  expect(await verifyRelease(f.dir, '0.5.3', true, '- 更新摘要\n- 修复问题')).toHaveLength(5);
+});

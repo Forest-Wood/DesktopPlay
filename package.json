@@ -18,7 +18,9 @@
     "test": "vitest run",
     "test:smoke": "playwright test",
     "start": "electron .",
-    "dist": "npm run build && electron-builder --win nsis portable --x64 --publish never"
+    "dist": "npm run build && node scripts/package.mjs",
+    "release:prepare": "node scripts/release-policy.mjs prepare",
+    "release:check": "node scripts/release-policy.mjs check"
   },
   "devDependencies": {
     "@electron/asar": "3.4.1",

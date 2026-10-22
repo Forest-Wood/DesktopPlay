@@ -98,7 +98,7 @@ export class AppUpdateService {
         if (notify) this.notified.add(this.candidate!.version);
         await this.persist();
         if (notify && !manual && this.auto && !this.disposed) this.options.onAvailable?.(this.candidate!.version);
-      } catch (error) { this.candidate = null; if (!this.disposed) this.set({ status: 'error', latestVersion: null, error: updateError(error) }); }
+      } catch (error) { this.candidate = null; if (!this.disposed) this.set({ status: 'error', latestVersion: null, releaseNotes: '', releaseDate: null, error: updateError(error) }); }
       return this.getState();
     })().finally(() => { if (this.checking === job) this.checking = null; if (this.controller === controller) this.controller = null; });
     this.checking = job; return job;

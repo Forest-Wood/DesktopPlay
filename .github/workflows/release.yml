@@ -14,6 +14,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: desktopplay-release
+  cancel-in-progress: false
+
 jobs:
   build-and-release:
     runs-on: windows-latest
@@ -59,6 +63,16 @@ jobs:
           if ($matching.Count -eq 1 -and !$matching[0].draft) { throw 'This release is already published. Use a new version and tag.' }
           "draft_exists=$($matching.Count -eq 1)".ToLowerInvariant() >> $env:GITHUB_OUTPUT
 
+      - name: Validate release policy and announcement
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $latest = gh api "repos/$env:GITHUB_REPOSITORY/releases/latest" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Could not verify the previous stable release' }
+          node scripts/release-policy.mjs check --require-plan --latest-version $latest.tag_name --tag $env:RELEASE_TAG
+          if ($LASTEXITCODE -ne 0) { throw 'Release plan or announcement validation failed' }
+
       - name: Unit tests
         run: npm test
 
@@ -76,14 +90,14 @@ jobs:
         with:
           draft: true
           tag_name: ${{ env.RELEASE_TAG }}
-          generate_release_notes: true
+          body_path: docs/releases/${{ env.RELEASE_TAG }}.md
           files: |
             release/*-x64.exe
             release/SHA256SUMS.txt
             release/latest.yml
             release/*-Setup-x64.exe.blockmap
 
-      - name: Replace assets in an existing draft without rewriting release metadata
+      - name: Replace draft assets and announcement
         if: steps.release_guard.outputs.draft_exists == 'true'
         shell: pwsh
         env:
@@ -94,6 +108,8 @@ jobs:
           $files = @($names | ForEach-Object { (Get-Item -LiteralPath (Join-Path 'release' $_)).FullName })
           gh release upload $env:RELEASE_TAG @files --repo $env:GITHUB_REPOSITORY --clobber
           if ($LASTEXITCODE -ne 0) { throw 'Failed to replace draft assets; keep release unpublished' }
+          gh release edit $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --notes-file (Join-Path 'docs/releases' "$env:RELEASE_TAG.md")
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to update draft announcement; keep release unpublished' }
 
       - name: Publish only after every asset is verified
         shell: pwsh
@@ -106,6 +122,8 @@ jobs:
           $matching = @(foreach ($page in $pages) { foreach ($item in $page) { if ($item.tag_name -eq $env:RELEASE_TAG) { $item } } })
           if ($matching.Count -ne 1 -or !$matching[0].draft) { throw 'Expected exactly one draft release' }
           $release = $matching[0]
+          $notes = [IO.File]::ReadAllText((Join-Path 'docs/releases' "$env:RELEASE_TAG.md")).Replace("`r`n", "`n").Trim()
+          if ([string]::IsNullOrWhiteSpace($notes) -or ([string]$release.body).Replace("`r`n", "`n").Trim() -cne $notes) { throw 'Draft announcement does not match the verified release notes' }
           $version = $env:RELEASE_TAG -replace '^v', ''
           $names = @("DesktopPet-$version-Setup-x64.exe", "DesktopPet-$version-Portable-x64.exe", 'SHA256SUMS.txt', 'latest.yml', "DesktopPet-$version-Setup-x64.exe.blockmap")
           if ($release.assets.Count -ne $names.Count) { throw 'Unexpected release asset count' }
@@ -115,5 +133,9 @@ jobs:
             $hash = (Get-FileHash -LiteralPath $localFile.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             if ($asset.Count -ne 1 -or $asset[0].state -ne 'uploaded' -or $asset[0].size -ne $localFile.Length -or $asset[0].digest -ne "sha256:$hash") { throw "Incomplete or mismatched asset: $name" }
           }
+          $latest = gh api "repos/$env:GITHUB_REPOSITORY/releases/latest" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Could not recheck the previous stable release' }
+          node scripts/release-policy.mjs check --require-plan --latest-version $latest.tag_name --tag $env:RELEASE_TAG
+          if ($LASTEXITCODE -ne 0) { throw 'Release base changed during packaging; keep the draft unpublished' }
           gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/releases/$($release.id)" -F draft=false -F prerelease=false -f make_latest=true
           if ($LASTEXITCODE -ne 0) { throw 'Failed to publish the verified draft' }

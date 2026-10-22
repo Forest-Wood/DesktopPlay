@@ -160,7 +160,11 @@ npm run dist
 
 ## CI 与发布
 
-推送到 `main` 或向 `main` 提交 Pull Request 时，GitHub Actions 在 Windows runner 和 Node.js 24 上安装依赖、执行类型检查、单元测试、构建和 Electron 冒烟测试。推送 `v*` 标签时，发布工作流要求标签版本与 `package.json` 版本一致，重新运行测试并构建 Windows x64 安装包，计算 SHA-256 校验和，然后创建 GitHub Release 并附上安装版、portable 版和校验文件。普通分支提交不会创建 Release。
+推送到 `main` 或向 `main` 提交 Pull Request 时，GitHub Actions 在 Windows runner 和 Node.js 24 上执行版本计划校验、类型检查、单元测试、构建和 Electron 冒烟测试。普通分支提交不会创建 Release。
+
+v0.5.4 之后按修改范围命名版本：已有功能完善为 patch（0.5.4 → 0.5.5），部分桌宠新增为 minor（→ 0.6.0），全部桌宠新增为 major（→ 1.0.0）；一次发布取最高档并清零低位。影响全部桌宠的修复仍是 patch；内部文档／构建维护不单独升版本。发布准备使用 `npm.cmd run release:prepare -- --base <上一正式版本> --types <实际类型> --notes <公告文件>`，检查用 `npm.cmd run release:check`；普通开发无需提前升版本。详细规则见[发布流程](docs/release.md)。
+
+发布工作流核实基准仍为 GitHub 上一正式版、标签与版本一致，重新测试打包、计算摘要，核实草稿五附件完整后才转正式版。GitHub Release 与软件内“更新公告”共用简短说明，安装版和免安装版内容一致；点击桌宠更新气泡可进入版本页查看公告后下载。
 
 ## 常见问题
 
