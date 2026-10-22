@@ -24,9 +24,9 @@
 | R016 | 发布 v0.5.4 并核实下载与更新资源 | 已正式发布，五附件公开下载与摘要核实通过 | [T011](tasks/T011-release-v054.md) |
 | R017 | 按修改类型与桌宠覆盖范围规范版本命名 | 已合并（f43b015） | [T012](tasks/T012-release-policy.md) |
 | R018 | GitHub 与软件内共用简短更新公告 | 已合并（f43b015） | [T012](tasks/T012-release-policy.md) |
-| R019 | 三来源等待回应提醒及 Codex CLI／IDE hook 接入 | 已实现并本地验证，未提交／待审查 | [T013](tasks/T013-conversation-attention.md) |
-| R020 | 对话提醒保持到点击气泡 | 已实现并本地验证，未提交／待审查 | [T013](tasks/T013-conversation-attention.md) |
-| R021 | 陪伴短句候选、每轮数量与随机／顺序模式 | 已实现并本地验证，未提交／待审查 | [T013](tasks/T013-conversation-attention.md) |
+| R019 | 三来源等待回应提醒及 Codex CLI／IDE hook 接入 | 已实现并本地验证，已推送／[PR #14 待审查](https://github.com/Forest-Wood/DesktopPlay/pull/14) | [T013](tasks/T013-conversation-attention.md) |
+| R020 | 对话提醒保持到点击气泡 | 已实现并本地验证，已推送／[PR #14 待审查](https://github.com/Forest-Wood/DesktopPlay/pull/14) | [T013](tasks/T013-conversation-attention.md) |
+| R021 | 陪伴短句候选、每轮数量与随机／顺序模式 | 已实现并本地验证，已推送／[PR #14 待审查](https://github.com/Forest-Wood/DesktopPlay/pull/14) | [T013](tasks/T013-conversation-attention.md) |
 
 ## R001：默认气泡显示时间
 

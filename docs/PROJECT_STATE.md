@@ -4,8 +4,8 @@
 
 ## 当前工作
 
-- [T013](tasks/T013-conversation-attention.md) 已实现三来源等待回应、常驻对话气泡及短句候选／数量／随机顺序控制，本地验证通过。**未提交、未推送，待审查，未发布**。
-- 工作目录 `D:\desktop1\DesktopPlay`；分支 `feat/T013-conversation-attention`；基准为最新 main `f43b0154619b77145374a3c21fd49ecbdbc786a8`，结果提交：未提交。开始时干净，无带入修改；普通开发保留版本 0.5.4。
+- [T013](tasks/T013-conversation-attention.md) 已实现三来源等待回应、常驻对话气泡及短句候选／数量／随机顺序控制，本地验证通过，已提交并推送。[PR #14](https://github.com/Forest-Wood/DesktopPlay/pull/14) **已创建，待审查，未合并、未发布**。
+- 工作目录 `D:\desktop1\DesktopPlay`；分支 `feat/T013-conversation-attention`；基准为 main `f43b0154619b77145374a3c21fd49ecbdbc786a8`，推送前再次 fetch 核实未变化；实现提交 `369344a3a1312d9496a67f61d3309f9fa522d1af`，交接记录后续提交见分支历史。开始时干净，无带入修改；普通开发保留版本 0.5.4。
 - 开始时受限 fetch 失败，提权 `git fetch origin main` 成功，核实 [T012／PR #13](https://github.com/Forest-Wood/DesktopPlay/pull/13) 已合并。版本规则与更新公告仍有效。
 - [v0.5.4](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v0.5.4) 发布记录见 [T011](tasks/T011-release-v054.md)，标签源码 `9be3fd6`，Release `419779328`；本任务未更改历史标签／Release／附件。
 
@@ -29,4 +29,4 @@ v0.5.3 用户可在软件内更新；更早版本可直接手动覆盖升级，�
 
 ## 下一步
 
-审查 T013 工作区差异；提交、推送、PR 和发布按后续授权。真实 Work／DSH 与 IDE GUI 试用分别补记录。下一独立任务编号 T014／R022，不覆盖已发布 v0.5.4。
+审查 T013／PR #14 并检查远程 CI；真实 Work／DSH 与 IDE GUI 试用分别补记录。合并与正式发布按后续授权。下一独立任务编号 T014／R022，不覆盖已发布 v0.5.4。
