@@ -2,15 +2,15 @@
 
 DesktopPet 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek 余额，GPT 小伙伴查看 Codex 编程额度。GPT 角色可在原版与白龙两种内置造型间切换，也可继续使用自定义图片。面向 Windows 10/11 x64，提供 NSIS 安装版和 portable 免安装版。桌宠本身不需要 Node.js 或 DeepSeek Harness（DSH）；实时 Codex 额度需要本机已有原生 Codex 程序，并已使用 ChatGPT 账户登录。
 
-已发布 [v0.5.4](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v0.5.4)，包含 DSH 提醒、气泡独立配置和完成音效。发布核实见 [T011 任务记录](docs/tasks/T011-release-v054.md)，功能实现与验证见 [T010](docs/tasks/T010-persona-notifications.md)。
+已发布 [v1.0.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v1.0.0)，包含三来源等待提醒、常驻对话气泡和陪伴短句展示控制。发布核实见 [T014 任务记录](docs/tasks/T014-release-v100.md)，功能实现与验证见 [T013](docs/tasks/T013-conversation-attention.md)。
 
-## 当前开发功能（尚未发布）
+## v1.0.0 新功能
 
 - GPT Work、Codex、DeepSeek Harness 支持等待回答／审批提醒；等待及完成气泡保持到点击正文或现有关闭控件，隐藏桌宠或退出时清空。普通用量与短句气泡仍按设置自动收起。
 - “提醒与记录 → 对话完成提醒”增加各来源等待开关。Codex 桌面／CLI／IDE 需勾选 hook 接入、保存，再在原客户端 `/hooks` 中信任转发项；关闭接入只移除本程序的 hook，已有配置保留并备份。Work 需开启原生提问／权限通知，DSH 支持 v4 普通／压缩日志。
 - “桌宠与陪伴 → 陪伴短句”可勾选候选库、设置每轮 0–20 条及随机／顺序模式。0 关闭短句页，候选数至少等于每轮数量；顺序接着上轮实际看过的位置继续，重启从头开始。
 
-实现、验证和限制见 [T013](docs/tasks/T013-conversation-attention.md)。本机 CLI 与 IDE 引擎已用隔离合成模型验证；真实 Work／DSH 和完整 IDE 界面试用仍需另行验证。下方版本说明保留已发布行为。
+实现、验证和限制见 [T013](docs/tasks/T013-conversation-attention.md)。本机 CLI 与 IDE 引擎已用隔离合成模型验证；真实 Work／DSH 和完整 IDE 界面试用仍需另行验证。下方保留历史版本说明。
 
 ## 桌宠与功能
 
@@ -39,6 +39,15 @@ DesktopPet 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek �
 
 
 ![GPT 白龙造型预览](docs/screenshots/gpt-dragon-v2-preview.png)
+
+## v1.0.0 升级说明
+
+已正式发布：[Release 与下载](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v1.0.0)。
+
+- [Windows x64 安装版](https://github.com/Forest-Wood/DesktopPlay/releases/download/v1.0.0/DesktopPet-1.0.0-Setup-x64.exe)；[Windows x64 免安装版](https://github.com/Forest-Wood/DesktopPlay/releases/download/v1.0.0/DesktopPet-1.0.0-Portable-x64.exe)。
+- v0.5.3 及以上可通过“关于 → 版本”更新；更早版本退出旧程序后直接覆盖升级，无需卸载或删除用户数据。
+- 旧配置自动迁移。Codex 等待提醒默认关闭，启用接入并保存后需在原客户端完成 hook 信任；Work 需开启原生通知，DSH 支持 Windows 本机 v4。
+- 公告与更新资源核实见 [v1.0.0 公告](docs/releases/v1.0.0.md) 和 [T014](docs/tasks/T014-release-v100.md)；历史版本及附件保留。
 
 ## v0.5.4 升级说明
 
