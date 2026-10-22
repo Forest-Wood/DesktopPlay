@@ -4,8 +4,8 @@
 
 ## 当前工作
 
-- [T012](tasks/T012-release-policy.md) 已实现版本规范、统一发布准备／CI 校验及简短更新公告，本地验证通过；用户已授权提交／推送／创建 PR，正在交付，待审查；未合并／发布。
-- 工作目录 `D:\desktop1\DesktopPlay`，分支 `feat/T012-release-policy`，已 fetch 核实基准 main 为 `5a978af`；开始时干净，当前未提交修改均为 T012。保留版本 0.5.4，不在普通开发阶段提前升版本。
+- [T012](tasks/T012-release-policy.md) 已实现版本规范、统一发布准备／CI 校验及简短更新公告，本地验证通过并推送，已创建 [PR #13](https://github.com/Forest-Wood/DesktopPlay/pull/13)，待审查；未合并／发布。
+- 工作目录 `D:\desktop1\DesktopPlay`，分支 `feat/T012-release-policy`，交付前 fetch 核实 main 仍为基准 `5a978af`；实现提交 `5c6a286`。开始时干净，无带入修改。保留版本 0.5.4，不在普通开发阶段提前升版本。
 - [v0.5.4](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v0.5.4) 发布记录见 [T011](tasks/T011-release-v054.md)，标签源码 `9be3fd6`，Release `419779328`；本任务未更改历史标签／Release／附件。
 
 ## 验证状态
@@ -23,4 +23,4 @@ v0.5.3 用户可在软件内更新；更早版本可直接手动覆盖升级，�
 
 ## 下一步
 
-按本次授权完成 T012 提交、推送与 PR 交接；合并及发布按后续授权处理。新独立任务下一编号 T013／R019。既有真实客户端、真实数据和草稿恢复路径验证继续保留待办，不重跑或覆盖 v0.5.4。
+审查 [PR #13](https://github.com/Forest-Wood/DesktopPlay/pull/13)，查看远程 CI 实际结果；合并及发布按后续授权处理。新独立任务下一编号 T013／R019。既有真实客户端、真实数据和草稿恢复路径验证继续保留待办，不重跑或覆盖 v0.5.4。
