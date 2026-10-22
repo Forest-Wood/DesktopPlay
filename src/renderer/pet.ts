@@ -1,6 +1,7 @@
-import { COMPLETION_SOURCES, petPersona, resolveBubble, sourceEnabled } from '../shared/bubble-settings';
+import { COMPLETION_SOURCES, petPersona, resolveBubble, conversationEnabled } from '../shared/bubble-settings';
+import { PhrasePlayback } from '../shared/phrases';
 import { applyBubbleStyle } from './bubble-style';
-import type { AppState, DesktopApi, BubbleScenario, CompletionSource, AlertNotice } from '../shared/types';
+import type { AppState, DesktopApi, BubbleScenario, CompletionSource, AlertNotice, ConversationNotice } from '../shared/types';
 import { getPetLayout } from '../shared/pet-layout';
 import { money } from './format';
 import { localTime, quotaStatus, renderQuota } from './quota';
@@ -8,15 +9,16 @@ import { pageCount, nextPage, summaryText, usageStatus } from './bubble-pages';
 import { PersonaSoundPlayer } from './sounds';
 
 export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, demo: boolean) {
-  let completionQueue: CompletionSource[] = [];
+  let completionQueue: ConversationNotice[] = [];
   let completionSource: CompletionSource = 'codex';
+  let activeConversation: ConversationNotice | null = null;
   let completionActive = false, playback = 0;
   let hidden = !initial.petVisible;
   let pendingAlert: AlertNotice | null = null;
   let alertScenario: BubbleScenario = 'low-balance';
   let completionTimer: ReturnType<typeof setTimeout> | undefined;
   const completionSeen = new Set<string>();
-  let noticeKind: 'usage' | 'completion' | 'update' = 'usage';
+  let noticeKind: 'usage' | 'completion' | 'attention' | 'update' = 'usage';
   let pendingUpdate: string | null = null;
   const updatesSeen = new Set<string>();
   const clearCompletionPending = () => { completionQueue = []; clearTimeout(completionTimer); };
@@ -26,9 +28,13 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   let drag: { id: number; x: number; y: number; moved: boolean } | undefined;
   let interactive = false;
   const persona = petPersona;
-  const scenario = (): BubbleScenario => retention ? 'retention' : notice ? noticeKind === 'completion' ? `completion-${completionSource}` : noticeKind === 'update' ? 'update' : alertScenario : page === 0 ? 'usage' : page === 1 ? 'summary' : 'phrases';
+  const scenario = (): BubbleScenario => retention ? 'retention' : notice ? noticeKind === 'completion' ? `completion-${completionSource}` : noticeKind === 'attention' ? `attention-${completionSource}` : noticeKind === 'update' ? 'update' : alertScenario : page === 0 ? 'usage' : page === 1 ? 'summary' : 'phrases';
   const rule = (kind = scenario()) => resolveBubble(state.settings.bubbleProfilesByPersona, persona(state), kind);
-  const phrases = () => state.settings.phrasesByPersona[persona(state)];
+  const phrasePlayer = new PhrasePlayback();
+  let roundPhrases: string[] = [];
+  const beginRound = () => { const owner = persona(state); phrasePlayer.begin(owner, state.settings.phraseDisplayByPersona[owner]); roundPhrases = phrasePlayer.lines(state.settings.phrasesByPersona[owner]); };
+  const phrases = () => roundPhrases;
+  beginRound();
   root.innerHTML = `<div class="pet-canvas"><section class="pet-bubble" aria-live="polite" hidden><div class="bubble-top"><span class="bubble-label"></span><span class="bubble-page"></span><button class="bubble-close" type="button" aria-label="关闭气泡">×</button></div><div class="bubble-content"><div class="bubble-balances"><span>余额<strong class="pet-balance"></strong></span><span>今日已观测<strong class="pet-spent"></strong></span></div><div class="bubble-quota"></div><p class="bubble-message"></p></div><div class="pet-status"></div><div class="bubble-footer"><button class="bubble-refresh" type="button">刷新</button><button class="bubble-switch" type="button">换角色</button><button class="bubble-appearance" type="button">换造型</button><button class="bubble-settings" type="button">设置</button></div><div class="bubble-retention-actions" hidden><button class="bubble-confirm" type="button">继续切换</button><button class="bubble-cancel" type="button">再陪一会儿</button></div></section><button type="button" class="pet-character"><span class="pet-mirror"><img class="pet-image" draggable="false" alt=""></span>${demo ? '<span class="pet-demo">本地演示</span>' : ''}</button></div>`;
   const query = <T extends HTMLElement = HTMLElement>(selector: string) => root.querySelector<T>(selector)!;
   const canvas = query('.pet-canvas'), character = query<HTMLButtonElement>('.pet-character'), image = query<HTMLImageElement>('.pet-image');
@@ -39,10 +45,11 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const completionSounds = new PersonaSoundPlayer(api, (_slot, text) => { soundWarning = text; status.textContent = text; }, undefined, COMPLETION_SOURCES.map(source => `completion-${source}` as const));
   const play = (name: 'press' | 'release') => { if (state.settings.soundEnabled && state.settings.volume > 0) void sounds.play(name, state.settings.volume); };
   const setInteractive = (value: boolean) => { if (interactive !== value) { interactive = value; api.setInteractive(value); } };
-  const endCompletion = () => { completionActive = false; playback++; completionSounds.stop(); };
+  const endCompletion = () => { completionActive = false; activeConversation = null; playback++; completionSounds.stop(); };
   const flushNotices = () => { flushCompletion(); if (!completionActive && !completionQueue.length) { flushAlert(); flushUpdate(); } };
   const close = () => { clearTimeout(timer); endCompletion(); visible = false; retention = false; hovered = false; notice = ''; bubble.hidden = true; api.setBubbleVisible(false); queueMicrotask(flushNotices); };
-  const schedule = (duration = rule().timing.durationSeconds * 1000) => { clearTimeout(timer); if (visible && !retention && !(hovered && rule().timing.hoverDelaySeconds > 0)) timer = setTimeout(close, duration); };
+  const persistent = () => visible && (noticeKind === 'completion' || noticeKind === 'attention') && !!notice;
+  const schedule = (duration = rule().timing.durationSeconds * 1000) => { clearTimeout(timer); if (visible && !retention && !persistent() && !(hovered && rule().timing.hoverDelaySeconds > 0)) timer = setTimeout(close, duration); };
   const render = () => {
     const isGpt = state.activePet === 'gpt', total = pageCount(phrases());
     if (page >= total) page = 0;
@@ -51,7 +58,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     query('.bubble-label').textContent = config.title;
     query('.bubble-page').textContent = retention || notice ? '' : `${page + 1}/${total}`;
     query('.bubble-balances').hidden = !usage || isGpt; quota.hidden = !usage || !isGpt;
-    const fixed = notice ? noticeKind === 'completion' ? '' : notice : page === 1 ? summaryText(state) : page >= 2 ? phrases()[page - 2] ?? '' : '';
+    const fixed = notice ? noticeKind === 'completion' ? '' : noticeKind === 'attention' ? activeConversation?.kind === 'approval' ? '有操作需要你审批。' : '有问题需要你回答。' : notice : page === 1 ? summaryText(state) : page >= 2 ? phrases()[page - 2] ?? '' : '';
     message.hidden = usage && !config.message;
     message.textContent = [fixed, config.message].filter(Boolean).join('\n');
     message.classList.toggle('bubble-caption', usage);
@@ -63,9 +70,12 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
       if (number.clientWidth > 0 && number.scrollWidth > number.clientWidth) { const size = parseFloat(getComputedStyle(number).fontSize); number.style.fontSize = `${size * number.clientWidth / number.scrollWidth}px`; }
     }
     status.textContent = isGpt ? `${quotaStatus(state.codex, demo)} · ${localTime(state.codex.updatedAt)} 更新` : usageStatus(state, demo);
+    if (persistent()) status.textContent = noticeKind === 'completion' ? '点击气泡收起 · 前往原客户端查看' : '点击气泡收起 · 请在原客户端回应';
     if (soundWarning) status.textContent = soundWarning;
     status.title = soundWarning || (isGpt ? state.codex.error : state.error) || status.textContent;
     query('.bubble-footer').hidden = retention; query('.bubble-retention-actions').hidden = !retention;
+    bubble.tabIndex = persistent() ? 0 : -1;
+    bubble.classList.toggle('bubble-persistent', persistent());
     const updateNotice = Boolean(notice && noticeKind === 'update');
     query('.bubble-appearance').hidden = !isGpt || updateNotice;
     query('.bubble-refresh').hidden = updateNotice; query('.bubble-switch').hidden = updateNotice;
@@ -93,14 +103,15 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   };
   const flushCompletion = () => {
     if (!completionQueue.length || disposed || hidden || completionActive || drag || retention || switching) return;
-    const source = completionQueue.shift()!;
-    if (!sourceEnabled(state.settings, source)) { queueMicrotask(flushNotices); return; }
-    const config = rule(`completion-${source}`);
+    const priority = completionQueue.findIndex(event => event.kind !== 'completion');
+    const event = completionQueue.splice(priority < 0 ? 0 : priority, 1)[0], source = event.source;
+    if (!conversationEnabled(state.settings, event)) { queueMicrotask(flushNotices); return; }
+    const config = rule(`${event.kind === 'completion' ? 'completion' : 'attention'}-${source}`);
     if (!config.enabled && (!config.soundEnabled || config.volume === 0)) { queueMicrotask(flushNotices); return; }
-    completionSource = source; completionActive = true; const ticket = ++playback;
+    completionSource = source; activeConversation = event; completionActive = true; const ticket = ++playback;
     completionSounds.stop();
-    if (config.enabled) { noticeKind = 'completion'; notice = 'completion'; show(); query('.bubble-content').scrollTop = 0; }
-    if (config.soundEnabled && config.volume > 0) {
+    if (config.enabled) { noticeKind = event.kind === 'completion' ? 'completion' : 'attention'; notice = 'conversation'; show(); query('.bubble-content').scrollTop = 0; }
+    if (event.kind === 'completion' && config.soundEnabled && config.volume > 0) {
       void completionSounds.play(`completion-${source}`, config.volume, !config.enabled).finally(() => {
         if (!disposed && ticket === playback && !config.enabled) { endCompletion(); flushNotices(); }
       });
@@ -109,14 +120,15 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const update = (next: AppState) => {
     if (disposed) return;
     revision++; const changedPet = persona(state) !== persona(next);
+    const phrasesChanged = JSON.stringify([state.settings.phrasesByPersona, state.settings.phraseDisplayByPersona]) !== JSON.stringify([next.settings.phrasesByPersona, next.settings.phraseDisplayByPersona]);
     const timingChanged = JSON.stringify(state.settings.bubbleProfilesByPersona) !== JSON.stringify(next.settings.bubbleProfilesByPersona);
     if (changedPet || state.sounds[persona(state)].press.revision !== next.sounds[persona(next)].press.revision || state.sounds[persona(state)].release.revision !== next.sounds[persona(next)].release.revision) soundWarning = '';
     state = next; hidden = !state.petVisible; sounds.sync(persona(state), state.sounds); completionSounds.sync(persona(state), state.sounds);
-    completionQueue = completionQueue.filter(source => sourceEnabled(state.settings, source));
-    if (completionActive && !sourceEnabled(state.settings, completionSource)) { if (visible && noticeKind === 'completion') close(); else { endCompletion(); queueMicrotask(flushNotices); } }
-    if (completionActive && !rule(`completion-${completionSource}`).soundEnabled) completionSounds.stop();
+    completionQueue = completionQueue.filter(event => conversationEnabled(state.settings, event));
+    if (activeConversation && !conversationEnabled(state.settings, activeConversation)) { if (visible) close(); else { endCompletion(); queueMicrotask(flushNotices); } }
+    if (completionActive && !rule().soundEnabled) completionSounds.stop();
     if (!state.settings.soundEnabled || state.settings.volume <= 0) sounds.stop();
-    if (changedPet) { endCompletion(); page = 0; retention = false; notice = ''; }
+    if (changedPet || phrasesChanged) { beginRound(); page = 0; if (!completionActive) { retention = false; notice = ''; } }
     const scale = state.effectiveScale ?? state.settings.scale, layout = getPetLayout(state.flipped, state.bubblePlacement, state.pet);
     canvas.style.transform = `scale(${scale})`; root.style.width = `${360 * scale}px`; root.style.height = `${440 * scale}px`;
     for (const [element, rect] of [[character, layout.character], [bubble, layout.bubble]] as const) { element.style.left = `${rect.x}px`; element.style.top = `${rect.y}px`; element.style.width = `${rect.width}px`; element.style.height = `${rect.height}px`; }
@@ -134,11 +146,11 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const run = async (action: () => Promise<AppState>, kind: 'refresh' | 'switch' | 'appearance') => {
     const ticket = ++operation, started = revision;
     if (kind === 'refresh') refreshing = true; else switching = true; render();
-    try { const next = await action(); if (!disposed && ticket === operation && revision === started) update(next); if (!disposed && ticket === operation && kind === 'switch') { retention = false; page = 0; notice = ''; show(); } }
+    try { const next = await action(); if (!disposed && ticket === operation && revision === started) update(next); if (!disposed && ticket === operation && kind === 'switch') { retention = false; page = 0; if (!completionActive) notice = ''; show(); } }
     catch (error) { if (!disposed && ticket === operation) { status.textContent = error instanceof Error ? error.message : '操作失败，请重试。'; status.title = status.textContent; } }
     finally { if (!disposed && ticket === operation) { refreshing = false; switching = false; refresh.disabled = state.activePet === 'gpt' ? state.codex.status === 'loading' : state.status === 'loading'; refresh.textContent = refresh.disabled ? '刷新中' : '刷新'; confirm.disabled = false; query<HTMLButtonElement>('.bubble-cancel').disabled = false; query<HTMLButtonElement>('.bubble-appearance').disabled = false; query<HTMLButtonElement>('.bubble-switch').disabled = false; flushNotices(); } }
   };
-  const clicked = () => { if (retention) return; endCompletion(); page = visible ? nextPage(page, phrases()) : 0; notice = ''; show(); };
+  const clicked = () => { if (retention || persistent()) return; endCompletion(); if (!visible) { page = 0; beginRound(); } else { page = nextPage(page, phrases()); if (page === 0) beginRound(); } notice = ''; show(); if (page >= 2) phrasePlayer.viewed(page - 2); };
   character.addEventListener('pointerdown', event => { if (event.button !== 0) return; event.preventDefault(); drag = { id: event.pointerId, x: event.screenX, y: event.screenY, moved: false }; character.setPointerCapture(event.pointerId); character.classList.add('pressed'); setInteractive(true); play('press'); api.startDrag(); });
   character.addEventListener('pointermove', event => { if (drag?.id === event.pointerId && Math.hypot(event.screenX - drag.x, event.screenY - drag.y) > 5) drag.moved = true; });
   const endDrag = (event: PointerEvent, cancel = false) => { if (!drag || drag.id !== event.pointerId) return; const moved = drag.moved; drag = undefined; character.classList.remove('pressed'); api.endDrag(); play('release'); if (character.hasPointerCapture(event.pointerId)) character.releasePointerCapture(event.pointerId); if (!cancel && !moved) clicked(); flushNotices(); };
@@ -147,6 +159,8 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const menu = (event: Event) => { event.preventDefault(); void api.showMenu().catch(() => { status.textContent = '无法打开菜单，请重试。'; }); };
   character.addEventListener('contextmenu', menu); character.addEventListener('keydown', event => { if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) menu(event); });
   query('.bubble-close').addEventListener('click', close);
+  bubble.addEventListener('click', event => { if (persistent() && !(event.target instanceof Element && event.target.closest('button, a, input, select, textarea'))) close(); });
+  bubble.addEventListener('keydown', event => { if (persistent() && event.target === bubble && ['Enter', ' '].includes(event.key)) { event.preventDefault(); close(); } });
   refresh.addEventListener('click', () => { void run(() => state.activePet === 'gpt' ? api.refreshCodexQuota() : api.refreshBalance(), 'refresh'); });
   query('.bubble-switch').addEventListener('click', () => { retention = true; clearTimeout(timer); render(); });
   confirm.addEventListener('click', () => { const target = state.activePet === 'gpt' ? 'deepseek' : 'gpt'; void run(() => api.selectPet(target), 'switch'); });
@@ -163,14 +177,14 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const focusChange = () => setInteractive(Boolean(root.contains(document.activeElement) && document.activeElement !== document.body));
   document.addEventListener('pointermove', pointerMove); document.addEventListener('pointerleave', pointerLeave); root.addEventListener('focusin', focusChange); root.addEventListener('focusout', focusChange);
   api.setBubbleVisible(false); api.setInteractive(false); update(initial);
-  const stopCompletion = api.onCodexCompletion(event => {
+  const stopCompletion = api.onConversationNotice(event => {
     if (disposed || hidden || !event || typeof event.id !== 'string') return;
-    const source = event.source ?? 'codex';
-    const key = `${source}:${event.id}`;
-    if (!COMPLETION_SOURCES.includes(source) || !sourceEnabled(state.settings, source) || completionSeen.has(key)) return;
+    const source = event.source;
+    const key = `${source}:${event.kind}:${event.id}`;
+    if (!COMPLETION_SOURCES.includes(source) || !['completion', 'question', 'approval'].includes(event.kind) || !conversationEnabled(state.settings, event) || completionSeen.has(key)) return;
     completionSeen.add(key);
     if (completionSeen.size > 500) completionSeen.delete(completionSeen.values().next().value!);
-    if (!completionQueue.includes(source)) completionQueue.push(source);
+    if (event.kind !== 'completion' || !completionQueue.some(pending => pending.kind === 'completion' && pending.source === source)) completionQueue.push(event);
     clearTimeout(completionTimer); completionTimer = setTimeout(flushCompletion, 150);
   });
   const stopUpdate = api.onUpdateAvailable(event => {
@@ -182,6 +196,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   return { update, preview: (kind: BubbleScenario) => {
     endCompletion(); retention = kind === 'retention'; notice = ''; page = kind === 'summary' ? 1 : kind === 'phrases' ? 2 : 0;
     if (kind.startsWith('completion-')) { completionSource = kind.slice(11) as CompletionSource; noticeKind = 'completion'; notice = 'completion'; }
+    else if (kind.startsWith('attention-')) { completionSource = kind.slice(10) as CompletionSource; noticeKind = 'attention'; notice = 'conversation'; }
     else if (kind === 'update') { noticeKind = 'update'; notice = '发现新版本 v9.9.9，可在设置中下载并更新。'; }
     else if (kind === 'low-balance' || kind === 'daily-budget') { alertScenario = kind; noticeKind = 'usage'; notice = `示例余额 ${money(state.balance?.total, state.balance?.currency)}；今日已观测 ${money(state.ledger.today?.spent, state.ledger.today?.currency)}。`; }
     show(); clearTimeout(timer);

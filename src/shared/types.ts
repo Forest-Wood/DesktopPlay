@@ -1,7 +1,9 @@
 export type PetPersona = 'whale' | 'gpt' | 'dragon';
 export type CompletionSource = 'codex' | 'chatgpt-work' | 'deepseek-harness';
 export type SoundSlot = 'press' | 'release' | `completion-${CompletionSource}`;
-export type BubbleScenario = 'usage' | 'summary' | 'phrases' | 'retention' | 'low-balance' | 'daily-budget' | 'update' | `completion-${CompletionSource}`;
+export type BubbleScenario = 'usage' | 'summary' | 'phrases' | 'retention' | 'low-balance' | 'daily-budget' | 'update' | `completion-${CompletionSource}` | `attention-${CompletionSource}`;
+export interface ConversationNotice { id: string; source: CompletionSource; occurredAt: string; kind: 'completion' | 'question' | 'approval' }
+export interface PhraseDisplay { count: number; mode: 'random' | 'sequential'; selectedIndices: number[] }
 export interface BubbleStyle {
   background: string; ink: string; border: string; ring: string;
   font: 'system' | 'yahei' | 'dengxian' | 'kaiti'; fontScale: number; backgroundOpacity: number;
@@ -37,12 +39,15 @@ export interface AppSettings {
   codexCompletionEnabled: boolean;
   chatgptCompletionEnabled: boolean;
   deepseekCompletionEnabled: boolean;
+  attentionEnabledBySource: Record<CompletionSource, boolean>;
+  codexHookEnabled: boolean;
   deepseekCompletionDirectory: string | null;
   bubbleProfilesByPersona: BubbleProfiles;
   codexCompletionDirectory: string | null;
   completionMessagesByPersona: Record<PetPersona, string>;
   phrases: string[];
   phrasesByPersona: Record<PetPersona, string[]>;
+  phraseDisplayByPersona: Record<PetPersona, PhraseDisplay>;
   lowBalanceThreshold: string | null;
   dailyBudget: string | null;
 }
@@ -144,6 +149,7 @@ export interface AppState extends ServiceState {
   codexCompletion: CodexCompletionState;
   chatgptCompletion: CodexCompletionState;
   deepseekCompletion: CodexCompletionState;
+  codexAttention: CodexCompletionState;
   sounds: SoundMetadataMap;
   pet: PetAsset;
   activePet: BuiltinPetId;
@@ -166,6 +172,7 @@ export interface DesktopApi {
   chooseCodexCompletionDirectory(): Promise<string | null>;
   chooseDeepseekCompletionDirectory(): Promise<string | null>;
   onCodexCompletion(callback: (notice: CodexCompletionNotice) => void): () => void;
+  onConversationNotice(callback: (notice: ConversationNotice) => void): () => void;
   onPetHidden(callback: () => void): () => void;
   getState(): Promise<AppState>;
   updateSettings(patch: Partial<AppSettings>): Promise<AppState>;

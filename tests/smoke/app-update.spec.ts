@@ -54,7 +54,7 @@ test('version routing, safe development mode, typed IPC, progress/cancel, drafts
     await expect.poll(() => application.evaluate(() => (globalThis as any).updateFixture.installs)).toBe(1);
     await settings.bringToFront(); const focus = await application.evaluate(({ BrowserWindow }) => BrowserWindow.getFocusedWindow()?.id);
     const emit = async (channel: string, value: unknown) => application.evaluate(({ BrowserWindow }, { channel, value }) => { BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('view=pet'))!.webContents.send(`desktopplay:${channel}`, value); }, { channel, value });
-    await emit('codex-completion', { id: 'fixture-complete', completedAt: new Date().toISOString() }); await expect(pet.locator('.bubble-label')).toHaveText('Codex 完成提醒');
+    await emit('conversation-notice', { id: 'fixture-complete', source: 'codex', kind: 'completion', occurredAt: new Date().toISOString() }); await expect(pet.locator('.bubble-label')).toHaveText('Codex 完成提醒');
     await emit('update-available', { version: '0.5.4' }); await expect(pet.locator('.bubble-label')).toHaveText('Codex 完成提醒');
     await pet.locator('.bubble-close').evaluate((node: HTMLElement) => node.click()); await expect(pet.locator('.bubble-label')).toHaveText('软件更新');
     expect(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getFocusedWindow()?.id)).toBe(focus);
@@ -62,7 +62,7 @@ test('version routing, safe development mode, typed IPC, progress/cancel, drafts
     await pet.locator('.bubble-update').evaluate((node: HTMLElement) => node.click()); await expect(settings.locator('#version')).toBeVisible();
     await emit('update-available', { version: '0.5.4' }); await expect(pet.locator('.pet-bubble')).toBeHidden();
     // A queued notice is dropped on hiding, including when another notice is visible.
-    await emit('codex-completion', { id: 'fixture-two', completedAt: new Date().toISOString() }); await expect(pet.locator('.pet-bubble')).toBeVisible();
+    await emit('conversation-notice', { id: 'fixture-two', source: 'codex', kind: 'completion', occurredAt: new Date().toISOString() }); await expect(pet.locator('.pet-bubble')).toBeVisible();
     await emit('update-available', { version: '0.5.5' }); await pet.evaluate(() => window.desktopPlay.hidePet());
     await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('view=pet'))!.showInactive());
     await expect(pet.locator('.pet-bubble')).toBeHidden();

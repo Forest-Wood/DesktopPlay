@@ -4,12 +4,12 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { StringDecoder } from 'node:string_decoder';
 import { completionFileAnchor } from './completion-file-anchor';
-import type { CodexCompletionNotice, CodexCompletionState } from '../../shared/types';
+import type { CodexCompletionNotice, CodexCompletionState, ConversationNotice } from '../../shared/types';
 
 const MAX_LINE = 64 * 1024;
 const CHUNK = 64 * 1024;
 const missing = (error: unknown) => (error as NodeJS.ErrnoException)?.code === 'ENOENT';
-type TurnEnd = { thread: string; turn: string; time: number };
+type TurnEnd = { thread: string; turn: string; time: number; kind?: 'question' | 'approval' };
 type Cursor = {
   offset: number; identity: string; modified: string; prefix: string; prefixBytes: number; anchor: string;
   decoder: StringDecoder; partial: string; discard: boolean;
@@ -30,6 +30,25 @@ export function parseChatgptTurnEnd(line: string): TurnEnd | null {
   } catch { return null; }
 }
 
+/** Native notification IDs are parsed, never notification titles or bodies. */
+export function parseChatgptAttention(line: string): TurnEnd | null {
+  if (line.length > MAX_LINE || !line.includes('[desktop-notifications] forward show ')) return null;
+  const kind = /(?:^|\s)kind=(question|permission)(?:\s|$)/.exec(line)?.[1];
+  const id = /(?:^|\s)notificationId=(.+)\s*$/.exec(line)?.[1];
+  const time = Date.parse(line.slice(0, 24));
+  if (!kind || !id || id.length > 4096 || !Number.isFinite(time)) return null;
+  if (kind === 'question' && id.startsWith('async-question-')) {
+    try {
+      const key: unknown = JSON.parse(id.slice(15));
+      if (!Array.isArray(key) || key.length !== 6 || key[2] !== 'durable' || !key.every(value => typeof value === 'string' && value.length > 0 && value.length <= 512)) return null;
+      return { thread: key[3], turn: `question:${key[5]}`, time, kind: 'question' };
+    } catch { return null; }
+  }
+  const prefix = kind === 'question' ? 'question-durable-' : 'approval-durable-';
+  if (!id.startsWith(prefix) || id.length === prefix.length || id.length > prefix.length + 512 || /\s/.test(id)) return null;
+  return { thread: 'native-request', turn: id, time, kind: kind === 'question' ? 'question' : 'approval' };
+}
+
 /** Windows Store and standalone desktop layouts; no account/configuration files are read. */
 export function chatgptLogDirectories(localAppData: string): string[] {
   return [
@@ -40,6 +59,7 @@ export function chatgptLogDirectories(localAppData: string): string[] {
 
 interface Options {
   onNotice: (notice: CodexCompletionNotice) => void;
+  onAttention?: (notice: ConversationNotice) => void;
   onState?: () => void;
   now?: () => number;
   pollMs?: number;
@@ -51,6 +71,7 @@ export class ChatgptCompletionService {
   private state: CodexCompletionState = { status: 'disabled', directory: '', error: null };
   private directories: string[] = [];
   private enabled = false;
+  private scope = '';
   private disposed = false;
   private generation = 0;
   private armedAt = 0;
@@ -66,9 +87,10 @@ export class ChatgptCompletionService {
 
   constructor(private readonly options: Options) {}
   getState(): CodexCompletionState { return { ...this.state }; }
-  async configure(enabled: boolean, directories: string[]): Promise<void> {
+  async configure(enabled: boolean, directories: string[], scope = ''): Promise<void> {
     const resolved = [...new Set(directories.map(directory => path.resolve(directory)))];
-    if (this.disposed || (this.enabled === enabled && JSON.stringify(resolved) === JSON.stringify(this.directories))) return this.inFlight ?? undefined;
+    if (this.disposed || (this.enabled === enabled && this.scope === scope && JSON.stringify(resolved) === JSON.stringify(this.directories))) return this.inFlight ?? undefined;
+    this.scope = scope;
     const generation = ++this.generation;
     this.stop(); this.enabled = enabled; this.directories = resolved;
     this.cursors.clear(); this.seen.clear(); this.through.clear(); this.baseline = true;
@@ -189,7 +211,7 @@ export class ChatgptCompletionService {
         while ((newline = data.indexOf('\n', start)) >= 0) {
           const part = data.slice(start, newline);
           if (!cursor.discard && cursor.partial.length + part.length <= MAX_LINE) {
-            const event = parseChatgptTurnEnd(cursor.partial + part);
+            const event = parseChatgptTurnEnd(cursor.partial + part) ?? parseChatgptAttention(cursor.partial + part);
             if (event) events.push(event);
           }
           cursor.partial = ''; cursor.discard = false; start = newline + 1;
@@ -210,7 +232,10 @@ export class ChatgptCompletionService {
     const through = previous?.time === event.time ? previous : { time: event.time, turns: new Set<string>() };
     through.turns.add(event.turn); this.through.set(event.thread, through); this.seen.add(id);
     if (this.seen.size > 5000) this.seen.delete(this.seen.values().next().value!);
-    try { this.options.onNotice({ id, source: 'chatgpt-work', completedAt: new Date(event.time).toISOString() }); }
+    try {
+      if (event.kind) this.options.onAttention?.({ id: createHash('sha256').update(id).digest('hex'), source: 'chatgpt-work', kind: event.kind, occurredAt: new Date(event.time).toISOString() });
+      else this.options.onNotice({ id, source: 'chatgpt-work', completedAt: new Date(event.time).toISOString() });
+    }
     catch { /* A consumer error must not stop monitoring. */ }
   }
   async drain(): Promise<void> { await Promise.all(this.active); }

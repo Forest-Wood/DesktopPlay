@@ -65,7 +65,7 @@ test('bubble editor preserves role/source drafts, previews actual styles, persis
     await settings.locator('#bubble-title').fill('白龙 DSH 专属提醒'); await settings.locator('#bubble-sound-enabled').check(); await settings.locator('#bubble-sound-volume').fill('0.65');
     await settings.locator('#bubble-style-override').check(); await settings.locator('#bubble-color-background').fill('#ffeedd'); await settings.locator('#bubble-color-ink').fill('#654321');
     await settings.locator('#bubble-font').selectOption('kaiti'); await settings.locator('#bubble-font-scale').fill('1.25'); await settings.locator('#bubble-opacity').fill('0.6');
-    await settings.locator('#bubble-time-override').check(); await settings.locator('#bubble-profile-duration').fill('7'); await settings.locator('#bubble-profile-hover').fill('4');
+    await expect(settings.locator('#bubble-time-override')).toBeHidden(); await expect(settings.locator('#bubble-time-fields')).toBeHidden();
     await settings.locator('#bubble-preview-placement').selectOption('below');
     await expect(settings.locator('#bubble-preview-pet .bubble-label')).toHaveText('白龙 DSH 专属提醒');
     expect(await settings.locator('#bubble-preview-pet .bubble-content').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
@@ -81,7 +81,7 @@ test('bubble editor preserves role/source drafts, previews actual styles, persis
     await settings.locator('#save-settings').click(); await expect(settings.locator('#operation-status')).toContainText('设置已保存');
     const saved = await settings.evaluate(() => window.desktopPlay.getState());
     for (const persona of personas) for (const source of sources) if (!(persona === 'dragon' && source === 'deepseek-harness')) expect(saved.settings.bubbleProfilesByPersona[persona].rules[`completion-${source}`].message).toBe(`${persona} ${source} <b>独立文案</b>`);
-    expect(saved.settings.bubbleProfilesByPersona.dragon.rules['completion-deepseek-harness']).toMatchObject({ soundEnabled: true, volume: .65, timing: { durationSeconds: 7, hoverDelaySeconds: 4 }, style: { fontScale: 1.25, backgroundOpacity: .6 } });
+    expect(saved.settings.bubbleProfilesByPersona.dragon.rules['completion-deepseek-harness']).toMatchObject({ soundEnabled: true, volume: .65, timing: {}, style: { fontScale: 1.25, backgroundOpacity: .6 } });
     expect(saved.activePet).toBe('deepseek'); expect(saved.settings.chatgptCompletionEnabled).toBe(false);
     await settings.screenshot({ path: 'test-results/T010-bubble-editor.png' }); expect(errors).toEqual([]);
     await app.close(); app = await f.launch(); const restarted = await app.firstWindow();
@@ -102,7 +102,7 @@ test('nine completion combinations use independent sounds, source queues, sound-
       HTMLMediaElement.prototype.play = function () { document.body.dataset.audioCount = String(Number(document.body.dataset.audioCount ?? 0) + 1); (window as any).lastAudio = this; return Promise.resolve(); };
       HTMLMediaElement.prototype.pause = function () { document.body.dataset.pauseCount = String(Number(document.body.dataset.pauseCount ?? 0) + 1); };
     });
-    const emit = (id: string, source: CompletionSource) => app.evaluate(({ BrowserWindow }, notice) => BrowserWindow.getAllWindows().find(win => win.webContents.getURL().includes('view=pet'))!.webContents.send('desktopplay:codex-completion', { ...notice, completedAt: new Date().toISOString() }), { id, source });
+    const emit = (id: string, source: CompletionSource) => app.evaluate(({ BrowserWindow }, notice) => BrowserWindow.getAllWindows().find(win => win.webContents.getURL().includes('view=pet'))!.webContents.send('desktopplay:conversation-notice', { ...notice, kind: 'completion', occurredAt: new Date().toISOString() }), { id, source });
     let count = 0;
     for (const persona of personas) {
       await pet.evaluate(async persona => { await window.desktopPlay.selectPet(persona === 'whale' ? 'deepseek' : 'gpt'); if (persona !== 'whale') await window.desktopPlay.selectGptAppearance(persona === 'dragon' ? 'dragon' : 'classic'); }, persona);

@@ -7,10 +7,12 @@ export const SCENARIO_LABELS: Record<BubbleScenario, string> = {
   usage: '用量页', summary: '用量小报告', phrases: '陪伴短句', retention: '换角色挽留',
   'low-balance': '低余额提醒', 'daily-budget': '每日预算提醒', update: '软件更新',
   'completion-codex': 'Codex 完成提醒', 'completion-chatgpt-work': 'ChatGPT Work 结束提醒', 'completion-deepseek-harness': 'DeepSeek Harness 完成提醒',
+  'attention-codex': 'Codex 等待回应', 'attention-chatgpt-work': 'ChatGPT Work 等待回应', 'attention-deepseek-harness': 'DeepSeek Harness 等待回应',
 };
 export const SCENARIOS = Object.keys(SCENARIO_LABELS) as BubbleScenario[];
 export const builtinSound = (slot: SoundSlot) => slot.startsWith('completion-') ? './assets/completion.wav' : `./assets/${slot}.mp3`;
 export const sourceEnabled = (settings: AppSettings, source: CompletionSource) => source === 'codex' ? settings.codexCompletionEnabled : source === 'chatgpt-work' ? settings.chatgptCompletionEnabled : settings.deepseekCompletionEnabled;
+export const conversationEnabled = (settings: AppSettings, notice: { source: CompletionSource; kind: string }) => notice.kind === 'completion' ? sourceEnabled(settings, notice.source) : settings.attentionEnabledBySource[notice.source];
 export const petPersona = (state: { activePet: string; gptAppearance: string }): PetPersona => state.activePet === 'deepseek' ? 'whale' : state.gptAppearance === 'dragon' ? 'dragon' : 'gpt';
 
 const palettes = {
@@ -29,6 +31,7 @@ export const DEFAULT_BUBBLE_PROFILES: BubbleProfiles = Object.fromEntries(PERSON
   const index = PERSONAS.indexOf(persona);
   const rules = Object.fromEntries(SCENARIOS.map(scenario => {
     let message = messages[scenario]?.[index] ?? '';
+    if (scenario.startsWith('attention-')) message = ['有问题在等你回应，记得去看看呀～', '需要你的回应，请回到原客户端处理。', '有一份决定等你回应，我会在这里守候。'][index];
     if (scenario.startsWith('completion-')) {
       const name = scenario === 'completion-codex' ? 'Codex' : scenario === 'completion-chatgpt-work' ? 'ChatGPT Work' : 'DeepSeek';
       message = scenario === 'completion-chatgpt-work'

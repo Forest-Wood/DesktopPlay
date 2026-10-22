@@ -1,4 +1,5 @@
 import { PERSONAS, validateBubbleProfiles } from '../../shared/bubble-settings';
+import { phraseDisplays, validatePhraseDisplays } from '../../shared/phrases';
 import { createHash, randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -30,7 +31,7 @@ function settings(patch: unknown, base = DEFAULT_SETTINGS): AppSettings {
   const result = structuredClone(base);
   for (const [key, value] of Object.entries(patch)) {
     if (!Object.hasOwn(DEFAULT_SETTINGS, key)) throw new Error('包含未知设置');
-    if (['autoCheckUpdates', 'alwaysOnTop', 'launchAtLogin', 'snapToEdges', 'soundEnabled'].includes(key)) {
+    if (['autoCheckUpdates', 'alwaysOnTop', 'launchAtLogin', 'snapToEdges', 'soundEnabled', 'codexHookEnabled'].includes(key)) {
       if (typeof value !== 'boolean') throw new Error('开关设置无效');
     } else if (key === 'scale' || key === 'volume') {
       if (typeof value !== 'number' || !Number.isFinite(value) || value < (key === 'scale' ? 0.5 : 0) || value > (key === 'scale' ? 2 : 1)) throw new Error('数值设置无效');
@@ -42,6 +43,10 @@ function settings(patch: unknown, base = DEFAULT_SETTINGS): AppSettings {
       if (value !== null && (typeof value !== 'string' || !path.isAbsolute(value) || value.startsWith('\\\\') || value.includes('\0') || value.length > 4096)) throw new Error('请选择有效的本机会话目录');
     } else if (key === 'bubbleProfilesByPersona') {
       validateBubbleProfiles(value);
+    } else if (key === 'attentionEnabledBySource') {
+      if (!plain(value) || Reflect.ownKeys(value).length !== 3 || ['codex', 'chatgpt-work', 'deepseek-harness'].some(source => { const descriptor = Object.getOwnPropertyDescriptor(value, source); return !descriptor || !Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'boolean'; })) throw new Error('等待回应开关无效');
+    } else if (key === 'phraseDisplayByPersona') {
+      validatePhraseDisplays(value); // Validate descriptors before cloning; check the final library below.
     } else if (key === 'completionMessagesByPersona') {
       if (!plain(value) || Reflect.ownKeys(value).length !== 3 || ['whale', 'gpt', 'dragon'].some(persona => !Object.hasOwn(value, persona) || !Object.hasOwn(Object.getOwnPropertyDescriptor(value, persona)!, 'value') || typeof value[persona] !== 'string' || !value[persona].trim() || value[persona].length > 200)) throw new Error('每个角色的完成提醒需为 1–200 字符的非空文本');
     } else if (key === 'phrases') {
@@ -51,6 +56,8 @@ function settings(patch: unknown, base = DEFAULT_SETTINGS): AppSettings {
     } else if (value !== null) amount(value);
     Object.assign(result, { [key]: structuredClone(value) });
   }
+  if (Object.hasOwn(patch, 'phrasesByPersona') && !Object.hasOwn(patch, 'phraseDisplayByPersona')) result.phraseDisplayByPersona = phraseDisplays(result.phrasesByPersona);
+  validatePhraseDisplays(result.phraseDisplayByPersona, result.phrasesByPersona);
   // Legacy callers remain supported; the profile is authoritative when explicitly supplied.
   if (!Object.hasOwn(patch, 'bubbleProfilesByPersona')) for (const persona of PERSONAS) {
     const profile = result.bubbleProfilesByPersona[persona];
@@ -86,11 +93,19 @@ function disk(value: unknown): Disk {
     });
     accounts[id] = { balance: raw.balance === null ? null : snapshot(raw.balance), days: days.slice(-365), low: raw.low, budgetDays: raw.budgetDays.slice(-365) as string[] };
   }
-  const restoredSettings = settings(value.settings);
+  const stored = structuredClone(value.settings);
+  if (plain(stored) && plain(stored.bubbleProfilesByPersona)) for (const persona of PERSONAS) {
+    const profile = stored.bubbleProfilesByPersona[persona];
+    if (plain(profile) && plain(profile.rules)) for (const [scenario, rule] of Object.entries(DEFAULT_SETTINGS.bubbleProfilesByPersona[persona].rules)) {
+      if (scenario.startsWith('attention-') && !Object.hasOwn(profile.rules, scenario)) profile.rules[scenario] = structuredClone(rule);
+    }
+  }
+  const restoredSettings = settings(stored);
   if (plain(value.settings) && !Object.hasOwn(value.settings, 'chatgptCompletionEnabled')) restoredSettings.chatgptCompletionEnabled = restoredSettings.codexCompletionEnabled;
   if (plain(value.settings) && !Object.hasOwn(value.settings, 'phrasesByPersona')) {
     restoredSettings.phrasesByPersona = { whale: structuredClone(restoredSettings.phrases), gpt: [...DEFAULT_PHRASES_BY_PERSONA.gpt], dragon: [...DEFAULT_PHRASES_BY_PERSONA.dragon] };
   }
+  if (plain(value.settings) && !Object.hasOwn(value.settings, 'phraseDisplayByPersona')) restoredSettings.phraseDisplayByPersona = phraseDisplays(restoredSettings.phrasesByPersona);
   return { version: 1, settings: restoredSettings, key: value.key as string | null, accounts };
 }
 
@@ -169,7 +184,7 @@ export class DesktopService {
       } finally { await fs.rm(temporary, { force: true }).catch(() => {}); }
   }
   async updateSettings(patch: Partial<AppSettings>): Promise<void> {
-    settings(patch); const copiedPatch = structuredClone(patch);
+    settings(patch, this.data.settings); const copiedPatch = structuredClone(patch);
     await this.mutate(async () => {
       const candidate = structuredClone(this.data); candidate.settings = settings(copiedPatch, candidate.settings);
       const alert = this.evaluate(candidate, this.id, this.alert);

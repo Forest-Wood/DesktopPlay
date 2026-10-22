@@ -50,3 +50,5 @@
 .pet-bubble .bubble-content{overflow-x:hidden;overflow-wrap:anywhere}
 .pet-bubble .bubble-quota{font-family:inherit;font-size:calc(12px * var(--bubble-font-scale,1))}
 .pet-bubble .bubble-quota .quota-window-title,.pet-bubble .bubble-quota .quota-reset,.pet-bubble .bubble-quota .quota-countdown{color:var(--bubble-ink)}
+.pet-bubble.bubble-persistent { cursor: pointer; }
+.pet-bubble.bubble-persistent:focus-visible { outline: 2px solid currentColor; outline-offset: -4px; }
