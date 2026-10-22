@@ -2,9 +2,9 @@
 
 - 日期：2026-10-22（Asia/Shanghai）；负责人：Codex；关联需求：R019–R021。
 - 目标合并分支：main；工作目录：`D:\desktop1\DesktopPlay`；任务分支：`feat/T013-conversation-attention`。
-- 基准提交：`f43b0154619b77145374a3c21fd49ecbdbc786a8`（PR #13 合并）；实现提交：`369344a3a1312d9496a67f61d3309f9fa522d1af`；已推送并创建 [PR #14](https://github.com/Forest-Wood/DesktopPlay/pull/14)，目标 main，非草稿；交接记录后续提交见分支历史。未合并／发布。
+- 基准提交：`f43b0154619b77145374a3c21fd49ecbdbc786a8`（PR #13 合并）；实现提交：`369344a3a1312d9496a67f61d3309f9fa522d1af`；[PR #14](https://github.com/Forest-Wood/DesktopPlay/pull/14) 已合并至 main `7ac74a2ef2f09d33269f3a61bd5b2880f53dfec0`；交接提交 `146ec69`。发布由 [T014](T014-release-v100.md) 跟进。
 - 开始时工作区干净，无带入未提交修改。开始时在 T012 分支，受限网络 fetch 失败；提权 `git fetch origin main` 成功，取得最新 main 后建立任务分支。版本保持 0.5.4。
-- 状态：已实现并本地验证，PR 待审查；实现无未提交修改。真实 Work／DSH 客户端及完整 IDE GUI 试用仍未运行。
+- 状态：已实现、验证并合并，PR CI #46 完整通过；实现无未提交修改。真实 Work／DSH 客户端及完整 IDE GUI 试用仍未运行。
 
 ## 实现与决定
 
@@ -37,4 +37,4 @@
 
 2026-10-22 用户授权推送并创建 PR；再次 fetch main 核实基准未变化，提交并推送实现后创建 PR #14。GitHub 连接器创建请求返回 403（集成权限不足），改用本机现有 Git 凭据调用官方 API 成功，未输出凭据。
 
-审查 PR #14 的实际差异和隔离验证，检查远程 CI。合并与正式发布另按授权执行，发布时另做版本准备，保留历史 v0.5.4。真实客户端试用分别登记，不把合成模型或日志 fixture 当作真实账户验证。
+PR #14 已合并，用户随后授权新 Release，由 T014 准备 v1.0.0，保留历史 v0.5.4。真实客户端试用分别登记，不把合成模型或日志 fixture 当作真实账户验证。
