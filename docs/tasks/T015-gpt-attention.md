@@ -4,7 +4,7 @@
 - 目标合并分支：main；任务分支：`fix/T015-gpt-attention`；工作目录：`D:\desktop1\DesktopPlay`。
 - 基准提交：`236c594a005615df17b2eb61794726606e84bf9e`；实现提交：`49c2311169c2079e753d66a0668d36f8ad59a04c`；交接提交见本分支后续历史。
 - 开始时工作区干净，无带入修改。受限网络获取远程失败，提权 `git fetch origin main` 成功；远程 main 与上述基准一致。
-- 状态：[PR #17](https://github.com/Forest-Wood/DesktopPlay/pull/17) 已于 2026-10-23 合并至 main `d39b9ec9a4c4993a387f51e251032804e2ff5f7e`，PR CI #53 通过。隔离验证通过，真实客户端 GUI 待验收；发布由 [T016](T016-release-v101.md) 跟进。
+- 状态：[PR #17](https://github.com/Forest-Wood/DesktopPlay/pull/17) 已于 2026-10-23 合并至 main `d39b9ec9a4c4993a387f51e251032804e2ff5f7e`，PR CI #53 通过；已随 [T016／v1.0.1](T016-release-v101.md) 正式发布。隔离验证通过，真实客户端 GUI 待验收。
 
 ## 目标与验收
 
