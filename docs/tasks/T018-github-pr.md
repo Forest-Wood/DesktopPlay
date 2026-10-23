@@ -4,8 +4,8 @@
 - 目标：避免已知无写权限的连接器反复返回 403，复用已验证可用的本机 Git 凭据和 PR 创建逻辑。
 - 范围：仓库工作约定、可复用 Node.js 命令、隔离单测、需求及项目交接文档；不改产品行为、应用版本或 GitHub 授权。
 - 工作目录：`D:\desktop1\DesktopPlay`；分支：`chore/T018-github-pr`；目标分支：main。
-- 基准：`9dab76399a1986dcb23129b0b1bc2d36d484b88b`，2026-10-23 fetch 核实；PR #19／#20 均已合并到 main。开始时工作区干净，无带入修改。结果提交：未提交。
-- 状态：本地实现与隔离验证完成；用户于 2026-10-23 进一步要求把桌宠文件夹当前改动创建 PR，已授权本次提交、推送和 PR 创建。gh 已核实登录成功，正在交付；不合并或发布。
+- 基准：`9dab76399a1986dcb23129b0b1bc2d36d484b88b`，2026-10-23 fetch 核实；PR #19／#20 均已合并到 main。开始时工作区干净，无带入修改。实现提交：`59b34ad4a45a6d15d6d4a566d0701422b579cf1c`；后续交接提交见 PR commits。
+- 状态：本地实现与隔离验证完成；用户于 2026-10-23 进一步授权提交、推送和创建 PR，已通过登录成功的 gh 创建 [PR #21](https://github.com/Forest-Wood/DesktopPlay/pull/21)，待审查；不合并或发布。
 
 ## 实现与验收
 
@@ -25,9 +25,9 @@
 - **gh 安装通过**：官方 `winget show --id GitHub.cli --exact --source winget` 核实 2.103.0，官方源安装包哈希验证及静默安装成功；`C:\Program Files\GitHub CLI\gh.exe --version` 返回 2.103.0（2026-10-21）。已通过本机 help 核对 PR list／create 和 run list 参数。
 - **gh 登录通过**：初始 JSON 检查显示未登录；本次交付前 `gh auth status` 核实 Forest-Wood 账号已登录、使用 HTTPS。本次按 head 查询开放 PR 返回空列表；未改连接器授权，也未把已有 Git 凭据复制进 gh 配置。
 - **本次提交前复验通过**：隔离 TEMP／TMP 为 `.tmp/T018-pr-review-temp`，`npm.cmd test` 26 文件／282 项直接通过（9.30 秒）；类型检查、脚本语法、CLI help／离线 check、UTF-8／本地链接与版本一致性检查通过。版本检查首次因 PowerShell JSON 对象不支持锁文件的空键失败，改用 `ConvertFrom-Json -AsHashtable` 后校验通过，未改锁文件或版本。
-- 真实创建 PR 使用已登录 gh；备用脚本不执行真实写入，不能把此次 gh 交付作为新增脚本真实写入验收。提交与 PR 标识在交付后补录。
+- **真实 gh 交付通过**：先按 head 查重，无开放 PR 后显式指定仓库、head、main 和正文文件，创建 PR #21，并附加到当前任务。首轮核实远程 head 为实现提交 `59b34ad`，9 个文件与本地一致，普通 PR 的 CI 已触发；交接提交后仍须核对最新 head 的检查。备用脚本不执行真实写入，不能把此次 gh 交付作为新增脚本真实写入验收。
 - 不运行：应用构建与 Electron 冒烟；本次仅仓库维护命令和文档，不修改应用源码或运行时。
 
 ## 下一步
 
-交付入口为 [GitHub PR 流程](../github.md) 和 AGENTS.md 中的调用约定。本次按用户授权提交并推送 `chore/T018-github-pr`，使用 gh 创建指向 main 的 PR，再核实最新 head 的远程检查。普通开发版本保持 1.0.1，合并与发布另行处理。
+交付入口为 [GitHub PR 流程](../github.md) 和 AGENTS.md 中的调用约定。审查 [PR #21](https://github.com/Forest-Wood/DesktopPlay/pull/21)，合并前确认 [最新 head 的检查](https://github.com/Forest-Wood/DesktopPlay/pull/21/checks)；保留备用脚本尚未真实写入验收的限制。普通开发版本保持 1.0.1，合并与发布另行处理。

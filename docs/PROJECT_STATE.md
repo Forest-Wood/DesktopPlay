@@ -4,7 +4,7 @@
 
 ## 当前工作
 
-- [T018：优化 GitHub PR 创建流程](tasks/T018-github-pr.md) 本地实现与隔离验证完成；工作分支 `chore/T018-github-pr`，基准 main `9dab763`。本次用户已授权提交、推送和创建 PR；已核实 gh 的 Forest-Wood 账号登录成功，目标分支 main 无新增提交、同 head 无开放 PR，正在交付。gh 为首选，`pr:create`、查重及离线校验命令保留备用；不改产品版本或连接器权限，入口见 [GitHub PR 流程](github.md)。
+- [T018：优化 GitHub PR 创建流程](tasks/T018-github-pr.md) 实现 `59b34ad` 已提交、推送，并使用已登录的 gh 创建 [PR #21](https://github.com/Forest-Wood/DesktopPlay/pull/21)，目标 main，待审查。工作分支 `chore/T018-github-pr`，基准 main `9dab763`；已核实 9 个文件范围与远程 head 一致。gh 为首选，`pr:create`、查重及离线校验命令保留备用；不改产品版本或连接器权限，入口见 [GitHub PR 流程](github.md)。远程检查以 [PR 最新 head 的 CI](https://github.com/Forest-Wood/DesktopPlay/pull/21/checks) 为准。
 - [T017：hook 接入后提问未提醒诊断](tasks/T017-hook-diagnosis.md) 的 [PR #20](https://github.com/Forest-Wood/DesktopPlay/pull/20) 已合并至 main `9dab763`，仅诊断文档；真实客户端完全重启后的恢复仍待验证。隔离已复现旧会话后接入无转发、新会话恢复，尚不能认定为两个客户端的唯一原因。
 - [T016：v1.0.1](tasks/T016-release-v101.md) **已于 2026-10-23 12:48:44（Asia/Shanghai）正式发布为 latest**，Release `421460724`，公开五附件下载、摘要及公告一致性核实通过。[正式下载](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v1.0.1)。
 - T016 工作目录 `D:\desktop1\DesktopPlay`；发布分支 `release/T016-v101`；基准 `d39b9ec`；发布准备 `a5ad485` 经 [PR #18](https://github.com/Forest-Wood/DesktopPlay/pull/18) 合并为 `7755edc48751c6ca02afd53fd6828e134212f437`。发布后交接 [PR #19](https://github.com/Forest-Wood/DesktopPlay/pull/19) 已合并为 `8df8721`；T017 诊断 [PR #20](https://github.com/Forest-Wood/DesktopPlay/pull/20) 随后合并为 `9dab763`，真实客户端待验收限制保留。
