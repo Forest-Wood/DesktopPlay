@@ -4,7 +4,7 @@
 
 ## 当前工作
 
-- [T017：hook 接入后提问未提醒诊断](tasks/T017-hook-diagnosis.md) 已确认真实两项 hook 启用且受信任，隔离复现“会话创建后才接入时原提问存在但不转发，新建会话后恢复”；当前客户端后台引擎早于接入启动。真实客户端完全重启后的恢复仍待验证。工作分支 `docs/T017-hook-diagnosis`，基准 `5e4a898`；用户已授权创建 PR，记录提交准备中，无应用／版本／真实设置修改。新 PR 直接基于 `release/T016-v101`，待 #19 合并后改为 main，以保持 T017 两份文档的独立差异。
+- [T017：hook 接入后提问未提醒诊断](tasks/T017-hook-diagnosis.md) 已确认真实两项 hook 启用且受信任，隔离复现“会话创建后才接入时原提问存在但不转发，新建会话后恢复”；当前客户端后台引擎早于接入启动。真实客户端完全重启后的恢复仍待验证。工作分支 `docs/T017-hook-diagnosis`，基准 `5e4a898`，记录提交 `9ed8427`；[PR #20](https://github.com/Forest-Wood/DesktopPlay/pull/20) 待审查，无应用／版本／真实设置修改。PR 直接基于 `release/T016-v101`，待 #19 合并后改为 main，以保持 T017 两份文档的独立差异。
 - [T016：v1.0.1](tasks/T016-release-v101.md) **已于 2026-10-23 12:48:44（Asia/Shanghai）正式发布为 latest**，Release `421460724`，公开五附件下载、摘要及公告一致性核实通过。[正式下载](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v1.0.1)。
 - T016 工作目录 `D:\desktop1\DesktopPlay`；发布分支 `release/T016-v101`；基准 `d39b9ec`；发布准备 `a5ad485` 经 [PR #18](https://github.com/Forest-Wood/DesktopPlay/pull/18) 合并为 `7755edc48751c6ca02afd53fd6828e134212f437`。开始时干净，无带入修改；发布后交接记录 `5e4a898` 在 [PR #19](https://github.com/Forest-Wood/DesktopPlay/pull/19) 待合并。
 - [T015：GPT 询问提醒修复](tasks/T015-gpt-attention.md) 已由 [PR #17](https://github.com/Forest-Wood/DesktopPlay/pull/17) 合并至 main `d39b9ec`；实现 `49c2311`、交接 `5cf9fa5`。PR CI #53 与主线 CI #54 完整通过。隔离验证通过，真实 GUI 待验收。
