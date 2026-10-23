@@ -61,7 +61,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     { category: 'account', label: '账户与用量', icon: '◉', children: [['overview', 'DeepSeek'], ['codex', 'Codex']] },
     { category: 'pet', label: '桌宠与陪伴', icon: '✧', children: [['appearance', '角色造型'], ['companionship', '陪伴短句'], ['bubbles', '气泡与提示']] },
     { category: 'preferences', label: '应用偏好', icon: '⌘', children: [['behavior', '桌面行为'], ['sound', '声音']] },
-    { category: 'reminders', label: '提醒与记录', icon: '◇', children: [['reminders', '余额提醒'], ['completion', '对话完成提醒'], ['records', '消费记录']] },
+    { category: 'reminders', label: '提醒与记录', icon: '◇', children: [['reminders', '余额提醒'], ['completion', '对话提醒'], ['records', '消费记录']] },
     { category: 'about', label: '关于', icon: 'ⓘ', children: [['version', '版本'], ['guide', '使用说明'], ['licenses', '素材与许可证'], ['uninstall', '卸载']] },
   ];
   const makePage = (id: string, title: string, html: string) => {
@@ -71,7 +71,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const behavior = makePage('behavior', '桌面行为', '<p class="page-description">让小伙伴按你的习惯，留在桌面上。</p>');
   const sound = makePage('sound', '声音', '<p class="page-description">给每次轻轻按下，留一点回应。</p>');
   makePage('bubbles', '气泡与提示', '<div id="bubble-editor"></div>');
-  makePage('completion', '对话完成提醒', `<label class="toggle-label"><span>监听 Codex 成功完成事件</span><input id="completion-enabled" name="codexCompletionEnabled" type="checkbox"></label>
+  makePage('completion', '对话提醒', `<label class="toggle-label"><span>监听 Codex 成功完成事件</span><input id="completion-enabled" name="codexCompletionEnabled" type="checkbox"></label>
     <label class="field-label" for="completion-directory">Codex 主目录</label><p id="completion-status" class="hint" role="status"></p><p id="completion-current-directory" class="hint completion-path"></p><input id="completion-directory" type="text" readonly><div class="button-row"><button id="completion-choose-directory" class="secondary-button" type="button">选择目录</button><button id="completion-default-directory" class="text-button" type="button">使用默认目录</button><button type="button" class="text-button" data-edit-completion="codex">编辑 Codex 提示</button></div>
     <p class="hint">选择包含 sessions 的 Codex 主目录，一般为 .codex。只读监听，不补发历史。</p>
     <label class="toggle-label"><span>监听 ChatGPT Work 原生结束通知</span><input name="chatgptCompletionEnabled" type="checkbox"></label><p id="chatgpt-completion-status" class="hint" role="status"></p><p class="hint">请在 ChatGPT 桌面应用中将回合结束通知设为“始终”（Always）。这里只接收原生结束通知，失败或中止也会提醒；启动前的通知不会补弹。</p><button type="button" class="text-button" data-edit-completion="chatgpt-work">编辑 Work 提示</button>
@@ -79,7 +79,15 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const phrases = makePage('companionship', '陪伴短句', '<p class="page-description">三套内容独立保存。自定义 GPT 图片使用原版 GPT 短句。</p><div class="persona-tabs" role="group" aria-label="短句人设"><button type="button" data-persona="whale">小鲸鱼</button><button type="button" data-persona="gpt">原版 GPT</button><button type="button" data-persona="dragon">白龙</button></div><div class="phrase-preview"><img id="phrase-preview-image" alt=""><p id="phrase-preview-text"></p></div><label class="field-label" for="phrases">陪伴短句 <span>每行一句 · 保存后生效</span></label>');
   phrases.querySelector('.panel')!.append(element<HTMLTextAreaElement>('phrases'));
   phrases.querySelector('.panel')!.insertAdjacentHTML('beforeend', '<div class="phrase-display-controls"><label class="field-label" for="phrase-count">每轮展示数量 N</label><input id="phrase-count" name="phraseCount" form="settings-form" type="number" min="0" max="20" step="1"><label class="field-label" for="phrase-mode">展示模式</label><select id="phrase-mode" name="phraseMode" form="settings-form"><option value="sequential">按顺序切换</option><option value="random">随机展示</option></select><p class="hint">0 表示关闭短句页。勾选至少 N 条候选；每轮每页展示一句。顺序模式接着上轮看过的位置继续。</p><div id="phrase-candidates" role="group" aria-label="候选短句"></div></div>');
-  element('completion').querySelector('.panel')!.insertAdjacentHTML('beforeend', `<h3>等待回应提醒</h3><p class="hint">提问、审批及完成提醒保持到点击气泡。隐藏或退出时清空；回应仍在原客户端完成。</p>${(['codex', 'chatgpt-work', 'deepseek-harness'] as const).map(source => `<label class="toggle-label"><span>${source === 'codex' ? 'Codex' : source === 'chatgpt-work' ? 'ChatGPT Work' : 'DeepSeek Harness'} 等待回应</span><input name="attention-${source}" type="checkbox"></label>`).join('')}<label class="toggle-label"><span>启用 Codex CLI／IDE hook 接入<small>保存后合并 hooks.json 并备份；关闭后移除本程序的配置。请在原客户端 /hooks 中信任新增转发项。</small></span><input name="codexHookEnabled" type="checkbox"></label><p id="codex-attention-status" class="hint" role="status"></p><p class="hint">需要客户端支持官方 PreToolUse／PermissionRequest hook；未收到事件前显示等待接入。ChatGPT Work 需开启提问及权限通知。</p>`);
+  element('completion').querySelector('.panel')!.insertAdjacentHTML('afterbegin', `<h3>等待回应提醒</h3><p class="hint">提问卡片、填写请求和审批弹窗触发提醒；普通正文里的追问不识别。气泡保持到点击，隐藏或退出时清空；回应仍在原客户端完成。</p>
+    <label class="toggle-label"><span>ChatGPT App 等待回应<small>覆盖聊天、Work 和 App 内 Codex。</small></span><input name="attention-chatgpt-work" type="checkbox"></label>
+    <p id="chatgpt-attention-status" class="hint" role="status"></p><p id="chatgpt-attention-directory" class="hint completion-path"></p>
+    <ol class="integration-steps"><li>在 ChatGPT 设置的通知页面开启“提问”和“权限”通知，并允许系统通知。</li><li>切换到其他会话或应用，再触发一次提问卡片或审批；正在查看的会话沿用 ChatGPT 原生规则，不重复提醒。</li><li>状态出现“已收到等待回应事件”和时间后，表示事件链路已接通。</li></ol>
+    <label class="toggle-label"><span>Codex CLI／VS Code 等待回应<small>接入后有提问或审批就提醒，包括正在查看的会话。</small></span><input name="attention-codex" type="checkbox"></label>
+    <label class="toggle-label"><span>启用 Codex CLI／IDE hook 接入<small>保存后合并 hooks.json 并备份；关闭后只移除 DesktopPet 的配置。</small></span><input name="codexHookEnabled" type="checkbox"></label>
+    <p id="codex-attention-status" class="hint" role="status"></p><p id="codex-attention-directory" class="hint completion-path"></p><p id="codex-attention-draft" class="hint" hidden>接入设置尚未保存，当前仍使用已保存的设置。</p>
+    <ol class="integration-steps"><li>开启上方 hook 接入，点击底部“保存设置”；保存后检查客户端是否支持接入。</li><li>在使用上述主目录的 Codex CLI 输入 /hooks，审阅并信任 DesktopPet 转发项。桌宠不会代为信任。</li><li>重新打开 VS Code 的 Codex 会话，再触发提问或审批；状态显示收到事件后接入完成。若仍等待，请核对 VS Code 使用的 Codex 主目录。</li></ol>
+    <label class="toggle-label"><span>DeepSeek Harness 等待回应</span><input name="attention-deepseek-harness" type="checkbox"></label><h3 class="completion-section-title">完成提醒</h3>`);
   element('appearance').querySelector('label[for="phrases"]')!.remove();
   const toggles = element('appearance').querySelector('.toggle-grid')!;
   for (const name of ['alwaysOnTop', 'snapToEdges', 'launchAtLogin']) behavior.querySelector('.panel')!.append(root.querySelector(`input[name="${name}"]`)!.closest('label')!);
@@ -238,13 +246,14 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     input('codexCompletionEnabled').checked = settings.codexCompletionEnabled;
     input('chatgptCompletionEnabled').checked = settings.chatgptCompletionEnabled; input('deepseekCompletionEnabled').checked = settings.deepseekCompletionEnabled;
     input('codexHookEnabled').checked = settings.codexHookEnabled;
+    element('codex-attention-draft').hidden = true;
     for (const source of ['codex', 'chatgpt-work', 'deepseek-harness'] as const) input(`attention-${source}`).checked = settings.attentionEnabledBySource[source];
     directoryDraft = settings.codexCompletionDirectory; dshDirectoryDraft = settings.deepseekCompletionDirectory; renderCompletionDraft(); bubbleEditor.fill(settings);
     input('lowBalanceThreshold').value = settings.lowBalanceThreshold ?? ''; input('dailyBudget').value = settings.dailyBudget ?? '';
     phraseDraft = structuredClone(settings.phrasesByPersona); phraseDisplayDraft = structuredClone(settings.phraseDisplayByPersona); phraseInput.value = phraseDraft[persona].join('\n'); previewPhrases(); ranges();
   };
   const ranges = () => { element('scale-output').textContent = `${Number(input('scale').value).toFixed(2)}×`; element('volume-output').textContent = `${Math.round(Number(input('volume').value) * 100)}%`; };
-  content.addEventListener('input', event => { if ((event.target as HTMLInputElement).form !== form) return; dirty = true; draftRevision++; ranges(); element('save-hint').textContent = '有尚未保存的调整'; });
+  content.addEventListener('input', event => { if ((event.target as HTMLInputElement).form !== form) return; dirty = true; draftRevision++; ranges(); element('codex-attention-draft').hidden = input('codexHookEnabled').checked === state.settings.codexHookEnabled && input('attention-codex').checked === state.settings.attentionEnabledBySource.codex; element('save-hint').textContent = '有尚未保存的调整'; });
   const update = (next: AppState) => {
     if (disposed) return;
     state = next;
@@ -277,7 +286,18 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     const completionLabels = { disabled: '完成提醒已关闭', starting: '正在连接本机会话…', watching: '正在监听新的完成事件', unavailable: '等待 Codex 会话', error: '会话监听异常' };
     element('completion-status').textContent = [completionLabels[state.codexCompletion.status], state.codexCompletion.error].filter(Boolean).join(' · ');
     element('completion-current-directory').textContent = `当前目录：${state.codexCompletion.directory}`;
-    element('codex-attention-status').textContent = state.codexAttention.error ?? ({ disabled: 'Codex hook 接入已关闭', starting: '等待 hook 接入', watching: '已收到 Codex hook 事件', unavailable: '客户端暂不支持 hook', error: 'Codex hook 接入异常' }[state.codexAttention.status]);
+    const hook = state.codexAttention;
+    const hookLabel = !state.settings.attentionEnabledBySource.codex ? 'Codex CLI／VS Code 等待提醒已关闭'
+      : !state.settings.codexHookEnabled ? '未接入：等待提醒已开启，请开启 hook 接入并保存设置'
+      : ({ disabled: 'hook 接入尚未启动', starting: '等待实际事件：请在 Codex CLI /hooks 审阅并信任，再重新打开 IDE 会话', watching: '已收到等待回应事件', unavailable: '客户端暂不支持 hook', error: 'Codex hook 接入异常' }[hook.status]);
+    element('codex-attention-status').textContent = [hookLabel, state.settings.codexHookEnabled ? hook.error : null, hook.lastAttentionAt ? `最近事件：${localTime(hook.lastAttentionAt)}` : null].filter(Boolean).join(' · ');
+    element('codex-attention-directory').textContent = `hook 主目录：${hook.directory || state.codexCompletion.directory || '正在读取…'}`;
+    element('codex-attention-draft').hidden = input('codexHookEnabled').checked === state.settings.codexHookEnabled && input('attention-codex').checked === state.settings.attentionEnabledBySource.codex;
+    const appAttention = state.chatgptCompletion;
+    const appAttentionLabel = !state.settings.attentionEnabledBySource['chatgpt-work'] ? 'ChatGPT App 等待提醒已关闭'
+      : ({ disabled: 'ChatGPT App 监听尚未启动', starting: '正在连接 ChatGPT 桌面通知日志…', watching: appAttention.lastAttentionAt ? '已收到等待回应事件' : '日志已连接，等待实际提问或审批事件；请确认已开启提问和权限通知', unavailable: '未找到 ChatGPT 桌面通知日志，请先启动 ChatGPT App', error: 'ChatGPT 桌面通知日志读取异常' }[appAttention.status]);
+    element('chatgpt-attention-status').textContent = [appAttentionLabel, appAttention.error, appAttention.lastAttentionAt ? `最近事件：${localTime(appAttention.lastAttentionAt)}` : null].filter(Boolean).join(' · ');
+    element('chatgpt-attention-directory').textContent = `通知日志目录：${appAttention.directory || '正在读取…'}`;
     const workLabels = { disabled: 'ChatGPT Work 提醒已关闭', starting: '正在连接 ChatGPT 桌面通知…', watching: '正在监听 ChatGPT 桌面结束通知', unavailable: '未找到 ChatGPT 桌面通知日志，请先启动桌面应用', error: 'ChatGPT 桌面通知监听异常' };
     element('chatgpt-completion-status').textContent = [workLabels[state.chatgptCompletion.status], state.chatgptCompletion.error].filter(Boolean).join(' · ');
     const dshLabels = { disabled: 'DSH 提醒已关闭', starting: '正在连接 DSH 会话…', watching: '正在监听 DSH 新的完成事件', unavailable: '等待 DSH 会话', error: 'DSH 会话监听异常' };

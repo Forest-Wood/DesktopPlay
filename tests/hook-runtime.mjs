@@ -68,21 +68,21 @@ try {
   await rpc('initialize', { clientInfo: { name: 'desktoppet_hook_fixture', version: '1' }, capabilities: { experimentalApi: true } }); child.stdin.write('{"method":"initialized"}\n');
   const listed = await rpc('hooks/list', { cwds: [cwd] });
   console.log('Hook discovery:', JSON.stringify(listed.data?.map(entry => ({ errors: entry.errors, hooks: entry.hooks.map(hook => ({ event: hook.eventName, trust: hook.trustStatus })) }))));
-  for (const kind of ['question', 'approval', 'relay-failure']) {
+  for (const kind of ['untrusted', 'question', 'approval', 'relay-failure']) {
     if (kind === 'relay-failure') { observer.pause(); await observer.drain(); }
     const before = notices.length;
-    requestedTool = kind === 'question' ? 'request_user_input' : 'exec_command';
-    const thread = await rpc('thread/start', { cwd, model: 'hook-test-model', modelProvider: 'fixture', approvalPolicy: 'on-request', sandbox: 'read-only', config: { bypass_hook_trust: true } });
+    requestedTool = kind === 'question' || kind === 'untrusted' ? 'request_user_input' : 'exec_command';
+    const thread = await rpc('thread/start', { cwd, model: 'hook-test-model', modelProvider: 'fixture', approvalPolicy: 'on-request', sandbox: 'read-only', config: { bypass_hook_trust: kind !== 'untrusted' } });
     await rpc('turn/start', { threadId: thread.thread.id, input: [{ type: 'text', text: 'Run the isolated fixture tool.' }], collaborationMode: { mode: 'plan', settings: { model: 'hook-test-model', reasoning_effort: 'low', developer_instructions: null } } });
     const deadline = Date.now() + 20000;
-    const delivered = () => kind === 'relay-failure' ? events.some(event => event.method === 'item/commandExecution/requestApproval' && event.params.threadId === thread.thread.id) : notices.some(notice => notice.kind === kind);
+    const delivered = () => kind === 'untrusted' || kind === 'relay-failure' ? events.some(event => event.method === (kind === 'untrusted' ? 'item/tool/requestUserInput' : 'item/commandExecution/requestApproval') && event.params.threadId === thread.thread.id) : notices.slice(before).some(notice => notice.kind === kind);
     while (Date.now() < deadline && !delivered()) { await observer.check(); await new Promise(resolve => setTimeout(resolve, 200)); }
-    const received = delivered() && (kind !== 'relay-failure' || notices.length === before);
-    console.log(`${kind}: ${kind === 'relay-failure' ? 'approvalPreserved' : 'relay'}=${received}; modelRequests=${requests}; protocolMethods=${[...new Set(events.map(event => event.method))].join(',')}`);
+    const received = delivered() && (!['untrusted', 'relay-failure'].includes(kind) || notices.length === before);
+    console.log(`${kind}: ${kind === 'untrusted' ? 'questionPreservedWithoutRelay' : kind === 'relay-failure' ? 'approvalPreserved' : 'relay'}=${received}; modelRequests=${requests}; protocolMethods=${[...new Set(events.map(event => event.method))].join(',')}`);
     await rpc('turn/interrupt', { threadId: thread.thread.id, turnId: events.findLast(event => event.method === 'turn/started' && event.params.threadId === thread.thread.id)?.params.turn.id });
     if (!received) { console.log('Runtime errors:', events.filter(event => /error|warning|hook\//i.test(event.method)).map(event => JSON.stringify(event.params)).join('\n').slice(0,6500)); throw new Error(`No ${kind} relay from real runtime`); }
   }
-  await writeFile(path.join(root, 'evidence.json'), JSON.stringify({ binary, question: true, approval: true, relayFailurePreservesApproval: true, model: 'loopback synthetic fixture', noticeKinds: notices.map(notice => notice.kind) }, null, 2));
+  await writeFile(path.join(root, 'evidence.json'), JSON.stringify({ binary, untrustedHookPreservesQuestion: true, question: true, approval: true, relayFailurePreservesApproval: true, model: 'loopback synthetic fixture', noticeKinds: notices.map(notice => notice.kind) }, null, 2));
 } catch (error) { console.error(error.message); console.error(stderr.slice(-3000)); process.exitCode = 1; }
 finally { child.kill(); observer.dispose(); await observer.drain(); server.closeAllConnections(); server.close(); console.log('Evidence directory:', path.relative(process.cwd(), root)); }
 }

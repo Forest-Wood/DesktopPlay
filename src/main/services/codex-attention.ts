@@ -11,12 +11,13 @@ export function supportsCodexHooks(executable: string | null): Promise<boolean> 
   return new Promise(resolve => execFile(executable, ['exec', '--help'], { windowsHide: true, timeout: 5000, maxBuffer: 256 * 1024 }, (error, stdout) => resolve(!error && stdout.includes('--dangerously-bypass-hook-trust'))));
 }
 export class CodexAttentionService {
-  private state: CodexCompletionState = { status: 'disabled', directory: '', error: null };
+  private state: CodexCompletionState = { status: 'disabled', directory: '', error: null, lastAttentionAt: null };
   private timer?: ReturnType<typeof setInterval>;
   private disposed = false;
   private enabled = false;
   private paused = false;
   private configured = '';
+  private scope = '';
   private armedAt = Date.now();
   private serial: Promise<void> = Promise.resolve();
   private seen = new Set<string>();
@@ -24,17 +25,17 @@ export class CodexAttentionService {
   constructor(private options: { dataDir: string; helperPath: string; onNotice: (notice: ConversationNotice) => void; onState?: () => void; pollMs?: number; isSupported?: () => Promise<boolean> }) { this.inbox = path.join(options.dataDir, 'integrations', 'codex', 'inbox'); }
   getState(): CodexCompletionState { return { ...this.state }; }
   private update(patch: Partial<CodexCompletionState>) { this.state = { ...this.state, ...patch }; this.options.onState?.(); }
-  configure(enabled: boolean, directory: string): Promise<void> {
+  configure(enabled: boolean, directory: string, scope = ''): Promise<void> {
     const job = this.serial.catch(() => {}).then(async () => {
-      if (this.disposed || (!this.paused && this.enabled === enabled && this.configured === directory && !['error', 'unavailable'].includes(this.state.status))) return;
+      if (this.disposed || (!this.paused && this.enabled === enabled && this.configured === directory && this.scope === scope && !['error', 'unavailable'].includes(this.state.status))) return;
       this.paused = false;
       clearInterval(this.timer);
       try {
         if (enabled && this.options.isSupported && !await this.options.isSupported()) { this.update({ status: 'unavailable', directory, error: '未找到支持官方 hook 的 Codex；请升级 CLI／IDE 使用的 Codex，或在账户页选择兼容程序。' }); return; }
         if (this.configured && this.configured !== directory && this.enabled) await this.install(this.configured, false);
         if (enabled || this.enabled) await this.install(directory, enabled);
-        this.enabled = enabled; this.configured = directory; this.armedAt = Date.now(); this.seen.clear();
-        this.update({ status: enabled ? 'starting' : 'disabled', directory, error: enabled ? '等待 hook 事件；请在原客户端 /hooks 中信任 DesktopPet 转发配置。' : null });
+        this.enabled = enabled; this.configured = directory; this.scope = scope; this.armedAt = Date.now(); this.seen.clear();
+        this.update({ status: enabled ? 'starting' : 'disabled', directory, error: null, lastAttentionAt: null });
         if (enabled) {
           await mkdir(this.inbox, { recursive: true }); await this.scan();
           if (!this.disposed) { this.timer = setInterval(() => { void this.check(); }, this.options.pollMs ?? 1000); this.timer.unref(); }
@@ -100,14 +101,18 @@ export class CodexAttentionService {
         if ((await stat(filename)).size > 4096) continue;
         const event: unknown = JSON.parse(await readFile(filename, 'utf8'));
         if (!plain(event) || event.source !== 'codex' || !['question', 'approval'].includes(event.kind as string) || typeof event.id !== 'string' || !/^[a-f0-9]{64}$/.test(event.id) || typeof event.occurredAt !== 'string') continue;
+        // The desktop App already applies conversation-visibility rules in its native notifications.
+        // CLI/IDE hooks do not carry visibility; forward their requests regardless of focus.
+        if (event.client === 'chatgpt' || (event.client !== undefined && !['vscode', 'cli', 'unknown'].includes(event.client as string))) continue;
         const time = Date.parse(event.occurredAt);
         if (!Number.isFinite(time) || time < this.armedAt || time > Date.now() + 60000 || this.seen.has(event.id)) continue;
         this.seen.add(event.id);
         if (this.seen.size > 5000) this.seen.delete(this.seen.values().next().value!);
-        this.update({ status: 'watching', error: null });
+        this.update({ status: 'watching', error: null, lastAttentionAt: event.occurredAt });
         this.options.onNotice({ id: event.id, source: 'codex', kind: event.kind as 'question' | 'approval', occurredAt: event.occurredAt });
       } finally { await rm(filename, { force: true }); }
     }
+    if (this.state.status === 'error') this.update({ status: this.state.lastAttentionAt ? 'watching' : 'starting', error: null });
   }
   async drain(): Promise<void> { await this.serial.catch(() => {}); }
   async removeForUninstall(): Promise<void> {
