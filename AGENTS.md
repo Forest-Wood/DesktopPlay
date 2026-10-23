@@ -44,6 +44,8 @@ DesktopPet 是 Windows 10/11 x64 桌宠：DeepSeek 小鲸鱼显示余额与本�
 - 实现后检查差异并运行必要验证，准确记录结果。
 - 完成或暂停时更新本任务交接文件，注明提交和下一步。
 - 推送、创建 PR、合并和发布按本次明确授权范围执行。
+- 本仓库已多次确认 GitHub 连接器创建 PR 返回 403（Resource not accessible by integration），而本机已有 Git 凭据可成功创建。授权／连接状态未明确变化前，不为同一写入重复试探连接器；读取仍可使用连接器。用户选择优先使用已安装并登录的 `gh`；先核实 `gh auth status`，按 head 查重后通过 `gh pr create --body-file` 创建。`gh` 暂不可用时可使用 `npm.cmd run pr:create -- <PR.json>` 备用流程，详见 [docs/github.md](docs/github.md)。
+- 备用 PR 命令只复用已有 Git 凭据并在内存中传给 GitHub 官方 API，不打印、保存或通过命令行传递令牌；创建前按 head 查询现有 PR，创建后仍须附加 PR 到当前任务并核对远程状态。该流程不扩大用户授权，也不自动合并或发布。
 
 ## 初始化与事实核实
 

@@ -20,7 +20,8 @@
     "start": "electron .",
     "dist": "npm run build && node scripts/package.mjs",
     "release:prepare": "node scripts/release-policy.mjs prepare",
-    "release:check": "node scripts/release-policy.mjs check"
+    "release:check": "node scripts/release-policy.mjs check",
+    "pr:create": "node scripts/github-pr.mjs"
   },
   "devDependencies": {
     "@electron/asar": "3.4.1",
