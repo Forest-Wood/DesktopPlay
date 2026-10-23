@@ -4,12 +4,14 @@
 
 ## 当前工作
 
-- [T015：GPT 询问提醒修复](tasks/T015-gpt-attention.md) **待审查**，[PR #17](https://github.com/Forest-Wood/DesktopPlay/pull/17) 已创建，非草稿，目标 main。实现 `49c2311169c2079e753d66a0668d36f8ad59a04c` 已推送，交接提交见分支历史。工作目录 `D:\desktop1\DesktopPlay`；分支 `fix/T015-gpt-attention`；基准 `236c594`，开始时干净，无带入修改。隔离验证通过，真实 GUI 待验收。
+- [T016：发布 v1.0.1](tasks/T016-release-v101.md) 发布准备中，关联 R024。用户于 2026-10-23 明确授权创建新 Release；工作目录 `D:\desktop1\DesktopPlay`，分支 `release/T016-v101`，基准 `d39b9ec9a4c4993a387f51e251032804e2ff5f7e`。开始时干净，本任务未提交修改为版本、公告与交接；按 patch 从最新正式 1.0.0 升至 1.0.1，未创建标签或发布。
+- [T015：GPT 询问提醒修复](tasks/T015-gpt-attention.md) 已由 [PR #17](https://github.com/Forest-Wood/DesktopPlay/pull/17) 合并至 main `d39b9ec`；实现 `49c2311`、交接 `5cf9fa5`。PR CI #53 与主线 CI #54 完整通过。隔离验证通过，真实 GUI 待验收。
 - 已补 ChatGPT App local／durable 三类等待通知、CLI／VS Code hook 接入引导、来源区分及最近事件诊断。ChatGPT 按原生会话可见性规则提醒；用户明确 VS Code 有提问／审批就提醒，包括正在查看的会话。真实设置、信任及通知偏好未更改。
-- 当前正式版本仍为 [v1.0.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v1.0.0)，2026-10-22 发布为 latest，Release `420443336`，源码 `13a3951`，五附件公开下载／摘要／公告核实通过。[T014 发布记录](tasks/T014-release-v100.md)；旧 [v0.5.4／T011](tasks/T011-release-v054.md) 保留。T015 按 2026-10-23 授权完成提交、推送和 PR 创建；不升版本，尚未合并或发布，未来发布按 patch 规则处理。
+- 当前正式版本仍为 [v1.0.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v1.0.0)，Release `420443336`，源码 `13a3951`；[T014 发布记录](tasks/T014-release-v100.md)。开始 T016 时核实无发布草稿及 v1.0.1 标签；保留旧版本及附件。
 
 ## 验证状态
 
+- **通过**：T016 v1.0.1 版本／公告检查、npm ci、25 文件／266 单测、完整 20/20 Electron、卸载 helper 三场景、更新 helper 七场景、安装／免安装打包及资源／运行依赖／hook 校验；生产依赖审计 0 项。远程发布准备 CI、整合、标签和公开资源核实待完成，见 T016。
 - **通过**：T015 `npm.cmd test`，25 文件／266 单测；`npm.cmd run build`（含类型检查）；差异空白检查。旧解析器 local 三种事件全部拒绝，而旧 19 单测仍通过的缺口已复现并增加覆盖。
 - **通过**：IDE 捆绑原生 Codex 0.162.0-alpha.17.2 的四场景 app-server 验证：未信任 hook 被跳过但原提问保留；提问／审批转发；转发不可用时原审批保留。使用隔离 CODEX_HOME 与回环合成模型，无登录／付费推理。证据和失败恢复见 T015。
 - **通过**：相关五文件 11 个 Electron 场景均已有通过记录。提权首轮 10/11；补充新增测试的渲染与异步文件清理等待后，新两项最终 2/2（9.5 秒）通过。包含原有完成／常驻／文案／音效队列、DeepSeek 与新增 App／hook 文件到气泡链路；设置截图已目视核验。
@@ -21,4 +23,4 @@
 
 appId、数据目录 `%APPDATA%\DesktopPlay`、安装／portable 共用数据和现有来源存储键不变。等待与完成气泡点击前常驻，隐藏／退出清空并不补历史。Codex hook 默认关闭，需要用户保存接入并在原客户端信任；App 原生提问／权限通知需开启。DeepSeek 保持 v4 普通／压缩来源。运行时诊断 lastAttentionAt 不持久化、不含正文或账户标识。
 
-等待 PR #17 审查与 CI；真实客户端试用按任务矩阵分别补记录。后续独立任务编号 T016／R024。不得重跑 v1.0.0 发布、移动旧标签或覆盖附件。
+完成 T016 必要验证、发布准备整合、创建 v1.0.1 标签和正式 Release，核实公开五附件及公告。真实客户端试用按 T015 矩阵分别补记录。后续独立任务编号 T017／R025。不得重跑 v1.0.0 发布、移动旧标签或覆盖附件。
