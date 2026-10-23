@@ -28,8 +28,8 @@
 | R020 | 对话提醒保持到点击气泡 | 已合并并随 v1.0.0 发布 | [T013](tasks/T013-conversation-attention.md) |
 | R021 | 陪伴短句候选、每轮数量与随机／顺序模式 | 已合并并随 v1.0.0 发布 | [T013](tasks/T013-conversation-attention.md) |
 | R022 | 发布 v1.0.0 并核实公告、下载与更新资源 | 已正式发布为 latest，五附件公开下载、摘要及公告一致性核实通过 | [T014](tasks/T014-release-v100.md) |
-| R023 | 修复 GPT 系列询问提醒与接入诊断 | 已合并（PR #17）；隔离验证通过，真实 GUI 待验收 | [T015](tasks/T015-gpt-attention.md) |
-| R024 | 发布 v1.0.1 并核实公告、下载与更新资源 | 发布准备中 | [T016](tasks/T016-release-v101.md) |
+| R023 | 修复 GPT 系列询问提醒与接入诊断 | 已合并并随 v1.0.1 发布；隔离验证通过，真实 GUI 待验收 | [T015](tasks/T015-gpt-attention.md) |
+| R024 | 发布 v1.0.1 并核实公告、下载与更新资源 | 已正式发布为 latest，五附件公开下载、摘要及公告一致性核实通过 | [T016](tasks/T016-release-v101.md) |
 
 ## R001：默认气泡显示时间
 
