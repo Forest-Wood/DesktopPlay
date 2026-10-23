@@ -1,7 +1,6 @@
 {
-  "baseVersion": "0.5.4",
+  "baseVersion": "1.0.0",
   "changeTypes": [
-    "patch",
-    "major"
+    "patch"
   ]
 }
