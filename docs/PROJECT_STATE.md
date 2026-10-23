@@ -4,9 +4,9 @@
 
 ## 当前工作
 
-- [T015：GPT 询问提醒修复](tasks/T015-gpt-attention.md) 已实现、隔离验证通过，真实客户端 GUI 待验收，关联 R023。工作目录 `D:\desktop1\DesktopPlay`；分支 `fix/T015-gpt-attention`；远程 main 基准 `236c594a005615df17b2eb61794726606e84bf9e`；结果未提交。开始时干净，当前未提交修改均属 T015。
+- [T015：GPT 询问提醒修复](tasks/T015-gpt-attention.md) **待审查**，[PR #17](https://github.com/Forest-Wood/DesktopPlay/pull/17) 已创建，非草稿，目标 main。实现 `49c2311169c2079e753d66a0668d36f8ad59a04c` 已推送，交接提交见分支历史。工作目录 `D:\desktop1\DesktopPlay`；分支 `fix/T015-gpt-attention`；基准 `236c594`，开始时干净，无带入修改。隔离验证通过，真实 GUI 待验收。
 - 已补 ChatGPT App local／durable 三类等待通知、CLI／VS Code hook 接入引导、来源区分及最近事件诊断。ChatGPT 按原生会话可见性规则提醒；用户明确 VS Code 有提问／审批就提醒，包括正在查看的会话。真实设置、信任及通知偏好未更改。
-- 当前正式版本仍为 [v1.0.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v1.0.0)，2026-10-22 发布为 latest，Release `420443336`，源码 `13a3951`，五附件公开下载／摘要／公告核实通过。[T014 发布记录](tasks/T014-release-v100.md)；旧 [v0.5.4／T011](tasks/T011-release-v054.md) 保留。用户已于 2026-10-23 授权 T015 提交、推送及创建 PR，正在办理；不升版本，尚未合并或发布，未来发布按 patch 规则处理。
+- 当前正式版本仍为 [v1.0.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v1.0.0)，2026-10-22 发布为 latest，Release `420443336`，源码 `13a3951`，五附件公开下载／摘要／公告核实通过。[T014 发布记录](tasks/T014-release-v100.md)；旧 [v0.5.4／T011](tasks/T011-release-v054.md) 保留。T015 按 2026-10-23 授权完成提交、推送和 PR 创建；不升版本，尚未合并或发布，未来发布按 patch 规则处理。
 
 ## 验证状态
 
@@ -21,4 +21,4 @@
 
 appId、数据目录 `%APPDATA%\DesktopPlay`、安装／portable 共用数据和现有来源存储键不变。等待与完成气泡点击前常驻，隐藏／退出清空并不补历史。Codex hook 默认关闭，需要用户保存接入并在原客户端信任；App 原生提问／权限通知需开启。DeepSeek 保持 v4 普通／压缩来源。运行时诊断 lastAttentionAt 不持久化、不含正文或账户标识。
 
-T015 按授权提交推送并创建 PR，完成后记录链接；真实客户端试用按任务矩阵分别补记录。后续独立任务编号 T016／R024。不得重跑 v1.0.0 发布、移动旧标签或覆盖附件。
+等待 PR #17 审查与 CI；真实客户端试用按任务矩阵分别补记录。后续独立任务编号 T016／R024。不得重跑 v1.0.0 发布、移动旧标签或覆盖附件。
