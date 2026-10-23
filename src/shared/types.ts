@@ -210,6 +210,8 @@ export interface CodexCompletionState {
   status: 'disabled' | 'starting' | 'watching' | 'unavailable' | 'error';
   directory: string;
   error: string | null;
+  /** Latest observed question/approval in this listening scope; omitted means none. */
+  lastAttentionAt?: string | null;
 }
 
 export interface AppUpdateState {

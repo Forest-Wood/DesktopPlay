@@ -7,7 +7,7 @@ export const SCENARIO_LABELS: Record<BubbleScenario, string> = {
   usage: '用量页', summary: '用量小报告', phrases: '陪伴短句', retention: '换角色挽留',
   'low-balance': '低余额提醒', 'daily-budget': '每日预算提醒', update: '软件更新',
   'completion-codex': 'Codex 完成提醒', 'completion-chatgpt-work': 'ChatGPT Work 结束提醒', 'completion-deepseek-harness': 'DeepSeek Harness 完成提醒',
-  'attention-codex': 'Codex 等待回应', 'attention-chatgpt-work': 'ChatGPT Work 等待回应', 'attention-deepseek-harness': 'DeepSeek Harness 等待回应',
+  'attention-codex': 'Codex CLI／VS Code 等待回应', 'attention-chatgpt-work': 'ChatGPT App 等待回应', 'attention-deepseek-harness': 'DeepSeek Harness 等待回应',
 };
 export const SCENARIOS = Object.keys(SCENARIO_LABELS) as BubbleScenario[];
 export const builtinSound = (slot: SoundSlot) => slot.startsWith('completion-') ? './assets/completion.wav' : `./assets/${slot}.mp3`;

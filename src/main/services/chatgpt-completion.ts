@@ -30,7 +30,7 @@ export function parseChatgptTurnEnd(line: string): TurnEnd | null {
   } catch { return null; }
 }
 
-/** Native notification IDs are parsed, never notification titles or bodies. */
+/** App Chat/Work/Codex use local/durable hosts. Parse IDs, never titles or bodies. */
 export function parseChatgptAttention(line: string): TurnEnd | null {
   if (line.length > MAX_LINE || !line.includes('[desktop-notifications] forward show ')) return null;
   const kind = /(?:^|\s)kind=(question|permission)(?:\s|$)/.exec(line)?.[1];
@@ -40,13 +40,13 @@ export function parseChatgptAttention(line: string): TurnEnd | null {
   if (kind === 'question' && id.startsWith('async-question-')) {
     try {
       const key: unknown = JSON.parse(id.slice(15));
-      if (!Array.isArray(key) || key.length !== 6 || key[2] !== 'durable' || !key.every(value => typeof value === 'string' && value.length > 0 && value.length <= 512)) return null;
-      return { thread: key[3], turn: `question:${key[5]}`, time, kind: 'question' };
+      if (!Array.isArray(key) || key.length !== 6 || !['local', 'durable'].includes(key[2]) || !key.every(value => typeof value === 'string' && value.length > 0 && value.length <= 512)) return null;
+      return { thread: `${key[2]}:${key[3]}`, turn: `question:${JSON.stringify([key[4], key[5]])}`, time, kind: 'question' };
     } catch { return null; }
   }
-  const prefix = kind === 'question' ? 'question-durable-' : 'approval-durable-';
-  if (!id.startsWith(prefix) || id.length === prefix.length || id.length > prefix.length + 512 || /\s/.test(id)) return null;
-  return { thread: 'native-request', turn: id, time, kind: kind === 'question' ? 'question' : 'approval' };
+  const request = /^(question|approval)-(local|durable)-([^\s]{1,512})$/.exec(id);
+  if (!request || request[1] !== (kind === 'question' ? 'question' : 'approval')) return null;
+  return { thread: `native-request:${request[2]}`, turn: id, time, kind: kind === 'question' ? 'question' : 'approval' };
 }
 
 /** Windows Store and standalone desktop layouts; no account/configuration files are read. */
@@ -68,7 +68,7 @@ interface Options {
 
 /** Native turn-ended events carry no success status; failure/interruption is intentionally included. */
 export class ChatgptCompletionService {
-  private state: CodexCompletionState = { status: 'disabled', directory: '', error: null };
+  private state: CodexCompletionState = { status: 'disabled', directory: '', error: null, lastAttentionAt: null };
   private directories: string[] = [];
   private enabled = false;
   private scope = '';
@@ -95,7 +95,7 @@ export class ChatgptCompletionService {
     this.stop(); this.enabled = enabled; this.directories = resolved;
     this.cursors.clear(); this.seen.clear(); this.through.clear(); this.baseline = true;
     this.armedAt = this.options.now?.() ?? Date.now(); this.inFlight = null;
-    this.update({ status: enabled ? 'starting' : 'disabled', directory: resolved.join('；'), error: null });
+    this.update({ status: enabled ? 'starting' : 'disabled', directory: resolved.join('；'), error: null, lastAttentionAt: null });
     if (!enabled) return;
     await this.check();
     if (!this.current(generation)) return;
@@ -233,7 +233,11 @@ export class ChatgptCompletionService {
     through.turns.add(event.turn); this.through.set(event.thread, through); this.seen.add(id);
     if (this.seen.size > 5000) this.seen.delete(this.seen.values().next().value!);
     try {
-      if (event.kind) this.options.onAttention?.({ id: createHash('sha256').update(id).digest('hex'), source: 'chatgpt-work', kind: event.kind, occurredAt: new Date(event.time).toISOString() });
+      if (event.kind) {
+        const occurredAt = new Date(event.time).toISOString();
+        this.update({ lastAttentionAt: occurredAt });
+        this.options.onAttention?.({ id: createHash('sha256').update(id).digest('hex'), source: 'chatgpt-work', kind: event.kind, occurredAt });
+      }
       else this.options.onNotice({ id, source: 'chatgpt-work', completedAt: new Date(event.time).toISOString() });
     }
     catch { /* A consumer error must not stop monitoring. */ }

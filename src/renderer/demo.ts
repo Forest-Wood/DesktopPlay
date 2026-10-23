@@ -9,10 +9,10 @@ export function createDemoApi(): DesktopApi {
   let state: AppState = {
     petVisible: true,
     appUpdate: initialUpdateState(),
-    codexAttention: { status: 'disabled', directory: '浏览器演示不配置 hook', error: null },
+    codexAttention: { status: 'disabled', directory: '浏览器演示不配置 hook', error: null, lastAttentionAt: null },
     codexCompletion: { status: 'disabled', directory: '浏览器演示不读取本机会话', error: null },
     deepseekCompletion: { status: 'disabled', directory: '浏览器演示不读取 DSH 会话', error: null },
-    chatgptCompletion: { status: 'disabled', directory: '浏览器演示不读取桌面通知', error: null },
+    chatgptCompletion: { status: 'disabled', directory: '浏览器演示不读取桌面通知', error: null, lastAttentionAt: null },
     sounds: structuredClone(DEFAULT_SOUNDS),
     settings: structuredClone(DEFAULT_SETTINGS), hasApiKey: false, balance: { currency: 'CNY', total: '28.36000000', granted: '0.00000000', toppedUp: '28.36000000', observedAt: new Date().toISOString(), isAvailable: true },
     ledger: { today: { date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date()), currency: 'CNY', spent: '1.24000000', increased: '0.00000000', startedAt: new Date().toISOString() }, history: [] },

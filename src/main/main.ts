@@ -116,7 +116,7 @@ async function start(): Promise<void> {
   completion = new CodexCompletionService(completionOptions);
   chatgptCompletion = new ChatgptCompletionService(completionOptions);
   deepseekCompletion = new DeepseekCompletionService(completionOptions);
-  codexAttention = new CodexAttentionService({ dataDir, helperPath: path.join(__dirname, 'conversation-hook.ps1'), onState: publish, onNotice: sendConversationNotice, isSupported: () => supportsCodexHooks(codex.getExecutablePath()) });
+  codexAttention = new CodexAttentionService({ dataDir, helperPath: path.join(__dirname, 'conversation-hook.ps1'), onState: publish, onNotice: sendConversationNotice, isSupported: () => noCodex && process.env.DESKTOPPLAY_TEST_CODEX_HOOK_SUPPORTED === '1' ? Promise.resolve(true) : supportsCodexHooks(codex.getExecutablePath()) });
   const updateKind = app.isPackaged && process.platform === 'win32' && process.arch === 'x64' ? process.env.PORTABLE_EXECUTABLE_FILE ? 'portable' : 'installed' : 'unsupported';
   if (updateKind === 'portable') portableUpdates = new PortableUpdateManager({ programPath: process.env.PORTABLE_EXECUTABLE_FILE!, exePath: process.execPath, dataDir, helperPath: path.join(__dirname, 'update-helper.ps1') });
   const backend = updateKind === 'installed' ? new InstalledUpdateBackend() : updateKind === 'portable' ? new PortableUpdateBackend({ cacheDir: path.join(dataDir, 'updates', 'downloads'), prepare: (file, hash, version) => portableUpdates!.prepare(file, hash, version) }) : undefined;
@@ -281,7 +281,7 @@ function configureCompletion(): void {
   const settings = service.getState().settings;
   const isolated = !app.isPackaged && process.env.DESKTOPPLAY_TEST_NO_CODEX === '1';
   const directory = settings.codexCompletionDirectory ?? (isolated ? process.env.DESKTOPPLAY_TEST_CODEX_HOME || path.join(dataDir, 'codex-test-home') : process.env.CODEX_HOME || path.join(os.homedir(), '.codex'));
-  void codexAttention.configure(settings.codexHookEnabled, directory);
+  void codexAttention.configure(settings.codexHookEnabled && !shuttingDown, directory, String(settings.attentionEnabledBySource.codex));
   void completion.configure(settings.codexCompletionEnabled && !shuttingDown, directory);
   const logs = isolated ? [process.env.DESKTOPPLAY_TEST_CHATGPT_LOG_DIR || path.join(dataDir, 'chatgpt-test-logs')]
     : chatgptLogDirectories(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'));
@@ -485,6 +485,7 @@ function registerIpc(): void {
       preferenceWrites = preferenceWrites.catch(() => {}).then(async () => { await writeFile(`${filename}.tmp`, JSON.stringify({ executablePath })); await rename(`${filename}.tmp`, filename); });
       await preferenceWrites;
       await codex.refresh();
+      configureCompletion();
     }
     return getState();
   });
