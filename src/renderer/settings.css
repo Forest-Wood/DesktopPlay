@@ -45,3 +45,6 @@
 #update-announcement{min-width:0;max-width:100%}#update-announcement h4{margin:16px 0 6px}.update-notes{min-width:0;max-width:100%;box-sizing:border-box}
 
 #pet-mode{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px;min-width:110px}.deepseek-period{margin-top:16px}.deepseek-period strong{overflow-wrap:anywhere}
+
+/* Keep the absolute screen-reader label inside the scrollable key form. */
+.settings-view .key-panel form{position:relative}

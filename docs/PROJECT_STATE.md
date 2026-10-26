@@ -4,7 +4,9 @@
 
 ## 当前工作
 
-- [T019：全局桌宠模式、版本分类与 DeepSeek 本地时间](tasks/T019-pet-mode-local-time.md) 实现 `26470a1` 已提交、推送并创建 [PR #22](https://github.com/Forest-Wood/DesktopPlay/pull/22)，目标 main，待审查。分支 `feat/T019-pet-mode-local-time`，基准 `origin/main` `75f58a1`（已 fetch），工作目录 `D:\desktop1\DesktopPlay`；任务开始时工作区干净。本次所有源码／测试／文档改动均为 T019；未合并、未发布，版本保留 `1.0.1`。
+- [T020：发布 v1.1.0](tasks/T020-release-v110.md) 正在准备；用户已授权新 Release。分支 `release/T020-v110`，基准 main `b2900f5`；最新正式版本 v1.0.1，本次按新增功能升 minor。尚未发布。
+
+- [T019：全局桌宠模式、版本分类与 DeepSeek 本地时间](tasks/T019-pet-mode-local-time.md) 实现 `26470a1` 已提交、推送并创建 [PR #22](https://github.com/Forest-Wood/DesktopPlay/pull/22)，已合并至 main `b2900f5`。分支 `feat/T019-pet-mode-local-time`，基准 `origin/main` `75f58a1`（已 fetch），工作目录 `D:\desktop1\DesktopPlay`；任务开始时工作区干净。本次所有源码／测试／文档改动均为 T019；未合并、未发布，版本保留 `1.0.1`。
 - T019 新增全局简洁／完整模式；DeepSeek 电脑时区日分段与峰谷状态；major 由用户决定、新功能 minor、优化 patch。旧账本原金额／北京时间日期保留，新记录保存时区及分段；2026 假期已核实，其他年份提示待核实。接口／兼容细节见 T019 与 DESIGN。
 
 - [T018：优化 GitHub PR 创建流程](tasks/T018-github-pr.md) 的 [PR #21](https://github.com/Forest-Wood/DesktopPlay/pull/21) 已合并至 main `75f58a1`，本次 fetch 核实。gh 为首选，`pr:create`、查重及离线校验命令保留备用；入口见 [GitHub PR 流程](github.md)。
@@ -34,4 +36,4 @@
 
 appId、数据目录 `%APPDATA%\DesktopPlay`、安装／portable 共用数据和现有来源存储键不变。等待与完成气泡点击前常驻，隐藏／退出清空并不补历史。Codex hook 默认关闭，需要用户保存接入并在原客户端信任；App 原生提问／权限通知需开启。DeepSeek 保持 v4 普通／压缩来源。运行时诊断 lastAttentionAt 不持久化、不含正文或账户标识。
 
-本版发布与下载核实已完成；发布后交接记录见 PR #19。接入 hook 后需重新加载会话配置，建议保存工作后完全退出并重启 VS Code；App 原生通知另按可见性与通知偏好验收。真实客户端试用按 T015／T017 矩阵分别补记录。后续独立任务编号 T020／R027。不重跑同版本发布、不移动标签或覆盖附件。
+本版发布与下载核实已完成；发布后交接记录见 PR #19。接入 hook 后需重新加载会话配置，建议保存工作后完全退出并重启 VS Code；App 原生通知另按可见性与通知偏好验收。真实客户端试用按 T015／T017 矩阵分别补记录。后续独立任务编号 T021／R028。不重跑同版本发布、不移动标签或覆盖附件。
