@@ -85,3 +85,11 @@ it('protects historical versions and existing tags from preparation', async () =
   execFileSync('git', ['tag', 'v0.5.5'], { cwd: root, windowsHide: true });
   await expect(prepareRelease(root, { baseVersion: '0.5.4', changeTypes: ['patch'], notesFile: 'notes.md' })).rejects.toThrow('already exists');
 });
+
+// Scope (one pet or all pets) must never imply a major bump.
+it('uses minor for new features and patch for optimizations from the current baseline', () => {
+  expect(nextVersion('1.0.1', ['minor'])).toBe('1.1.0');
+  expect(nextVersion('1.0.1', ['minor', 'patch'])).toBe('1.1.0');
+  expect(nextVersion('1.0.1', ['patch'])).toBe('1.0.2');
+  expect(nextVersion('1.0.1', ['major'])).toBe('2.0.0'); // Explicit owner decision only.
+});

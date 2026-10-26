@@ -239,6 +239,9 @@ function createTray(): void {
   tray = new Tray(icon);
   tray.on('double-click', showPet); updateTray();
 }
+function modeMenu(): Electron.MenuItemConstructorOptions {
+  return { label: '简洁模式', type: 'checkbox', checked: service.getState().settings.petMode === 'simple', click: () => { if (!shuttingDown) void track(() => service.updateSettings({ petMode: service.getState().settings.petMode === 'simple' ? 'full' : 'simple' })).catch(() => {}); } };
+}
 function updateTray(): void {
   if (tray) {
     tray.setToolTip(`DesktopPet · ${assets.get().name}`);
@@ -246,6 +249,7 @@ function updateTray(): void {
   }
   tray?.setContextMenu(Menu.buildFromTemplate([
     { label: '显示桌宠', click: showPet },
+    modeMenu(),
     { label: '切换桌宠', submenu: petMenu() },
     { label: 'GPT 造型', submenu: appearanceMenu() },
     { label: '设置、余额与额度', click: () => { void openSettings(); } },
@@ -499,7 +503,7 @@ function registerIpc(): void {
   handle('reset-pet', async () => { const anchor = petWindow ? characterOrigin(petWindow.getBounds(), orientation(), assets.get()) : null; await assets.reset(); if (anchor) positionPet(anchor, service.getState().settings.snapToEdges); updateTray(); publish(); return getState(); });
   handle('open-settings', (_event, page) => { if (page !== undefined && page !== 'version') throw new Error('设置页面无效。'); return openSettings(page); });
   handle('show-menu', () => {
-    Menu.buildFromTemplate([{ label: '切换桌宠', submenu: petMenu() }, { label: 'GPT 造型', submenu: appearanceMenu() }, { label: '设置、余额与额度', click: () => { void openSettings(); } }, { label: '刷新当前额度', click: refreshCurrent }, { type: 'separator' }, { label: '隐藏桌宠', click: () => petWindow?.hide() }, { label: '退出', click: () => { if (!uninstallBusy && !updateBusy) app.quit(); } }]).popup({ window: petWindow ?? undefined });
+    Menu.buildFromTemplate([modeMenu(), { label: '切换桌宠', submenu: petMenu() }, { label: 'GPT 造型', submenu: appearanceMenu() }, { label: '设置、余额与额度', click: () => { void openSettings(); } }, { label: '刷新当前额度', click: refreshCurrent }, { type: 'separator' }, { label: '隐藏桌宠', click: () => petWindow?.hide() }, { label: '退出', click: () => { if (!uninstallBusy && !updateBusy) app.quit(); } }]).popup({ window: petWindow ?? undefined });
   });
   handle('hide-pet', () => { finishDrag(); petWindow?.hide(); });
   handle('quit', () => { if (!uninstallBusy && !updateBusy) app.quit(); });

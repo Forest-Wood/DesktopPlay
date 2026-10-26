@@ -27,6 +27,7 @@ export interface UninstallInfo {
   reason: string | null;
 }
 export interface AppSettings {
+  petMode: 'simple' | 'full';
   autoCheckUpdates: boolean;
   alwaysOnTop: boolean;
   launchAtLogin: boolean;
@@ -62,6 +63,9 @@ export interface BalanceSnapshot {
 }
 
 export interface DaySummary {
+  /** Absent on historical Beijing-time records. */
+  timeZone?: string;
+  segmentId?: string;
   date: string;
   currency: 'CNY' | 'USD';
   spent: string;

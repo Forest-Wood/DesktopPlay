@@ -1,5 +1,6 @@
+import { localBalanceTime } from '../../../src/shared/deepseek-time';
 import { describe, expect, it } from 'vitest';
-import { beijingTime, decimalSetting, money } from '../../../src/renderer/format';
+import { decimalSetting, money } from '../../../src/renderer/format';
 
 describe('renderer display and reminder inputs', () => {
   it('turns an empty threshold off and preserves eight decimal places exactly', () => {
@@ -16,8 +17,8 @@ describe('renderer display and reminder inputs', () => {
     expect(money('12.34560000', 'USD')).toBe('$12.35');
     expect(money(null)).toBe('—');
   });
-  it('renders the Beijing date across a UTC midnight boundary', () => {
-    expect(beijingTime('2026-10-01T17:20:30.000Z')).toBe('10/02 01:20:30');
-    expect(beijingTime(undefined)).toBe('尚未更新');
+  it('renders balance timestamps in the selected computer timezone', () => {
+    expect(localBalanceTime('2026-10-01T17:20:30.000Z', 'UTC')).toBe('2026/10/01 17:20:30');
+    expect(localBalanceTime(undefined)).toBe('尚未更新');
   });
 });

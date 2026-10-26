@@ -66,3 +66,12 @@ phraseDisplayByPersona 为三桌宠保存 count、mode、selectedIndices，旧�
 - [Impeccable](https://github.com/pbakaus/impeccable)：参考有意识的排版、清晰状态与视觉审查方式，使用 Windows 原生字体，避免套用通用 SaaS 展示页。
 - [awesome-design-md](https://github.com/VoltAgent/awesome-design-md)：参考把设计决策写成可维护项目规范的做法，不复制某一品牌系统。
 - [Linear 界面重设计](https://linear.app/now/how-we-redesigned-the-linear-ui)：参考降低导航噪声、保持结构与内容层次。本项目以轻量桌宠的温和语气、账户状态与草稿保存行为形成自己的界面。
+
+
+## T019：全局模式与 DeepSeek 本地时间
+
+petMode 是共享设置，默认 full；气泡和菜单直接保存，设置页沿用草稿／保存流程。simple 只保留余额／额度与完成／等待气泡，普通音效与其他提示受展示层过滤，不修改原档案。外部模式变化同步未编辑的模式草稿，不覆盖其他草稿。模式按钮放在气泡顶部，避免增加底部按钮拥挤。
+
+账本仍使用 version:1，Account 增加 timeZone／segmentId，DaySummary 增加可选同名字段。缺省字段表示旧北京时间记录，不推算迁移金额。新分段与当地日期联合标识每日记录；预算去重也使用分段日期。电脑时区变化后下一次成功观测建基线，运行时观察到时区切回也会重建；旧二进制不保证可读取新格式。记录按最近 365 个日分段保留。
+
+收费规则独立于统计时区。deepseek-time 以北京时间日历判定星期／假期和高峰窗口，再按电脑时区展示带日期的时段；夏令时转换由 Intl 处理。2026 假期来自国务院国办发明电〔2025〕7号，周末调休仍遵循 DeepSeek 周末全天低谷。未知年份的潜在高峰不标成确定高峰。界面每分钟及恢复、切页时刷新，不为峰谷查询余额。
