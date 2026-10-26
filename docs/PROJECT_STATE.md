@@ -4,7 +4,7 @@
 
 ## 当前工作
 
-- [T019：全局桌宠模式、版本分类与 DeepSeek 本地时间](tasks/T019-pet-mode-local-time.md) 已实现并通过本地验证，待审查、未提交。分支 `feat/T019-pet-mode-local-time`，基准 `origin/main` `75f58a1`（已 fetch），工作目录 `D:\desktop1\DesktopPlay`；任务开始时工作区干净。本次所有源码／测试／文档改动均为 T019，未推送、未创建 PR、未发布，版本保留 `1.0.1`。
+- [T019：全局桌宠模式、版本分类与 DeepSeek 本地时间](tasks/T019-pet-mode-local-time.md) 实现 `26470a1` 已提交、推送并创建 [PR #22](https://github.com/Forest-Wood/DesktopPlay/pull/22)，目标 main，待审查。分支 `feat/T019-pet-mode-local-time`，基准 `origin/main` `75f58a1`（已 fetch），工作目录 `D:\desktop1\DesktopPlay`；任务开始时工作区干净。本次所有源码／测试／文档改动均为 T019；未合并、未发布，版本保留 `1.0.1`。
 - T019 新增全局简洁／完整模式；DeepSeek 电脑时区日分段与峰谷状态；major 由用户决定、新功能 minor、优化 patch。旧账本原金额／北京时间日期保留，新记录保存时区及分段；2026 假期已核实，其他年份提示待核实。接口／兼容细节见 T019 与 DESIGN。
 
 - [T018：优化 GitHub PR 创建流程](tasks/T018-github-pr.md) 的 [PR #21](https://github.com/Forest-Wood/DesktopPlay/pull/21) 已合并至 main `75f58a1`，本次 fetch 核实。gh 为首选，`pr:create`、查重及离线校验命令保留备用；入口见 [GitHub PR 流程](github.md)。
