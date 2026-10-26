@@ -79,6 +79,12 @@ test('settings exposes the saved global mode and local peak information', async 
     await expect(settings.locator('#records-zone')).toContainText('电脑时区');
     await expect(settings.locator('#records-period')).toContainText('当前');
     await settings.screenshot({ path: 'test-results/T019-records.png' });
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('view=settings'))!.setContentSize(760, 560));
+    await settings.locator('[data-category="account"]').click(); await settings.locator('#tab-overview').click();
+    expect(await settings.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true);
+    await settings.locator('#api-key').scrollIntoViewIfNeeded();
+    await expect(settings.locator('#api-key')).toBeVisible();
+    await settings.screenshot({ path: 'test-results/T020-small-settings.png' });
   } finally { await app.close(); }
 });
 
