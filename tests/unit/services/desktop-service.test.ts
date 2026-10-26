@@ -10,10 +10,10 @@ function reply(total: string, currency = 'CNY') { return new Response(JSON.strin
 const services: DesktopService[] = [];
 const directories: string[] = [];
 afterEach(async () => { services.forEach(s => s.dispose()); services.length = 0; vi.restoreAllMocks(); vi.useRealTimers(); await Promise.all(directories.splice(0).map(dir => fs.rm(dir, { recursive: true, force: true }))); });
-async function fixture(responses: string[] = ['100'], options: { dataDir?: string; clock?: () => Date; adapter?: typeof secrets; fetchFn?: typeof fetch } = {}) {
+async function fixture(responses: string[] = ['100'], options: { dataDir?: string; clock?: () => Date; timeZone?: () => string; adapter?: typeof secrets; fetchFn?: typeof fetch } = {}) {
   const dataDir = options.dataDir ?? await fs.mkdtemp(path.join(os.tmpdir(), 'desktopplay-service-')); if (!options.dataDir) directories.push(dataDir);
   const fetchFn = options.fetchFn ?? vi.fn(async () => reply(responses.shift() ?? '100')) as unknown as typeof fetch;
-  const service = new DesktopService({ dataDir, secrets: options.adapter ?? secrets, fetchFn, now: options.clock ?? (() => new Date('2026-10-02T12:00:00Z')) });
+  const service = new DesktopService({ dataDir, secrets: options.adapter ?? secrets, fetchFn, timeZone: options.timeZone ?? (() => 'Asia/Shanghai'), now: options.clock ?? (() => new Date('2026-10-02T12:00:00Z')) });
   services.push(service); await service.init(); return { service, dataDir, fetchFn };
 }
 async function configured(values: string[], options: Parameters<typeof fixture>[1] = {}) { const result = await fixture(values, options); await result.service.setApiKey('test-key'); await result.service.refresh(); return result; }
@@ -120,17 +120,17 @@ describe('DesktopService ledger', () => {
     await service.refresh(); expect(service.getState().ledger.today?.spent).toBe('0.00000000');
     await service.refresh(); expect(service.getState().ledger.today?.spent).toBe('1.00000000');
   });
-  it('uses Beijing midnight at 16:00 UTC independently of the host timezone', async () => {
+  it('uses the computer timezone midnight, rather than fixed Beijing midnight', async () => {
     const previousTimezone = process.env.TZ;
     process.env.TZ = 'UTC';
     try {
-      let now = new Date('2026-10-02T15:59:00Z');
-      const { service } = await configured(['100', '99', '90', '89'], { clock: () => now });
+      let now = new Date('2026-10-02T23:59:00Z');
+      const { service } = await configured(['100', '99', '90', '89'], { clock: () => now, timeZone: () => 'UTC' });
       await service.refresh(); expect(service.getState().ledger.today).toMatchObject({ date: '2026-10-02', spent: '1.00000000' });
-      now = new Date('2026-10-02T16:00:00Z');
+      now = new Date('2026-10-03T00:00:00Z');
       expect(service.getState().ledger.today).toBeNull();
       await service.refresh(); expect(service.getState().ledger.today).toMatchObject({ date: '2026-10-03', spent: '0.00000000' });
-      now = new Date('2026-10-02T16:01:00Z');
+      now = new Date('2026-10-03T00:01:00Z');
       await service.refresh(); expect(service.getState().ledger.today).toMatchObject({ date: '2026-10-03', spent: '1.00000000' });
       expect(service.getState().ledger.history.map(summary => summary.date)).toEqual(['2026-10-02', '2026-10-03']);
     } finally {
@@ -143,7 +143,7 @@ describe('DesktopService ledger', () => {
     await service.updateSettings({ lowBalanceThreshold: '50', dailyBudget: '2' });
     now = new Date('2026-10-03T00:01:00Z'); await service.refresh();
     const before = service.getState();
-    now = new Date('2026-10-02T15:59:00Z'); await service.refresh();
+    now = new Date('2026-10-02T23:59:00Z'); await service.refresh();
     const rejected = service.getState();
     expect(rejected.status).toBe('error'); expect(rejected.error).toContain('校准时间');
     expect(rejected.balance).toEqual(before.balance); expect(rejected.ledger.history).toEqual(before.ledger.history); expect(rejected.alert).toEqual(before.alert);
@@ -262,4 +262,68 @@ describe('DesktopService persistence transactions', () => {
     expect(await fs.readFile(file, 'utf8')).toBe(stored); failure.mockRestore();
     await service.refresh(); expect(service.getState().ledger.today?.spent).toBe('2.00000000'); expect(service.getState().alert?.kind).toBe('daily-budget');
   });
+});
+
+
+describe('T019 modes and local ledger segments', () => {
+  it('defaults legacy settings to full, rejects invalid modes and persists simple without changing profiles', async () => {
+    const { service, dataDir } = await fixture();
+    const profiles = service.getState().settings.bubbleProfilesByPersona;
+    expect(service.getState().settings.petMode).toBe('full');
+    await expect(service.updateSettings({ petMode: 'invalid' as 'full' })).rejects.toThrow();
+    await service.updateSettings({ petMode: 'simple' }); service.dispose();
+    const next = await fixture([], { dataDir });
+    expect(next.service.getState().settings.petMode).toBe('simple');
+    expect(next.service.getState().settings.bubbleProfilesByPersona).toEqual(profiles);
+    next.service.dispose();
+    const file = path.join(dataDir, 'desktopplay.json');
+    const data = JSON.parse(await fs.readFile(file, 'utf8')); delete data.settings.petMode;
+    await fs.writeFile(file, JSON.stringify(data));
+    expect((await fixture([], { dataDir })).service.getState().settings.petMode).toBe('full');
+  });
+  it('starts new segments on zone changes including returning to the same date and zone, and persists them', async () => {
+    let zone = 'UTC';
+    const { service, dataDir } = await configured(['100', '99', '90', '88', '80', '77'], { timeZone: () => zone });
+    await service.refresh(); expect(service.getState().ledger.today?.spent).toBe('1.00000000');
+    zone = 'America/New_York'; expect(service.getState().ledger.today).toBeNull();
+    await service.refresh(); expect(service.getState().ledger.today?.spent).toBe('0.00000000');
+    await service.refresh(); expect(service.getState().ledger.today?.spent).toBe('2.00000000');
+    zone = 'UTC'; await service.refresh(); expect(service.getState().ledger.today?.spent).toBe('0.00000000');
+    await service.refresh(); expect(service.getState().ledger.history.map(d => d.spent)).toEqual(['1.00000000', '2.00000000', '3.00000000']);
+    service.dispose(); const next = await fixture(['76'], { dataDir, timeZone: () => zone }); await next.service.refresh();
+    expect(next.service.getState().ledger.today?.spent).toBe('4.00000000');
+    expect(next.service.getState().ledger.history).toHaveLength(3);
+  });
+  it('preserves legacy dates and totals separately even in the same Beijing zone', async () => {
+    const { service, dataDir } = await configured(['100', '98']); await service.refresh(); service.dispose();
+    const file = path.join(dataDir, 'desktopplay.json'); const data = JSON.parse(await fs.readFile(file, 'utf8'));
+    for (const account of Object.values(data.accounts) as any[]) {
+      delete account.timeZone; delete account.segmentId;
+      for (const day of account.days) { delete day.timeZone; delete day.segmentId; }
+    }
+    await fs.writeFile(file, JSON.stringify(data));
+    const next = await fixture(['90', '89'], { dataDir }); await next.service.refresh();
+    expect(next.service.getState().ledger.history[0]).toMatchObject({ date: '2026-10-02', spent: '2.00000000' });
+    expect(next.service.getState().ledger.history[0].timeZone).toBeUndefined();
+    expect(next.service.getState().ledger.today?.spent).toBe('0.00000000');
+    await next.service.refresh(); expect(next.service.getState().ledger.today?.spent).toBe('1.00000000');
+  });
+  it('does not split a local day on daylight saving fallback', async () => {
+    let now = new Date('2026-11-01T05:30:00Z');
+    const { service } = await configured(['100', '98'], { clock: () => now, timeZone: () => 'America/New_York' });
+    now = new Date('2026-11-01T06:30:00Z'); await service.refresh();
+    expect(service.getState().ledger.today).toMatchObject({ date: '2026-11-01', spent: '2.00000000' });
+    expect(service.getState().ledger.history).toHaveLength(1);
+  });
+});
+
+it('starts a fresh segment after an observed zone round trip without a successful balance request', async () => {
+  let zone = 'UTC';
+  const { service } = await configured(['100', '99', '90', '89'], { timeZone: () => zone });
+  await service.refresh();
+  zone = 'Asia/Shanghai'; expect(service.getState().ledger.today).toBeNull();
+  zone = 'UTC'; expect(service.getState().ledger.today).toBeNull();
+  await service.refresh(); expect(service.getState().ledger.today?.spent).toBe('0.00000000');
+  await service.refresh(); expect(service.getState().ledger.today?.spent).toBe('1.00000000');
+  expect(service.getState().ledger.history).toHaveLength(2);
 });

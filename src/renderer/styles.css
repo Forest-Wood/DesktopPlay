@@ -52,3 +52,5 @@
 .pet-bubble .bubble-quota .quota-window-title,.pet-bubble .bubble-quota .quota-reset,.pet-bubble .bubble-quota .quota-countdown{color:var(--bubble-ink)}
 .pet-bubble.bubble-persistent { cursor: pointer; }
 .pet-bubble.bubble-persistent:focus-visible { outline: 2px solid currentColor; outline-offset: -4px; }
+
+.bubble-mode{font-size:9px;padding:2px 4px;white-space:nowrap;color:var(--bubble-ink);background:transparent;border:1px solid var(--bubble-border);border-radius:5px;margin-left:auto}.simple-mode .bubble-balances{grid-template-columns:1fr}.pet-spent-group[hidden]{display:none}

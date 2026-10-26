@@ -113,7 +113,7 @@ Codex 等待 hook 测试也使用上述隔离主目录，不能修改真实 hook
 - 修改桥接 API 时同步检查 `src/shared/types.ts`、main IPC、preload、renderer 与 `src/renderer/demo.ts`。
 - 新增设置必须提供默认值、主进程校验、旧配置读取兼容及必要的持久化验证。
 - 调整版本时同步 `package.json`、`package-lock.json` 的根包版本及 `src/shared/defaults.ts` 中的 `APP_VERSION`；发行说明位于 `docs/releases/`。
-- 自 v0.5.4 之后的正式发布采用项目版本规则：已有功能修补／完善为 patch；部分桌宠新增功能为 minor；全部桌宠新增功能为 major。修复即使覆盖全部桌宠仍为 patch；自定义 GPT 归属原版 GPT 档案。一次发布取最高档，只升一次并清零低位。纯文档／构建／内部整理不单独升级软件版本。
+- 自 T019 起正式发布采用项目版本规则：已有功能修补／完善为 patch；新增功能为 minor，不论涉及多少桌宠；major 仅由用户明确决定。修复即使覆盖全部桌宠仍为 patch；自定义 GPT 归属原版 GPT 档案。一次发布取最高档，只升一次并清零低位。纯文档／构建／内部整理不单独升级软件版本。
 - 普通开发保留现有版本；发布准备使用 `npm.cmd run release:prepare -- --base <上一正式版本> --types <patch,minor,major 中的实际类型> --notes <公告文件>`，生成 `release-plan.json` 并同步版本与公告；`npm.cmd run release:check` 校验。类型与影响范围由 PR 说明，脚本不推断代码语义。基准需核实最新正式版，旧标签／已公开版本不得改写。
 - 新版公告共用对应 `docs/releases/v<版本>.md`，通常 3–6 条中文用户修改要点，必要时附升级注意；详细过程留在任务记录。发布时同一内容用于 GitHub Release 正文和 latest.yml.releaseNotes，不用自动生成的 PR 列表代替公告。
 - 保持渲染层隔离与白名单 IPC，不因本机测试启动失败而关闭应用的 Electron 沙箱。环境问题及替代验证方法写入任务记录。

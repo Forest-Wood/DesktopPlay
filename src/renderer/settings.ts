@@ -1,8 +1,9 @@
+import { deepseekPeriod, localBalanceTime, zoneLabel } from '../shared/deepseek-time';
 import { mountBubbleEditor } from './bubble-editor';
 import './settings.css';
 import type { AppSettings, AppState, DesktopApi, PetPersona, SoundSlot, CompletionSource } from '../shared/types';
 import { validatePhraseDisplays } from '../shared/phrases';
-import { beijingTime, decimalSetting, money, updateMoney } from './format';
+import { decimalSetting, money, updateMoney } from './format';
 import { localTime, quotaStatus, renderQuota } from './quota';
 import { APP_VERSION, GPT_DRAGON_PET, GPT_PET } from '../shared/defaults';
 import { PersonaSoundPlayer } from './sounds';
@@ -29,7 +30,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
         <section id="overview" class="section"><div class="section-heading"><h2>余额概览</h2><span id="network-status" class="status-chip"></span></div>
           <div class="balance-grid"><article class="balance-card"><div class="card-label">当前账户余额</div><div id="total-balance" class="big-money">—</div><div class="balance-bottom"><span id="balance-updated">尚未更新</span><button id="refresh" class="light-button" type="button">↻ 刷新余额</button></div></article>
           <article class="today-card"><div class="card-label">今日已观测消费</div><div id="today-spent" class="today-money">—</div><span id="today-date"></span><p>一点一滴，记录今天的投入。</p></article></div>
-          <div id="service-message" class="service-message" role="status"></div>
+          <div class="panel deepseek-period"><strong id="deepseek-period"></strong><p id="deepseek-period-rule" class="hint"></p></div><div id="service-message" class="service-message" role="status"></div>
           <div class="panel key-panel"><div><h3>连接 DeepSeek 账户</h3><p id="key-state">添加 API Key 后，小鲸鱼会定期为你查看余额。</p></div><form id="key-form"><label class="sr-only" for="api-key">DeepSeek API Key</label><input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="输入新的 API Key" maxlength="512"><button id="save-key" type="submit" class="primary-button">保存 Key</button><button id="clear-key" type="button" class="text-button">移除</button></form><p class="hint">已保存的 Key 不会回显；余额查询直接由桌面应用发起。</p></div>
         </section>
         <section id="codex" class="section codex-section"><div class="section-heading"><h2>Codex 编程额度</h2><span id="codex-status" class="status-chip"></span></div><div class="panel"><div id="codex-quotas" class="quota-cards"></div><div class="codex-actions"><span id="codex-updated" class="hint"></span><div class="button-row"><button id="refresh-codex" type="button" class="secondary-button">↻ 刷新额度</button><button id="choose-codex" type="button" class="text-button">选择 codex.exe</button><button id="codex-usage" type="button" class="text-button">查看使用量 ↗</button></div></div><p class="hint">读取本机已登录的 Codex；未连接时请安装并登录 Codex，也可选择 codex.exe。</p></div></section>
@@ -38,15 +39,15 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
             <div class="panel"><div class="pet-selector" role="group" aria-label="切换内置桌宠"><button id="select-deepseek" type="button" class="pet-option" aria-pressed="false"><img src="./assets/whale.png" alt=""><span>DeepSeek 小鲸鱼<small>账户余额与消费</small></span></button><button id="select-gpt" type="button" class="pet-option" aria-pressed="false"><img src="./assets/gpt.png" alt=""><span>GPT 小伙伴<small>Codex 额度与重置时间</small></span></button></div>
             <div id="gpt-appearance-options"><p class="hint">GPT 造型切换不影响 Codex 额度，两种内置造型共用同一份额度。</p><div class="pet-selector" role="group" aria-label="GPT 造型"><button id="appearance-classic" type="button" class="pet-option" aria-pressed="false"><img src="${GPT_PET.url}" alt=""><span>原版 GPT<small>薄荷绿小伙伴</small></span></button><button id="appearance-dragon" type="button" class="pet-option" aria-pressed="false"><img src="${GPT_DRAGON_PET.url}" alt=""><span>GPT 白龙<small>淡紫色小伙伴</small></span></button><button id="appearance-custom" type="button" class="pet-option" aria-pressed="false"><span>自定义图片<small>保留已导入的造型</small></span></button></div></div>
             <div class="pet-preview-row"><div class="pet-preview"><img id="pet-preview-image" alt="当前桌宠角色"></div><div><h3 id="pet-name"></h3><p>点击桌宠查看余额或 Codex 额度，拖动它换个位置。<br>右键打开快捷菜单。</p><div class="button-row"><button id="choose-pet" type="button" class="secondary-button">换一张图片</button><button id="reset-pet" type="button" class="text-button">恢复当前角色</button></div></div></div>
-            <div class="setting-row"><label for="scale">角色大小<small>屏幕空间不足时自动缩小，保留所选比例</small></label><div class="range-control"><input id="scale" name="scale" type="range" min="0.5" max="2" step="0.05"><output id="scale-output" for="scale"></output></div></div>
+            <div class="setting-row"><label for="pet-mode">桌宠模式<small>所有桌宠共用；保存后生效。简洁模式只保留剩余额度、完成及问答提醒，原设置仍保留。</small></label><select id="pet-mode" name="petMode" form="settings-form"><option value="full">完整模式</option><option value="simple">简洁模式</option></select></div><div class="setting-row"><label for="scale">角色大小<small>屏幕空间不足时自动缩小，保留所选比例</small></label><div class="range-control"><input id="scale" name="scale" type="range" min="0.5" max="2" step="0.05"><output id="scale-output" for="scale"></output></div></div>
             <div class="setting-row"><label for="volume">音效音量<small>点击音效音量；完成音效在气泡与提示中独立设置</small></label><div class="range-control"><input id="volume" name="volume" type="range" min="0" max="1" step="0.05"><output id="volume-output" for="volume"></output></div></div>
             <div class="toggle-grid"><label class="toggle-label"><span>启用点击音效</span><input name="soundEnabled" type="checkbox"></label><label class="toggle-label"><span>始终置于顶层</span><input name="alwaysOnTop" type="checkbox"></label><label class="toggle-label"><span>贴近边缘时自动吸附</span><input name="snapToEdges" type="checkbox"></label><label class="toggle-label"><span>开机自动启动</span><input name="launchAtLogin" type="checkbox"></label></div>
             <label class="field-label" for="phrases">陪伴短句 <span>每行一句</span></label><textarea id="phrases" name="phrases" rows="3" maxlength="4000" placeholder="今天也要照顾好自己呀。"></textarea></div>
           </section>
-          <section id="reminders" class="section"><div class="section-heading"><h2>余额提醒</h2><span class="section-note">轻轻提醒，安心工作</span></div><div class="panel reminder-grid"><div><label class="field-label" for="low-balance">余额低于</label><input id="low-balance" name="lowBalanceThreshold" type="text" inputmode="decimal" placeholder="不填写则关闭"><p class="hint">以账户币种计算，留空关闭低余额提醒。</p></div><div><label class="field-label" for="daily-budget">今日观测消费达到</label><input id="daily-budget" name="dailyBudget" type="text" inputmode="decimal" placeholder="不填写则关闭"><p class="hint">按北京时间每日统计，留空关闭预算提醒。</p></div></div></section>
+          <section id="reminders" class="section"><div class="section-heading"><h2>余额提醒</h2><span class="section-note">轻轻提醒，安心工作</span></div><div class="panel reminder-grid"><div><label class="field-label" for="low-balance">余额低于</label><input id="low-balance" name="lowBalanceThreshold" type="text" inputmode="decimal" placeholder="不填写则关闭"><p class="hint">以账户币种计算，留空关闭低余额提醒。</p></div><div><label class="field-label" for="daily-budget">今日观测消费达到</label><input id="daily-budget" name="dailyBudget" type="text" inputmode="decimal" placeholder="不填写则关闭"><p class="hint">按电脑当前时区分段、每日统计，留空关闭预算提醒。</p></div></div></section>
           <div class="save-bar"><span id="save-hint">把喜欢的设置，留给下次见面。</span><button id="save-settings" type="submit" class="primary-button">保存设置</button></div>
         </form>
-        <section id="records" class="section"><div class="section-heading"><h2>消费记录</h2><span class="section-note">北京时间 · UTC+8</span></div><div class="panel"><div class="table-scroll"><table><caption class="sr-only">每日已观测消费及余额增加</caption><thead><tr><th scope="col">日期</th><th scope="col">已观测消费</th><th scope="col">余额增加</th></tr></thead><tbody id="history-body"></tbody></table></div><div class="statistics-note"><strong>这些数字代表什么？</strong><p>消费是两次余额观测之间的下降量，不是逐次调用账单。应用关闭或断网期间的变化只能在下一次观测时发现；同时发生的充值与消费可能相互抵消。每日首次成功观测建立起点，跨午夜差额不计入新一天；仅当日相邻观测下降累计。</p><p>DesktopPet 不提供 AI 聊天，也不估算每轮对话费用。金额展示保留 2 位小数，内部记录保留 8 位。</p></div></div></section>
+        <section id="records" class="section"><div class="section-heading"><h2>消费记录</h2><span id="records-zone" class="section-note"></span></div><div class="panel"><p id="records-period" class="hint"></p><div class="table-scroll"><table><caption class="sr-only">每日已观测消费及余额增加</caption><thead><tr><th scope="col">日期／统计时区</th><th scope="col">已观测消费</th><th scope="col">余额增加</th></tr></thead><tbody id="history-body"></tbody></table></div><div class="statistics-note"><strong>这些数字代表什么？</strong><p>消费是两次余额观测之间的下降量，不是逐次调用账单。应用关闭或断网期间的变化只能在下一次观测时发现；同时发生的充值与消费可能相互抵消。每日首次成功观测建立起点，跨午夜差额不计入新一天；仅同一统计分段、当日相邻观测下降累计。切换电脑时区会建立新分段；旧记录保留原北京时间口径。</p><p>DesktopPet 不提供 AI 聊天，也不估算每轮对话费用。金额展示保留 2 位小数，内部记录保留 8 位。</p></div></div></section>
         <footer class="page-footer">让每一天，都有一个小伙伴陪着。 ✦</footer>
       </main>
     </div>`;
@@ -112,7 +113,9 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const sidebar = root.querySelector('.sidebar nav')!; sidebar.replaceChildren();
   const pageMemory = new Map<string, string>();
   let activeCategory = 'account';
+  let refreshPageTime = () => {};
   const showPage = (id: string) => {
+    refreshPageTime();
     preview.stop();
     pageMemory.set(activeCategory, id);
     for (const section of content.querySelectorAll<HTMLElement>(':scope > section')) section.hidden = section.id !== id;
@@ -239,7 +242,10 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
       if (!disposed) notify(result.started ? '卸载已启动，程序即将退出。' : '已取消卸载。');
     }).catch(error => { if (!disposed) notify(error instanceof Error ? error.message : '无法启动卸载，请重试。', true); }).finally(() => { if (!disposed) button.disabled = !uninstallAvailable; });
   });
+  let modeDirty = false;
   const fill = (settings: AppSettings) => {
+    modeDirty = false;
+    element<HTMLSelectElement>('pet-mode').value = settings.petMode;
     input('autoCheckUpdates').checked = settings.autoCheckUpdates;
     for (const name of ['soundEnabled', 'alwaysOnTop', 'snapToEdges', 'launchAtLogin'] as const) input(name).checked = settings[name];
     input('scale').value = String(settings.scale); input('volume').value = String(settings.volume);
@@ -253,10 +259,11 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     phraseDraft = structuredClone(settings.phrasesByPersona); phraseDisplayDraft = structuredClone(settings.phraseDisplayByPersona); phraseInput.value = phraseDraft[persona].join('\n'); previewPhrases(); ranges();
   };
   const ranges = () => { element('scale-output').textContent = `${Number(input('scale').value).toFixed(2)}×`; element('volume-output').textContent = `${Math.round(Number(input('volume').value) * 100)}%`; };
-  content.addEventListener('input', event => { if ((event.target as HTMLInputElement).form !== form) return; dirty = true; draftRevision++; ranges(); element('codex-attention-draft').hidden = input('codexHookEnabled').checked === state.settings.codexHookEnabled && input('attention-codex').checked === state.settings.attentionEnabledBySource.codex; element('save-hint').textContent = '有尚未保存的调整'; });
+  content.addEventListener('input', event => { if ((event.target as HTMLInputElement).form !== form) return; dirty = true; if ((event.target as HTMLElement).id === 'pet-mode') modeDirty = true; draftRevision++; ranges(); element('codex-attention-draft').hidden = input('codexHookEnabled').checked === state.settings.codexHookEnabled && input('attention-codex').checked === state.settings.attentionEnabledBySource.codex; element('save-hint').textContent = '有尚未保存的调整'; });
   const update = (next: AppState) => {
     if (disposed) return;
     state = next;
+    if (!modeDirty) element<HTMLSelectElement>('pet-mode').value = state.settings.petMode;
     const u = state.appUpdate;
     const updateLabels = { idle: '尚未检查更新', checking: '正在检查更新…', current: '当前已是最新版本', available: `发现新版本 v${u.latestVersion}`, downloading: `正在下载 ${u.progress.toFixed(1)}%`, ready: `v${u.latestVersion} 已下载，重启后更新`, installing: '正在准备重启更新…', error: '更新暂未完成', unsupported: '当前运行模式不执行更新' };
     element('update-status').textContent = updateLabels[u.status];
@@ -310,16 +317,19 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     updateMoney(element('total-balance'), state.balance?.total, state.balance?.currency);
     updateMoney(element('today-spent'), state.ledger.today?.spent, state.ledger.today?.currency);
     element('today-date').textContent = state.ledger.today?.date ?? '等待首次观测';
-    element('balance-updated').textContent = `更新于 ${beijingTime(state.balance?.observedAt)} · 北京时间`;
+    element('balance-updated').textContent = `更新于 ${localBalanceTime(state.balance?.observedAt)} · ${zoneLabel(new Date(state.balance?.observedAt ?? Date.now()))}`;
     element('service-message').textContent = [state.error, state.warning, state.balance && !state.balance.isAvailable ? '账户余额暂不可用，请检查账户状态。' : null].filter(Boolean).join(' ');
     element('key-state').textContent = state.hasApiKey ? '已保存 API Key。需要更换时，请输入新的 Key。' : '添加 API Key 后，小鲸鱼会定期为你查看余额。';
     element<HTMLButtonElement>('clear-key').disabled = !state.hasApiKey;
     element<HTMLImageElement>('pet-preview-image').src = state.pet.url; element('pet-name').textContent = state.pet.name;
     element<HTMLButtonElement>('refresh').disabled = state.status === 'loading';
+    renderPeriod();
     const tbody = element('history-body'); tbody.replaceChildren();
-    const days = [...(state.ledger.today ? [state.ledger.today] : []), ...state.ledger.history.filter(day => day.date !== state.ledger.today?.date)].sort((a, b) => b.date.localeCompare(a.date));
+    const days = [...state.ledger.history];
+    if (state.ledger.today && !days.some(d => d.date === state.ledger.today!.date && d.segmentId === state.ledger.today!.segmentId)) days.push(state.ledger.today);
+    days.sort((a, b) => b.startedAt.localeCompare(a.startedAt));
     if (!days.length) { const row = document.createElement('tr'); const cell = document.createElement('td'); cell.colSpan = 3; cell.className = 'empty-records'; cell.textContent = '还没有观测记录，连接账户后从今天开始。'; row.append(cell); tbody.append(row); }
-    for (const day of days) { const row = document.createElement('tr'); for (const text of [day.date, money(day.spent, day.currency), money(day.increased, day.currency)]) { const cell = document.createElement('td'); cell.textContent = text; row.append(cell); } tbody.append(row); }
+    for (const day of days) { const row = document.createElement('tr'); for (const text of [`${day.date} · ${day.timeZone ? `${day.timeZone} · 分段始于 ${localBalanceTime(day.startedAt, day.timeZone)}` : '原北京时间 · UTC+08:00'}`, money(day.spent, day.currency), money(day.increased, day.currency)]) { const cell = document.createElement('td'); cell.textContent = text; row.append(cell); } tbody.append(row); }
   };
   const run = async (button: HTMLButtonElement, action: () => Promise<AppState>, success: string) => {
     button.disabled = true; notify('正在处理…');
@@ -363,7 +373,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     event.preventDefault();
     try {
       capturePhrases(); validatePhraseDisplays(phraseDisplayDraft, phraseDraft);
-      const patch: AppSettings = { ...state.settings, autoCheckUpdates: input('autoCheckUpdates').checked, codexCompletionEnabled: input('codexCompletionEnabled').checked, codexCompletionDirectory: directoryDraft, bubbleProfilesByPersona: bubbleEditor.getProfiles(), chatgptCompletionEnabled: input('chatgptCompletionEnabled').checked, deepseekCompletionEnabled: input('deepseekCompletionEnabled').checked, deepseekCompletionDirectory: dshDirectoryDraft, scale: Math.max(0.5, Math.min(2, Number(input('scale').value))), volume: Math.max(0, Math.min(1, Number(input('volume').value))), lowBalanceThreshold: decimalSetting(input('lowBalanceThreshold').value), dailyBudget: decimalSetting(input('dailyBudget').value), phrasesByPersona: Object.fromEntries(Object.entries(phraseDraft).map(([key, lines]) => [key, lines.map(line => line.trim()).filter(Boolean)])) as Record<PetPersona, string[]>, soundEnabled: input('soundEnabled').checked, alwaysOnTop: input('alwaysOnTop').checked, snapToEdges: input('snapToEdges').checked, launchAtLogin: input('launchAtLogin').checked };
+      const patch: AppSettings = { ...state.settings, petMode: element<HTMLSelectElement>('pet-mode').value as AppSettings['petMode'], autoCheckUpdates: input('autoCheckUpdates').checked, codexCompletionEnabled: input('codexCompletionEnabled').checked, codexCompletionDirectory: directoryDraft, bubbleProfilesByPersona: bubbleEditor.getProfiles(), chatgptCompletionEnabled: input('chatgptCompletionEnabled').checked, deepseekCompletionEnabled: input('deepseekCompletionEnabled').checked, deepseekCompletionDirectory: dshDirectoryDraft, scale: Math.max(0.5, Math.min(2, Number(input('scale').value))), volume: Math.max(0, Math.min(1, Number(input('volume').value))), lowBalanceThreshold: decimalSetting(input('lowBalanceThreshold').value), dailyBudget: decimalSetting(input('dailyBudget').value), phrasesByPersona: Object.fromEntries(Object.entries(phraseDraft).map(([key, lines]) => [key, lines.map(line => line.trim()).filter(Boolean)])) as Record<PetPersona, string[]>, soundEnabled: input('soundEnabled').checked, alwaysOnTop: input('alwaysOnTop').checked, snapToEdges: input('snapToEdges').checked, launchAtLogin: input('launchAtLogin').checked };
       const savingRevision = draftRevision;
       patch.phraseDisplayByPersona = structuredClone(phraseDisplayDraft);
       patch.codexHookEnabled = input('codexHookEnabled').checked;
@@ -371,7 +381,21 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
       void run(element('save-settings'), async () => { const next = await api.updateSettings(patch); if (savingRevision === draftRevision) { dirty = false; fill(next.settings); element('save-hint').textContent = '设置已保存'; } else { element('save-hint').textContent = '已保存先前调整；新草稿尚未保存'; } return next; }, '设置已保存，桌宠已经收到啦。');
     } catch (error) { notify(error instanceof Error ? error.message : '请检查输入。', true); }
   });
+  const renderPeriod = () => {
+    const period = deepseekPeriod();
+    const heading = `${period.label}${period.note ? ` · ${period.note}` : ''} · ${period.zone}`;
+    element('deepseek-period').textContent = heading;
+    element('records-zone').textContent = `电脑时区 · ${period.zone}`;
+    const explanation = `对应当前北京时间日期的高峰窗口（已换算为电脑时间）：${period.windows}。官方按北京时间周一至周五生效，周末及中国公共假期全天低谷。仅标识当前模型收费时段，不代表历史消费归属。`;
+    element('deepseek-period-rule').textContent = explanation;
+    element('records-period').textContent = `${heading}。${explanation}`;
+    element('balance-updated').textContent = `更新于 ${localBalanceTime(state.balance?.observedAt)} · ${zoneLabel(new Date(state.balance?.observedAt ?? Date.now()))}`;
+  };
+  const refreshTime = () => { if (!disposed) renderPeriod(); };
+  refreshPageTime = refreshTime;
+  document.addEventListener('visibilitychange', refreshTime); window.addEventListener('focus', refreshTime);
+  const periodTimer = setInterval(refreshTime, 60000);
   update(initial); fill(initial.settings);
   const countdown = setInterval(() => { renderQuota(element('codex-quotas'), state.codex, false, demo); element('codex-status').textContent = quotaStatus(state.codex, demo); }, 30000);
-  return { update, dispose: () => { disposed = true; stopSettingsPage(); preview.dispose(); bubbleEditor.dispose(); clearInterval(countdown); } };
+  return { update, dispose: () => { disposed = true; clearInterval(periodTimer); document.removeEventListener('visibilitychange', refreshTime); window.removeEventListener('focus', refreshTime); stopSettingsPage(); preview.dispose(); bubbleEditor.dispose(); clearInterval(countdown); } };
 }

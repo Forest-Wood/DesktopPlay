@@ -81,7 +81,7 @@ export function quotaStatus(quota: CodexQuotaState, demo: boolean): string {
   return { idle: '尚未读取', ready: '已连接 Codex', unavailable: '未连接 Codex', error: '读取失败', loading: '正在读取' }[quota.status];
 }
 
-export function renderQuota(root: HTMLElement, quota: CodexQuotaState, compact: boolean, demo: boolean): void {
+export function renderQuota(root: HTMLElement, quota: CodexQuotaState, compact: boolean, demo: boolean, simple = false): void {
   root.replaceChildren();
   root.classList.toggle('quota-compact', compact);
   root.classList.toggle('quota-stale', quotaIsStale(quota));
@@ -90,7 +90,7 @@ export function renderQuota(root: HTMLElement, quota: CodexQuotaState, compact: 
     if (text !== undefined) node.textContent = text;
     parent.append(node); return node;
   };
-  add(root, 'span', 'quota-plan-badge', planLabel(quota.planType));
+  if (!simple) add(root, 'span', 'quota-plan-badge', planLabel(quota.planType));
   if (!quota.buckets.length) {
     add(root, 'p', 'quota-empty', quota.status === 'loading' ? '正在读取额度与重置时间…' : '额度未知 · 请先登录本机 Codex。');
   }
@@ -115,7 +115,7 @@ export function renderQuota(root: HTMLElement, quota: CodexQuotaState, compact: 
         const bar = document.createElement('progress'); bar.max = 100; bar.value = remaining;
         bar.setAttribute('aria-label', `${slot.label}剩余额度`); row.append(bar);
       }
-      if (quotaWindow) {
+      if (quotaWindow && !simple) {
         add(row, 'p', 'quota-countdown', resetCountdown(quotaWindow.resetsAt));
         if (!compact) add(row, 'p', 'quota-reset', `重置于 ${localTime(quotaWindow.resetsAt)} · 本地时间`);
       }
@@ -123,6 +123,7 @@ export function renderQuota(root: HTMLElement, quota: CodexQuotaState, compact: 
     if (!bucket.primary && !bucket.secondary) add(card, 'p', 'quota-empty', '未提供额度窗口');
     if (!compact && (bucket.unlimitedCredits || bucket.creditsRemaining !== null)) add(card, 'p', 'quota-credits', bucket.unlimitedCredits ? '附加额度：不限' : `附加余额：${bucket.creditsRemaining}`);
   }
+  if (simple) return;
   const resets = resetCreditsView(quota);
   const resetCard = add(root, compact ? 'div' : 'section', 'quota-reset-credits');
   add(resetCard, compact ? 'span' : 'h3', 'quota-reset-count', resets.count);

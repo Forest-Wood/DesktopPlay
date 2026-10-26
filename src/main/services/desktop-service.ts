@@ -1,3 +1,4 @@
+import { dateInZone, systemTimeZone } from '../../shared/deepseek-time';
 import { PERSONAS, validateBubbleProfiles } from '../../shared/bubble-settings';
 import { phraseDisplays, validatePhraseDisplays } from '../../shared/phrases';
 import { createHash, randomUUID } from 'node:crypto';
@@ -7,7 +8,7 @@ import { DEFAULT_SETTINGS, DEFAULT_PHRASES_BY_PERSONA } from '../../shared/defau
 import type { AppSettings, BalanceSnapshot, DaySummary, ServiceState } from '../../shared/types';
 
 type Secrets = { isEncryptionAvailable(): boolean; encryptString(s: string): Buffer; decryptString(b: Buffer): string };
-type Account = { balance: BalanceSnapshot | null; days: DaySummary[]; low: boolean; budgetDays: string[] };
+type Account = { timeZone?: string; segmentId?: string; balance: BalanceSnapshot | null; days: DaySummary[]; low: boolean; budgetDays: string[] };
 type Disk = { version: 1; settings: AppSettings; key: string | null; accounts: Record<string, Account> };
 const UNIT = 100000000n;
 const MAX = 100000000000000000n;
@@ -33,6 +34,8 @@ function settings(patch: unknown, base = DEFAULT_SETTINGS): AppSettings {
     if (!Object.hasOwn(DEFAULT_SETTINGS, key)) throw new Error('包含未知设置');
     if (['autoCheckUpdates', 'alwaysOnTop', 'launchAtLogin', 'snapToEdges', 'soundEnabled', 'codexHookEnabled'].includes(key)) {
       if (typeof value !== 'boolean') throw new Error('开关设置无效');
+    } else if (key === 'petMode') {
+      if (value !== 'simple' && value !== 'full') throw new Error('桌宠模式无效');
     } else if (key === 'scale' || key === 'volume') {
       if (typeof value !== 'number' || !Number.isFinite(value) || value < (key === 'scale' ? 0.5 : 0) || value > (key === 'scale' ? 2 : 1)) throw new Error('数值设置无效');
     } else if (key === 'bubbleDurationSeconds' || key === 'bubbleHoverDelaySeconds') {
@@ -70,10 +73,6 @@ function settings(patch: unknown, base = DEFAULT_SETTINGS): AppSettings {
   }
   return result;
 }
-function day(date: Date): string {
-  // The ledger always follows Beijing time, independently of Windows timezone.
-  return new Date(date.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
-}
 function validDate(value: unknown): value is string { return typeof value === 'string' && Number.isFinite(Date.parse(value)); }
 function snapshot(value: unknown): BalanceSnapshot {
   if (!plain(value) || !['CNY', 'USD'].includes(value.currency as string) || typeof value.isAvailable !== 'boolean' || !validDate(value.observedAt)) throw new Error('余额数据无效');
@@ -84,14 +83,17 @@ function disk(value: unknown): Disk {
   if (!plain(value) || value.version !== 1 || !plain(value.accounts) || (value.key !== null && (typeof value.key !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(value.key)))) throw new Error('保存数据无效');
   const accounts: Record<string, Account> = {};
   for (const [id, raw] of Object.entries(value.accounts)) {
-    if (!/^[a-f0-9]{64}$/.test(id) || !plain(raw) || !Array.isArray(raw.days) || typeof raw.low !== 'boolean' || !Array.isArray(raw.budgetDays) || raw.budgetDays.some(d => typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d))) throw new Error('账本无效');
+    if (!/^[a-f0-9]{64}$/.test(id) || !plain(raw) || !Array.isArray(raw.days) || typeof raw.low !== 'boolean' || !Array.isArray(raw.budgetDays) || raw.budgetDays.some(d => typeof d !== 'string' || !/^(?:[a-f0-9-]{36}\/)?\d{4}-\d{2}-\d{2}$/.test(d))) throw new Error('账本无效');
+    const validZone = (zone: unknown) => { if (typeof zone !== 'string') return false; try { new Intl.DateTimeFormat('en', { timeZone: zone }); return true; } catch { return false; } };
+    if ((raw.timeZone !== undefined || raw.segmentId !== undefined) && (!validZone(raw.timeZone) || typeof raw.segmentId !== 'string' || !/^[a-f0-9-]{36}$/.test(raw.segmentId))) throw new Error('设置或统计时区无效');
     const seen = new Set<string>();
     const days = raw.days.map(entry => {
-      if (!plain(entry) || typeof entry.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(entry.date) || seen.has(entry.date) || !['CNY', 'USD'].includes(entry.currency as string) || !validDate(entry.startedAt)) throw new Error('每日账本无效');
-      seen.add(entry.date); amount(entry.spent); amount(entry.increased);
-      return { date: entry.date, currency: entry.currency as 'CNY' | 'USD', spent: decimal(amount(entry.spent)), increased: decimal(amount(entry.increased)), startedAt: entry.startedAt };
+      if (!plain(entry) || typeof entry.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(entry.date) || seen.has(`${entry.segmentId ?? 'legacy'}/${entry.date}`) || !['CNY', 'USD'].includes(entry.currency as string) || !validDate(entry.startedAt)) throw new Error('每日账本无效');
+      if ((entry.timeZone !== undefined || entry.segmentId !== undefined) && (!validZone(entry.timeZone) || typeof entry.segmentId !== 'string' || !/^[a-f0-9-]{36}$/.test(entry.segmentId))) throw new Error('设置或统计时区无效');
+      seen.add(`${entry.segmentId ?? 'legacy'}/${entry.date}`); amount(entry.spent); amount(entry.increased);
+      return { ...(entry.timeZone ? { timeZone: entry.timeZone as string, segmentId: entry.segmentId as string } : {}), date: entry.date, currency: entry.currency as 'CNY' | 'USD', spent: decimal(amount(entry.spent)), increased: decimal(amount(entry.increased)), startedAt: entry.startedAt };
     });
-    accounts[id] = { balance: raw.balance === null ? null : snapshot(raw.balance), days: days.slice(-365), low: raw.low, budgetDays: raw.budgetDays.slice(-365) as string[] };
+    accounts[id] = { ...(raw.timeZone ? { timeZone: raw.timeZone as string, segmentId: raw.segmentId as string } : {}), balance: raw.balance === null ? null : snapshot(raw.balance), days: days.slice(-365), low: raw.low, budgetDays: raw.budgetDays.slice(-365) as string[] };
   }
   const stored = structuredClone(value.settings);
   if (plain(stored) && plain(stored.bubbleProfilesByPersona)) for (const persona of PERSONAS) {
@@ -128,7 +130,10 @@ export class DesktopService {
   private file: string;
   private fetchFn: typeof fetch;
   private now: () => Date;
-  constructor(private options: { dataDir: string; secrets: Secrets; fetchFn?: typeof fetch; now?: () => Date }) {
+  private observedZone?: string;
+  private zoneRevision = 0;
+  private pendingZoneReset = new Set<string>();
+  constructor(private options: { dataDir: string; secrets: Secrets; fetchFn?: typeof fetch; now?: () => Date; timeZone?: () => string }) {
     this.file = path.join(options.dataDir, 'desktopplay.json'); this.fetchFn = options.fetchFn ?? fetch; this.now = options.now ?? (() => new Date());
   }
   async init(): Promise<void> {
@@ -153,9 +158,23 @@ export class DesktopService {
   private fingerprint(key: string): string { return createHash('sha256').update(key).digest('hex'); }
   private validateKey(key: unknown): asserts key is string { if (typeof key !== 'string' || !key.trim() || key.length > 512 || /[\s\x00-\x1f\x7f]/.test(key)) throw new Error('密钥格式无效'); }
   private account(): Account | null { return this.id ? this.data.accounts[this.id] ?? null : null; }
+  private timeZone(): string {
+    const zone = this.options.timeZone?.() ?? systemTimeZone();
+    if (this.observedZone !== undefined && this.observedZone !== zone) {
+      this.zoneRevision++;
+      for (const id of Object.keys(this.data.accounts)) this.pendingZoneReset.add(id);
+    }
+    this.observedZone = zone;
+    return zone;
+  }
+  private today(account: Account | null, now = this.now(), pending = this.id ? this.pendingZoneReset.has(this.id) : false): DaySummary | null {
+    const zone = this.timeZone();
+    return !pending && account?.timeZone === zone ? account.days.find(d => d.date === dateInZone(now, zone) && d.segmentId === account.segmentId) ?? null : null;
+  }
   getState(): ServiceState {
-    const account = this.account(); const today = day(this.now());
-    return structuredClone({ settings: this.data.settings, hasApiKey: !!this.key, balance: account?.balance ?? null, ledger: { today: account?.days.find(d => d.date === today) ?? null, history: account?.days ?? [] }, status: this.status, error: this.error, warning: this.warning, alert: this.alert });
+    this.timeZone();
+    const account = this.account();
+    return structuredClone({ settings: this.data.settings, hasApiKey: !!this.key, balance: account?.balance ?? null, ledger: { today: this.today(account), history: account?.days ?? [] }, status: this.status, error: this.error, warning: this.warning, alert: this.alert });
   }
   subscribe(callback: (state: ServiceState) => void): () => void { this.listeners.add(callback); return () => { this.listeners.delete(callback); }; }
   private emit(): void { if (!this.disposed) for (const listener of this.listeners) { try { listener(this.getState()); } catch { /* A renderer listener cannot interrupt persistence. */ } } }
@@ -240,16 +259,19 @@ export class DesktopService {
       const account = candidate.accounts[id] ??= { balance: null, days: [], low: false, budgetDays: [] };
       const previous = account.balance;
       if (previous && Date.parse(balance.observedAt) < Date.parse(previous.observedAt)) throw new Error('系统时间早于上次观测，请校准时间后重试。');
-      const date = day(new Date(balance.observedAt)); let summary = account.days.find(d => d.date === date);
-      if (!summary) { summary = { date, currency: balance.currency, spent: decimal(0n), increased: decimal(0n), startedAt: balance.observedAt }; account.days.push(summary); }
-      else if (previous && day(new Date(previous.observedAt)) === date && previous.currency === balance.currency && summary.currency === balance.currency) {
+      const timeZone = this.timeZone(), zoneRevision = this.zoneRevision;
+      if (account.timeZone !== timeZone || !account.segmentId || this.pendingZoneReset.has(id)) { account.timeZone = timeZone; account.segmentId = randomUUID(); }
+      const date = dateInZone(new Date(balance.observedAt), timeZone); let summary = account.days.find(d => d.date === date && d.segmentId === account.segmentId);
+      if (!summary) { summary = { date, timeZone, segmentId: account.segmentId, currency: balance.currency, spent: decimal(0n), increased: decimal(0n), startedAt: balance.observedAt }; account.days.push(summary); }
+      else if (previous && dateInZone(new Date(previous.observedAt), timeZone) === date && previous.currency === balance.currency && summary.currency === balance.currency) {
         const difference = amount(previous.total) - amount(balance.total);
         if (difference > 0n) summary.spent = decimal(amount(summary.spent) + difference);
         else summary.increased = decimal(amount(summary.increased) - difference);
       } else if (summary.currency !== balance.currency) { throw new Error('余额币种已变化，请检查账户。'); }
-      account.balance = balance; account.days = account.days.slice(-365); account.budgetDays = account.budgetDays.filter(d => account.days.some(s => s.date === d));
+      account.balance = balance; account.days = account.days.slice(-365); account.budgetDays = account.budgetDays.filter(d => account.days.some(s => `${s.segmentId ?? 'legacy'}/${s.date}` === d));
       const alert = this.evaluate(candidate, id, this.alert);
       await this.save(candidate); this.data = candidate; this.alert = alert;
+      if (zoneRevision === this.zoneRevision) this.pendingZoneReset.delete(id);
       if (generation !== this.generation || this.disposed) return; this.status = 'ready'; this.error = null;
       });
     } catch (error) {
@@ -266,7 +288,7 @@ export class DesktopService {
     const low = threshold !== null && amount(account.balance.total) < amount(threshold);
     if (low && !account.low) alert = { id: randomUUID(), kind: 'low-balance', message: '余额低于设置的提醒金额。' };
     account.low = low;
-    const today = day(this.now()); const summary = account.days.find(d => d.date === today); const budget = candidate.settings.dailyBudget;
+    const summary = this.today(account, this.now(), false); const today = summary ? `${summary.segmentId}/${summary.date}` : ''; const budget = candidate.settings.dailyBudget;
     if (summary && budget !== null && amount(summary.spent) >= amount(budget) && !account.budgetDays.includes(today)) { account.budgetDays.push(today); alert = { id: randomUUID(), kind: 'daily-budget', message: '今日已观测消费达到预算。' }; }
     return alert;
   }
