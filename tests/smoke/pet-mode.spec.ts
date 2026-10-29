@@ -4,12 +4,88 @@ import { mkdir, mkdtemp } from 'node:fs/promises';
 import path from 'node:path';
 import { electronArgs } from './electron-args';
 import type { ConversationNotice } from '../../src/shared/types';
+import { deepseekBubblePeriod } from '../../src/shared/deepseek-time';
 
 async function launch(profile?: string) {
   await mkdir('.tmp', { recursive: true }); profile ??= await mkdtemp(path.resolve('.tmp/smoke-mode-'));
   const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1', DESKTOPPLAY_TEST_NO_ONBOARDING: '1' }; delete env.ELECTRON_RUN_AS_NODE;
   return { profile, app: await electron.launch({ executablePath: electronPath as unknown as string, args: electronArgs, env }) };
 }
+
+test('whale period follows the clock and appears only on the full usage page', async () => {
+  const { app } = await launch();
+  try {
+    const pet = await app.firstWindow(); await expect(pet.locator('.pet-character')).toBeVisible();
+    const instant = Date.parse('2026-10-29T11:59:50+08:00');
+    await pet.clock.install({ time: instant });
+    // Register the renderer's interval under the fake clock, not the native clock.
+    await pet.reload(); await expect(pet.locator('.pet-character')).toBeVisible();
+    await pet.clock.pauseAt(instant + 1000);
+    await pet.evaluate(async () => {
+      const state = await window.desktopPlay.getState();
+      state.settings.bubbleProfilesByPersona.whale.timing.durationSeconds = 60;
+      await window.desktopPlay.updateSettings({ petMode: 'full', bubbleProfilesByPersona: state.settings.bubbleProfilesByPersona });
+      await window.desktopPlay.selectPet('deepseek');
+    });
+    const open = async () => { await pet.locator('.bubble-close').dispatchEvent('click'); await pet.locator('.pet-character').dispatchEvent('click'); };
+    await open();
+    await expect(pet.locator('.pet-period-status')).toHaveText('API 时段：当前高峰');
+    const zone = await pet.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
+    await expect(pet.locator('.pet-period-next')).toHaveText(deepseekBubblePeriod(new Date(instant), zone).next);
+    await expect(pet.locator('.pet-balance')).toHaveText('—');
+    expect(await pet.locator('.pet-period').evaluate(el => el.getBoundingClientRect().top >= document.querySelector('.pet-spent-group')!.getBoundingClientRect().bottom)).toBe(true);
+    expect(await pet.locator('.pet-period').evaluate(el => el.getBoundingClientRect().bottom <= document.querySelector('.bubble-content')!.getBoundingClientRect().bottom + 1)).toBe(true);
+    await pet.screenshot({ path: 'test-results/T021-whale-period.png', omitBackground: true });
+    await pet.clock.runFor(30000);
+    await expect(pet.locator('.pet-period-status')).toHaveText('API 时段：当前低谷');
+    await pet.clock.setFixedTime(new Date('2026-10-29T14:01:00+08:00'));
+    await pet.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(pet.locator('.pet-period-status')).toHaveText('API 时段：当前高峰');
+    await pet.clock.setFixedTime(new Date('2026-10-29T18:01:00+08:00'));
+    await pet.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await expect(pet.locator('.pet-period-status')).toHaveText('API 时段：当前低谷');
+    await pet.locator('.bubble-mode').dispatchEvent('click');
+    await expect(pet.locator('.pet-period')).toBeHidden();
+    await pet.locator('.bubble-mode').dispatchEvent('click');
+    await expect(pet.locator('.pet-period')).toBeVisible();
+    await pet.locator('.pet-character').dispatchEvent('click');
+    await expect(pet.locator('.pet-period')).toBeHidden();
+    await pet.locator('.pet-character').dispatchEvent('click');
+    await expect(pet.locator('.pet-period')).toBeHidden();
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('view=pet'))!.webContents.send('desktopplay:conversation-notice', { id: 'period-notice', source: 'codex', kind: 'question', occurredAt: new Date().toISOString() }));
+    await pet.clock.runFor(200);
+    await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'attention-codex');
+    await expect(pet.locator('.pet-period')).toBeHidden();
+    for (const appearance of ['classic', 'dragon'] as const) {
+      await pet.evaluate(async appearance => { await window.desktopPlay.selectPet('gpt'); await window.desktopPlay.selectGptAppearance(appearance); }, appearance);
+      await open(); await expect(pet.locator('.pet-period')).toBeHidden();
+    }
+  } finally { await app.close(); }
+});
+
+test('whale period tolerates large text, flipped layout, offline state and unknown years', async () => {
+  const { app } = await launch();
+  try {
+    const pet = await app.firstWindow(); await expect(pet.locator('.pet-character')).toBeVisible();
+    await pet.clock.install({ time: new Date('2027-01-04T09:00:00+08:00') });
+    const state = await pet.evaluate(() => window.desktopPlay.getState());
+    state.settings.bubbleProfilesByPersona.whale.style.fontScale = 1.25;
+    state.settings.bubbleProfilesByPersona.whale.timing.durationSeconds = 60;
+    state.status = 'error'; state.error = '隔离测试：网络不可用';
+    state.balance = { total: '123456789.12345678', currency: 'CNY', granted: '0', toppedUp: '123456789.12345678', isAvailable: true, observedAt: new Date().toISOString() };
+    for (const placement of ['above', 'below'] as const) {
+      state.bubblePlacement = placement; state.flipped = placement === 'below';
+      await app.evaluate(({ BrowserWindow }, state) => BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('view=pet'))!.webContents.send('desktopplay:state', state), state);
+      await pet.locator('.bubble-close').dispatchEvent('click'); await pet.locator('.pet-character').dispatchEvent('click');
+      await expect(pet.locator('.pet-period-status')).toContainText('当前时段待核实');
+      await expect(pet.locator('.pet-period-next')).toHaveText('下次切换待核实');
+      await pet.locator('.pet-period-next').scrollIntoViewIfNeeded();
+      expect(await pet.locator('.bubble-content').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+      expect(await pet.locator('.bubble-footer').evaluate(el => el.getBoundingClientRect().bottom <= document.querySelector('.pet-bubble')!.getBoundingClientRect().bottom)).toBe(true);
+      await pet.screenshot({ path: `test-results/T021-whale-large-${placement}.png`, omitBackground: true });
+    }
+  } finally { await app.close(); }
+});
 
 test('global mode preserves conversation notices and profiles, suppresses other pages, and survives restart', async () => {
   const fixture = await launch(); let app = fixture.app;

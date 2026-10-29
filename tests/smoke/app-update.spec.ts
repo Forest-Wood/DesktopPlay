@@ -39,7 +39,7 @@ test('version routing, safe development mode, typed IPC, progress/cancel, drafts
     await expect(settings.locator('#update-notes-version')).toContainText('1.0.0');
     expect(await settings.locator('#update-notes').evaluate(el => el.scrollHeight > el.clientHeight && el.scrollWidth <= el.clientWidth)).toBe(true);
     await settings.locator('#update-download').scrollIntoViewIfNeeded(); await expect(settings.locator('#update-download')).toBeVisible();
-    await settings.locator('#update-announcement').screenshot({ path: '.tmp/T012-update-announcement.png' });
+    await settings.locator('#update-announcement').screenshot({ path: 'test-results/T012-update-announcement.png' });
     await setAnnouncement({ status: 'error', latestVersion: null, releaseNotes: '旧公告不应可见', error: '网络不可用' });
     await expect(settings.locator('#update-announcement')).toBeHidden();
     await setAnnouncement({ status: 'available', latestVersion: '0.5.4', releaseNotes: '- 完善公告。\n- 修复显示。\n- 保留设置。', error: null });

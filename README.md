@@ -181,6 +181,16 @@ npm run dist
 
 `npm run dev` 启动 Vite 和 Electron 开发版；`npm test` 运行单元测试；`npm run build` 先做 TypeScript 类型检查，再构建界面和 Electron 主进程；`npm run test:smoke` 运行 Playwright Electron 冒烟流程，不需要额外安装浏览器；`npm run dist` 在 Windows x64 上生成 NSIS 和 portable 安装包到 `release/`。发布包不包含账本、API Key 或用户导入的图片和音效。源码开发版不提供应用内卸载。
 
+## 项目文件与清理
+
+`src/` 保存应用源码，`tests/` 保存测试，`scripts/` 保存开发工具；`build/` 是安装、更新与 Hook 所需的源资源，`public/` 是内置素材。文档与正式示例图片位于 `docs/`。
+
+构建结果写入 `dist/` 和 `dist-electron/`，测试截图与报告写入 `test-results/`，临时测试配置写入 `.tmp/smoke-*`。测试不自动覆盖 `docs/` 中的示例图片；正式图片需要显式更新。`release/` 保留最近一套分发文件。
+
+关闭项目开发／测试进程后，可执行 `npm run clean -- --dry-run` 查看清单，再执行 `npm run clean`。命令仅清理上述构建／测试产物及 `playwright-report/`、`coverage/`，会保护 Git 跟踪文件、目录链接并报告占用失败。安装包、依赖、源码、`.tmp/manual-profile/` 及其他临时目录不会被该命令删除；清理后运行 `npm run build` 恢复可启动的开发版。
+
+小鲸鱼完整模式用量气泡在“今日已观测”金额下显示 API 峰谷状态及下次切换的电脑当地时间。悬停查看日期、时区和规则；假期范围尚未核实时提示“下次切换待核实”。该提示无需余额请求，简洁模式不显示。
+
 ## CI 与发布
 
 推送到 `main` 或向 `main` 提交 Pull Request 时，GitHub Actions 在 Windows runner 和 Node.js 24 上执行版本计划校验、类型检查、单元测试、构建和 Electron 冒烟测试。普通分支提交不会创建 Release。

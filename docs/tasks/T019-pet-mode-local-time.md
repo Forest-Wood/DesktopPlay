@@ -3,8 +3,8 @@
 - 日期：2026-10-27（Asia/Shanghai）；负责人：Codex。
 - 需求：R026；目标分支：main；工作分支：feat/T019-pet-mode-local-time。
 - 工作目录：D:\desktop1\DesktopPlay；基准：75f58a1（origin/main，已 fetch 核实）。实现提交：26470a1。
-- 开始时工作区干净，无用户未提交修改；T018 已由 PR #21 合并。用户本轮授权创建 PR；实现已提交、推送并通过 gh 创建 [PR #22](https://github.com/Forest-Wood/DesktopPlay/pull/22)，目标 main；未合并、未发布。
-- 状态：实现及本地验证完成，PR #22 待审查。
+- 开始时工作区干净，无用户未提交修改；T018 已由 PR #21 合并。实现已提交、推送并通过 gh 创建 [PR #22](https://github.com/Forest-Wood/DesktopPlay/pull/22)，已合并为 main `b2900f5`。
+- 状态：已合并，并随 v1.1.0 发布；T021 于 2026-10-30 补正过时状态，发布核实见 T020。
 
 ## 实现与决定
 

@@ -4,6 +4,7 @@ import { applyBubbleStyle } from './bubble-style';
 import type { AppState, DesktopApi, BubbleScenario, CompletionSource, AlertNotice, ConversationNotice } from '../shared/types';
 import { getPetLayout } from '../shared/pet-layout';
 import { money } from './format';
+import { deepseekBubblePeriod } from '../shared/deepseek-time';
 import { localTime, quotaStatus, renderQuota } from './quota';
 import { pageCount, nextPage, summaryText, usageStatus } from './bubble-pages';
 import { PersonaSoundPlayer } from './sounds';
@@ -36,7 +37,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const beginRound = () => { const owner = persona(state); phrasePlayer.begin(owner, state.settings.phraseDisplayByPersona[owner]); roundPhrases = phrasePlayer.lines(state.settings.phrasesByPersona[owner]); };
   const phrases = () => roundPhrases;
   beginRound();
-  root.innerHTML = `<div class="pet-canvas"><section class="pet-bubble" aria-live="polite" hidden><div class="bubble-top"><span class="bubble-label"></span><span class="bubble-page"></span><button class="bubble-mode" type="button"></button><button class="bubble-close" type="button" aria-label="关闭气泡">×</button></div><div class="bubble-content"><div class="bubble-balances"><span>余额<strong class="pet-balance"></strong></span><span class="pet-spent-group">今日已观测<strong class="pet-spent"></strong></span></div><div class="bubble-quota"></div><p class="bubble-message"></p></div><div class="pet-status"></div><div class="bubble-footer"><button class="bubble-refresh" type="button">刷新</button><button class="bubble-switch" type="button">换角色</button><button class="bubble-appearance" type="button">换造型</button><button class="bubble-settings" type="button">设置</button></div><div class="bubble-retention-actions" hidden><button class="bubble-confirm" type="button">继续切换</button><button class="bubble-cancel" type="button">再陪一会儿</button></div></section><button type="button" class="pet-character"><span class="pet-mirror"><img class="pet-image" draggable="false" alt=""></span>${demo ? '<span class="pet-demo">本地演示</span>' : ''}</button></div>`;
+  root.innerHTML = `<div class="pet-canvas"><section class="pet-bubble" aria-live="polite" hidden><div class="bubble-top"><span class="bubble-label"></span><span class="bubble-page"></span><button class="bubble-mode" type="button"></button><button class="bubble-close" type="button" aria-label="关闭气泡">×</button></div><div class="bubble-content"><div class="bubble-balances"><span>余额<strong class="pet-balance"></strong></span><span class="pet-spent-group">今日已观测<strong class="pet-spent"></strong></span><div class="pet-period"><div class="pet-period-status"></div><div class="pet-period-next"></div></div></div><div class="bubble-quota"></div><p class="bubble-message"></p></div><div class="pet-status"></div><div class="bubble-footer"><button class="bubble-refresh" type="button">刷新</button><button class="bubble-switch" type="button">换角色</button><button class="bubble-appearance" type="button">换造型</button><button class="bubble-settings" type="button">设置</button></div><div class="bubble-retention-actions" hidden><button class="bubble-confirm" type="button">继续切换</button><button class="bubble-cancel" type="button">再陪一会儿</button></div></section><button type="button" class="pet-character"><span class="pet-mirror"><img class="pet-image" draggable="false" alt=""></span>${demo ? '<span class="pet-demo">本地演示</span>' : ''}</button></div>`;
   const query = <T extends HTMLElement = HTMLElement>(selector: string) => root.querySelector<T>(selector)!;
   const canvas = query('.pet-canvas'), character = query<HTMLButtonElement>('.pet-character'), image = query<HTMLImageElement>('.pet-image');
   const bubble = query('.pet-bubble'), message = query('.bubble-message'), quota = query('.bubble-quota'), status = query('.pet-status');
@@ -61,6 +62,14 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     query('.bubble-mode').setAttribute('aria-label', simple() ? '切换到完整模式' : '切换到简洁模式');
     bubble.classList.toggle('simple-mode', simple());
     query('.pet-spent-group').hidden = simple();
+    const periodElement = query('.pet-period');
+    periodElement.hidden = simple() || !usage || isGpt;
+    if (!periodElement.hidden) {
+      const period = deepseekBubblePeriod();
+      query('.pet-period-status').textContent = period.status;
+      query('.pet-period-next').textContent = period.next;
+      periodElement.title = period.title;
+    }
     query('.bubble-page').textContent = simple() || retention || notice ? '' : `${page + 1}/${total}`;
     query('.bubble-balances').hidden = !usage || isGpt; quota.hidden = !usage || !isGpt;
     const fixed = notice ? noticeKind === 'completion' ? '' : noticeKind === 'attention' ? activeConversation?.kind === 'approval' ? '有操作需要你审批。' : '有问题需要你回答。' : notice : page === 1 ? summaryText(state) : page >= 2 ? phrases()[page - 2] ?? '' : '';
@@ -206,6 +215,9 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     updatesSeen.add(event.version); pendingUpdate = event.version; flushUpdate();
   });
   const stopHidden = api.onPetHidden(() => { hidden = true; pendingUpdate = null; pendingAlert = null; clearCompletionPending(); close(); sounds.stop(); });
+  const refreshPeriod = () => { if (visible && !document.hidden) render(); };
+  window.addEventListener('focus', refreshPeriod);
+  document.addEventListener('visibilitychange', refreshPeriod);
   const countdown = setInterval(() => { if (visible) render(); }, 30000);
   return { update, preview: (kind: BubbleScenario) => {
     if (simple() && kind !== 'usage' && !kind.startsWith('completion-') && !kind.startsWith('attention-')) return;
@@ -215,5 +227,5 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     else if (kind === 'update') { noticeKind = 'update'; notice = '发现新版本 v9.9.9，可在设置中下载并更新。'; }
     else if (kind === 'low-balance' || kind === 'daily-budget') { alertScenario = kind; noticeKind = 'usage'; notice = `示例余额 ${money(state.balance?.total, state.balance?.currency)}；今日已观测 ${money(state.ledger.today?.spent, state.ledger.today?.currency)}。`; }
     show(); clearTimeout(timer);
-  }, dispose: () => { disposed = true; pendingUpdate = null; clearCompletionPending(); stopCompletion(); stopHidden(); stopUpdate(); sounds.dispose(); completionSounds.dispose(); clearInterval(countdown); clearTimeout(timer); if (drag) api.endDrag(); api.setBubbleVisible(false); api.setInteractive(false); document.removeEventListener('pointermove', pointerMove); document.removeEventListener('pointerleave', pointerLeave); root.removeEventListener('focusin', focusChange); root.removeEventListener('focusout', focusChange); } };
+  }, dispose: () => { window.removeEventListener('focus', refreshPeriod); document.removeEventListener('visibilitychange', refreshPeriod); disposed = true; pendingUpdate = null; clearCompletionPending(); stopCompletion(); stopHidden(); stopUpdate(); sounds.dispose(); completionSounds.dispose(); clearInterval(countdown); clearTimeout(timer); if (drag) api.endDrag(); api.setBubbleVisible(false); api.setInteractive(false); document.removeEventListener('pointermove', pointerMove); document.removeEventListener('pointerleave', pointerLeave); root.removeEventListener('focusin', focusChange); root.removeEventListener('focusout', focusChange); } };
 }
