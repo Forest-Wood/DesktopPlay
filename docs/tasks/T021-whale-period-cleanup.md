@@ -1,8 +1,8 @@
 # T021：小鲸鱼峰谷气泡与项目整理
 
 - 日期：2026-10-29 至 2026-10-30（Asia/Shanghai）；负责人：Codex；需求 R028；目标 main。
-- 工作目录：`D:\desktop1\DesktopPlay`；分支 `feat/T021-whale-period-cleanup`；基准 `18b3879d6e24d629d0883115d0e8851c5725a6f0`。开始时工作区干净；全部未提交修改属于本任务；结果提交：未提交。
-- 用户确认：完整模式用量页显示状态和下次切换时间，简洁模式隐藏；整理文件与文档，不做大范围源码重构；保留最新一套安装包。保留版本 1.1.0，不发布。
+- 工作目录：`D:\desktop1\DesktopPlay`；分支 `feat/T021-whale-period-cleanup`；基准 `18b3879d6e24d629d0883115d0e8851c5725a6f0`。开始时工作区干净，全部修改属于本任务；实现提交：`585e5a2f3139fa27abf0ff9391fb8b0a523b89cf`。
+- 用户确认：完整模式用量页显示状态和下次切换时间，简洁模式隐藏；整理文件与文档，不做大范围源码重构；保留最新一套安装包。2026-10-30 追加授权创建 PR，包含必要提交和分支推送；保留版本 1.1.0，不发布。
 - 依赖：现有 deepseek-time、2026 假期、mountPet 气泡、隔离 Electron fixture 与本地 v1.1.0 五附件。
 
 ## 实现与验收
@@ -28,8 +28,10 @@
 - 初次受限 Electron 首项启动超时，中止该轮；同样的隔离测试在沙箱外启动成功，没有关闭应用沙箱。新增 fixture 的 observedAt 字段类型错误已修复，随后类型检查通过。
 - 最终文案调整后通过：`npm.cmd test -- tests/unit/deepseek-time.test.ts tests/unit/clean.test.ts`（29/29）；`npm.cmd run build`（含类型检查）；`npm.cmd run test:smoke -- tests/smoke/pet-mode.spec.ts tests/smoke/bubble-update.spec.ts tests/smoke/app-update.spec.ts`（沙箱外隔离 8/8，15.7 秒）。重新目视检查大字号下方气泡，文档图片无修改。
 - 实际执行 `npm.cmd run clean` 成功，无跳过项，删除 78,841,202 字节旧构建／测试产物；随后重建并完成上述验证，保留最终 dist、dist-electron 和 test-results 截图，最后明确清理该轮八个隔离测试配置目录。
-- 通过：最终差异空白检查、文档链接检查、版本字段一致性与保留五附件复核。状态：已实现并验证，未提交、未发布。未访问真实账户、未改真实时区／客户端、未测试真实安装升级、未打新安装包。
+- 通过：最终差异空白检查、文档链接检查、版本字段一致性与保留五附件复核。上述实现工作区对应 `585e5a2`；状态：已实现并验证、已提交，PR 待审查，未合并、未发布。未访问真实账户、未改真实时区／客户端、未测试真实安装升级、未打新安装包。
 
 ## 远程核实与后续
 
-普通沙箱网络读取失败后，只读沙箱外 gh／git 核实成功：main 与基准一致，v1.1.0 在 2026-10-27 00:35:55（Asia/Shanghai）已正式发布，非草稿、非预发布。未执行远程写入。交付当前分支工作区，按后续授权进行提交或发布。
+普通沙箱网络读取失败后，只读沙箱外 gh／git 核实成功：main 与基准一致，v1.1.0 在 2026-10-27 00:35:55（Asia/Shanghai）已正式发布，非草稿、非预发布。
+
+2026-10-30 按用户新增授权，核实 gh 登录、按 head 查重无开放 PR、远程 main 未变后提交并推送，通过 `gh pr create --body-file` 创建 [PR #24](https://github.com/Forest-Wood/DesktopPlay/pull/24)，目标 main。交接只更新文档，不改变已验证源码；等待远程 CI 与审查，不自动合并或发布。当前工具集无 PR 附加工具，链接已记录于本任务和 PROJECT_STATE。
