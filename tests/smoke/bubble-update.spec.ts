@@ -100,7 +100,7 @@ test('full weekly reset countdown stays on one line and fits both GPT appearance
     await pet.clock.install({ time: now });
     await pet.clock.pauseAt(now + 1000);
     const frozenNow = now + 1000;
-    const previews = path.resolve('docs/previews/v0.5.1');
+    const previews = path.resolve('test-results/v0.5.1');
     await mkdir(previews, { recursive: true });
     for (const appearance of ['classic', 'dragon'] as const) {
       await pet.evaluate(async appearance => { await window.desktopPlay.selectPet('gpt'); await window.desktopPlay.selectGptAppearance(appearance); }, appearance);

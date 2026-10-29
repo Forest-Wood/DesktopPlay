@@ -12,6 +12,7 @@
     "url": "https://github.com/Forest-Wood/DesktopPlay.git"
   },
   "scripts": {
+    "clean": "node scripts/clean.mjs",
     "dev": "node scripts/dev.mjs",
     "typecheck": "tsc --noEmit",
     "build": "npm run typecheck && vite build && node scripts/build-electron.mjs",
