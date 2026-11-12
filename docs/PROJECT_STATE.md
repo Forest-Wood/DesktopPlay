@@ -7,7 +7,7 @@
 - T022／R029 与 T023／R030 已整合到 `D:\desktop1\DesktopPlay`、分支 `feat/T022-companion-ui`，目标 main。2026-11-12 fetch 核实 main 仍为 `cc318be`；按用户授权提交、推送并创建 PR，不合并、不发布。
 - [T022](tasks/T022-companion-ui.md)：设置工作台及导航整理；[T023](tasks/T023-notice-dismiss.md)：分角色／来源／提醒类型关闭方式，以及提问优先显示。T023 原独立目录保留为快照，后续以本目录为准。
 - 整合后验证通过：build（含类型检查）、17 相关单测、2 项隔离 Electron 交互、diff 检查。T022 先前 317 单测及视觉验证见任务记录，未在本轮重跑全量；鼠标按住偏移的既有失败和真实 VS Code 提问验收限制仍保留。
-- 版本保持 1.1.0；未替换安装中的桌宠、未发布。结果提交与 PR 见任务记录。
+- 版本保持 1.1.0；未替换安装中的桌宠、未发布。实现提交 `640d334` 已推送；[PR #25](https://github.com/Forest-Wood/DesktopPlay/pull/25) 已创建，待审阅，未合并。
 
 ## 主线与发布
 

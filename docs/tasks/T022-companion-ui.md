@@ -52,3 +52,7 @@ npm.cmd run test:smoke -- tests/smoke/desktop.spec.ts tests/smoke/pet-mode.spec.
 ## 后续
 
 用户可通过本地 Vite 演示 `http://127.0.0.1:5173/?view=settings` 审阅布局；演示不连接真实账户。当前构建包含新界面，现有已发布安装包仍为原 v1.1.0。后续提交、PR 或发行按用户授权执行；原生鼠标问题单独诊断，不以放宽断言掩盖。
+
+## PR 交接（2026-11-12）
+
+实现提交 `640d334`，已推送 `origin/feat/T022-companion-ui`；[PR #25](https://github.com/Forest-Wood/DesktopPlay/pull/25) 已创建，目标 main，包含 T022／T023。待审阅，未合并、未发布。当前交付目录为 `D:\desktop1\DesktopPlay`。

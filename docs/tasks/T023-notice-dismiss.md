@@ -29,3 +29,7 @@
 2026-11-12 用户要求统一在 `D:\desktop1\DesktopPlay` 工作并授权推送和创建 PR。核对原目录全部 T022 文件与依赖基线 SHA256 一致后合入 T023 增量，交付分支 `feat/T022-companion-ui`，包含两项任务。独立目录保留，不再作为当前交付工作目录。
 
 原目录重新运行 build、上述 17 单测与 2 项隔离交互全部通过（12.2 秒），diff 检查通过；未重跑无关全量测试。安装中的桌宠未替换。真实 VS Code 提问卡片验收仍待完成；待 PR 审阅，不合并、不发布。
+
+## PR 交接（2026-11-12）
+
+实现提交 `640d334`，已推送 `origin/feat/T022-companion-ui`；[PR #25](https://github.com/Forest-Wood/DesktopPlay/pull/25) 已创建，目标 main，包含 T022／T023。待审阅，未合并、未发布。当前交付目录为 `D:\desktop1\DesktopPlay`。
