@@ -17,6 +17,7 @@ export function mountBubbleEditor(root: HTMLElement, api: DesktopApi, initial: A
       <label class="field-label" for="bubble-copy">提示短句 · 最多 200 字符</label><textarea id="bubble-copy" maxlength="200" rows="3"></textarea><p class="hint">数据类气泡保留真实数据，在数据之外显示这段短句。陪伴短句列表继续在“陪伴短句”编辑。</p></div>
       <label id="bubble-time-override-row" class="toggle-label"><span>为此类提示单独设置时间</span><input id="bubble-time-override" type="checkbox"></label>
       <fieldset id="bubble-time-fields"><legend>显示时间</legend><label for="bubble-profile-duration">自动收起（1–60 秒）</label><input id="bubble-profile-duration" type="number" min="1" max="60" step="1"><label for="bubble-profile-hover">悬浮延长（0–60 秒，0 为关闭）</label><input id="bubble-profile-hover" type="number" min="0" max="60" step="1"></fieldset><p id="bubble-persistent-hint" class="hint" hidden>对话提醒常驻至点击，沿用当前外观；显示时间不适用于此类提醒。</p>
+      <fieldset id="bubble-dismiss-fields" hidden><legend>提醒关闭方式</legend><label for="bubble-dismiss-mode">关闭方式</label><select id="bubble-dismiss-mode"><option value="click">点击关闭</option><option value="timed">定时关闭</option></select><div id="bubble-dismiss-seconds-row"><label for="bubble-dismiss-seconds">展示秒数（1–60 秒）</label><input id="bubble-dismiss-seconds" type="number" min="1" max="60" step="1"></div><p class="hint">可以提前点击关闭。收起等待提醒不代表已在原客户端回答。</p></fieldset>
       <label id="bubble-style-override-row" class="toggle-label"><span>为此类提示单独设置外观</span><input id="bubble-style-override" type="checkbox"></label>
       <fieldset id="bubble-style-fields"><legend>气泡外观</legend><div class="bubble-colors">${(['background', 'ink', 'border', 'ring'] as const).map((key, i) => `<label for="bubble-color-${key}">${['背景', '文字', '边框与尾巴', '外圈'][i]}<input id="bubble-color-${key}" data-style="${key}" type="color"></label>`).join('')}</div>
       <label for="bubble-font">字体</label><select id="bubble-font" data-style="font"><option value="system">系统默认</option><option value="yahei">微软雅黑</option><option value="dengxian">等线</option><option value="kaiti">楷体</option></select>
@@ -61,7 +62,13 @@ export function mountBubbleEditor(root: HTMLElement, api: DesktopApi, initial: A
     const persistent = kind.startsWith('completion-') || kind.startsWith('attention-');
     q('#bubble-time-override-row').hidden = !rule || persistent;
     q('#bubble-time-fields').hidden = persistent;
-    q('#bubble-persistent-hint').hidden = !persistent;
+    q('#bubble-persistent-hint').hidden = true;
+    q('#bubble-dismiss-fields').hidden = !persistent;
+    const dismissal = rule?.dismissal ?? { mode: 'click', seconds: 5 };
+    q<HTMLSelectElement>('#bubble-dismiss-mode').value = dismissal.mode;
+    q<HTMLInputElement>('#bubble-dismiss-seconds').value = String(dismissal.seconds);
+    q('#bubble-dismiss-seconds-row').hidden = dismissal.mode !== 'timed';
+    q<HTMLInputElement>('#bubble-dismiss-seconds').disabled = !persistent || dismissal.mode !== 'timed';
     q<HTMLInputElement>('#bubble-time-override').checked = !!rule && Object.keys(rule.timing).length > 0;
     q<HTMLInputElement>('#bubble-style-override').checked = !!rule && Object.keys(rule.style).length > 0;
     q<HTMLFieldSetElement>('#bubble-time-fields').disabled = !!rule && !Object.keys(rule.timing).length;
@@ -82,6 +89,9 @@ export function mountBubbleEditor(root: HTMLElement, api: DesktopApi, initial: A
       Object.assign(rule ? rule.style : base.style, { [key]: ['fontScale', 'backgroundOpacity'].includes(key) ? Number(target.value) : target.value });
     } else if (target.id === 'bubble-profile-duration' || target.id === 'bubble-profile-hover') Object.assign(rule ? rule.timing : base.timing, { [target.id.endsWith('duration') ? 'durationSeconds' : 'hoverDelaySeconds']: Number(target.value) });
     else if (rule) {
+      if (target.id === 'bubble-dismiss-mode' || target.id === 'bubble-dismiss-seconds') {
+        rule.dismissal = { ...(rule.dismissal ?? { mode: 'click', seconds: 5 }), ...(target.id === 'bubble-dismiss-mode' ? { mode: target.value as 'click' | 'timed' } : { seconds: Number(target.value) }) };
+      }
       if (target.id === 'bubble-title') rule.title = target.value;
       if (target.id === 'bubble-copy') rule.message = target.value;
       if (target.id === 'bubble-enabled') rule.enabled = target.checked;
@@ -90,7 +100,7 @@ export function mountBubbleEditor(root: HTMLElement, api: DesktopApi, initial: A
     }
     changed();
     // Do not rewrite focused text inputs while typing (selection/IME stays intact).
-    if (target.id.endsWith('-override')) render();
+    if (target.id.endsWith('-override') || target.id === 'bubble-dismiss-mode') render();
     else { const style = kind === 'base' ? base.style : resolveBubble(profiles, persona, kind).style; q('#bubble-font-scale-value').textContent = `${Math.round(style.fontScale * 100)}%`; q('#bubble-opacity-value').textContent = `${Math.round(style.backgroundOpacity * 100)}%`; q('#bubble-sound-volume-value').textContent = `${Math.round((rule?.volume ?? .35) * 100)}%`; updatePreview(); }
   });
   q('#bubble-scenario').addEventListener('change', () => { audio.stop(); kind = q<HTMLSelectElement>('#bubble-scenario').value as typeof kind; render(); });
@@ -115,7 +125,8 @@ export function mountBubbleEditor(root: HTMLElement, api: DesktopApi, initial: A
     getProfiles: (): BubbleProfiles => structuredClone(profiles),
     fill: (settings: AppSettings) => { profiles = structuredClone(settings.bubbleProfilesByPersona); render(); },
     update: (next: AppState) => { state = next; audio.sync(persona, state.sounds); renderAudio(); },
-    select: (scenario: BubbleScenario) => { kind = scenario; render(); },
+    select: (scenario: BubbleScenario, nextPersona?: PetPersona) => { audio.stop(); kind = scenario; if (nextPersona) persona = nextPersona; audio.sync(persona, state.sounds); render(); },
+    stopAudio: () => audio.stop(),
     dispose: () => { disposed = true; audio.dispose(); preview.dispose(); },
   };
 }

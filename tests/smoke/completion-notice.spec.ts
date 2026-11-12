@@ -77,7 +77,7 @@ test('local events use editable persona text, preserve drafts and focus, respect
     await expect(settings.locator('#completion-enabled')).toBeChecked();
     const custom = { whale: '小鲸鱼：GPT 已完成', gpt: '<b>GPT 输出完成</b>', dragon: '白龙已经替你等到答复了。' };
     const defaults = ['Codex 已经回复完啦，快去看看吧～', 'Codex 这轮输出完成了，来看看结果吧。', 'Codex 的答复已送达，我替你守候着。'];
-    await page(settings, 'pet', 'bubbles'); await settings.locator('#bubble-scenario').selectOption('completion-codex');
+    await page(settings, 'bubbles', 'bubbles'); await settings.locator('#bubble-scenario').selectOption('completion-codex');
     for (const [index, persona] of (['whale', 'gpt', 'dragon'] as const).entries()) {
       await settings.locator(`[data-bubble-persona="${persona}"]`).click();
       await expect(settings.locator('#bubble-copy')).toHaveValue(defaults[index]);
@@ -86,7 +86,7 @@ test('local events use editable persona text, preserve drafts and focus, respect
     await settings.locator('#bubble-reset').click();
     await expect(settings.locator('#bubble-copy')).toHaveValue(defaults[2]);
     await settings.locator('#bubble-copy').fill(custom.dragon);
-    await page(settings, 'account', 'codex'); await page(settings, 'pet', 'bubbles');
+    await page(settings, 'account', 'codex'); await page(settings, 'bubbles', 'bubbles');
     for (const persona of ['whale', 'gpt', 'dragon'] as const) {
       await settings.locator(`[data-bubble-persona="${persona}"]`).click();
       await expect(settings.locator('#bubble-copy')).toHaveValue(custom[persona]);
@@ -97,6 +97,7 @@ test('local events use editable persona text, preserve drafts and focus, respect
     const chosen = path.join(f.directory, 'chosen-codex'); await mkdir(path.join(chosen, 'sessions'), { recursive: true });
     const chosenFile = path.join(chosen, 'sessions', 'desktop.jsonl'); await writeFile(chosenFile, metadata('chosen-client') + finished('before-choice'));
     await application.evaluate(({ dialog }, directory) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [directory] }); }, chosen);
+    await settings.locator('.integration-card[data-source="codex"] .integration-details > summary').click();
     await settings.locator('#completion-choose-directory').click();
     await expect(settings.locator('#completion-directory')).toHaveValue(chosen);
     expect((await settings.evaluate(() => window.desktopPlay.getState())).settings.codexCompletionDirectory).toBeNull();

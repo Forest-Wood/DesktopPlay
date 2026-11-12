@@ -90,13 +90,14 @@ test('hook guide saves explicit opt-in and real relay files reach bubbles withou
   const { app, pet, settings, profile, file } = await launch(true);
   try {
     await expect(settings.locator('#codex-attention-status')).toContainText('未接入');
+    await settings.locator('.integration-card[data-source="codex"] .integration-details > summary').click();
     await expect(settings.locator('#codex-attention-directory')).toContainText(path.join(profile, 'codex-test-home'));
     await settings.locator('input[name="codexHookEnabled"]').check();
     await expect(settings.locator('#codex-attention-draft')).toBeVisible();
     expect((await pet.evaluate(() => window.desktopPlay.getState())).settings.codexHookEnabled).toBe(false);
     await settings.locator('#save-settings').click();
     await expect(settings.locator('#codex-attention-draft')).toBeHidden();
-    await expect(settings.locator('#codex-attention-status')).toContainText('等待实际事件');
+    await expect(settings.locator('#codex-attention-status')).toContainText('已配置，等待实际提问或审批事件');
     expect(JSON.parse(await readFile(path.join(profile, 'codex-test-home/hooks.json'), 'utf8')).hooks.PreToolUse).toHaveLength(1);
     await pet.clock.install();
     let count = 0;
@@ -119,5 +120,45 @@ test('hook guide saves explicit opt-in and real relay files reach bubbles withou
     await settings.locator('input[name="codexHookEnabled"]').uncheck(); await settings.locator('#save-settings').click();
     await expect(settings.locator('#codex-attention-status')).toContainText('未接入');
     await expect.poll(async () => JSON.parse(await readFile(path.join(profile, 'codex-test-home/hooks.json'), 'utf8')).hooks).toEqual({});
+  } finally { await app.close(); }
+});
+
+test('T023 reminder dismissal and question priority', async () => {
+  const { app, pet, settings } = await launch();
+  const send = async (kind: 'completion' | 'question', id: string) => {
+    await app.evaluate(({ BrowserWindow }, event) => {
+      BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('view=pet'))!.webContents.send('desktopplay:conversation-notice', event);
+    }, { id, kind, source: 'codex', occurredAt: new Date().toISOString() });
+  };
+  try {
+    await settings.locator('[data-category="bubbles"]').click();
+    await settings.locator('[data-bubble-persona="whale"]').click();
+    await settings.locator('#bubble-scenario').selectOption('attention-codex');
+    await settings.locator('#bubble-dismiss-mode').selectOption('timed');
+    await settings.locator('#bubble-dismiss-seconds').fill('2');
+    await settings.locator('#settings-form').evaluate((form: HTMLFormElement) => form.requestSubmit());
+    await expect.poll(() => pet.evaluate(async () => (await window.desktopPlay.getState()).settings.bubbleProfilesByPersona.whale.rules['attention-codex'].dismissal)).toEqual({ mode: 'timed', seconds: 2 });
+    for (const size of [{ width: 1060, height: 800 }, { width: 760, height: 560 }]) {
+      await settings.setViewportSize(size);
+      await expect(settings.locator('#bubble-dismiss-mode')).toBeVisible();
+      expect(await settings.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+    await settings.locator('#bubble-dismiss-fields').scrollIntoViewIfNeeded();
+    await settings.screenshot({ path: 'test-results/T023-dismiss-settings.png', fullPage: true });
+    await send('completion', 'first');
+    await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'completion-codex');
+    await send('question', 'priority');
+    await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'attention-codex');
+    await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'completion-codex', { timeout: 5000 });
+    await expect(pet.locator('.pet-bubble')).toBeVisible();
+    await send('question', 'early-close');
+    await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'attention-codex');
+    await pet.locator('.bubble-message').dispatchEvent('click');
+    await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'completion-codex');
+    // A stale question timer must not close the resumed click-only completion.
+    await pet.waitForTimeout(2200);
+    await expect(pet.locator('.pet-bubble')).toBeVisible();
+    await pet.locator('.pet-bubble').press('Enter');
+    await expect(pet.locator('.pet-bubble')).toBeHidden();
   } finally { await app.close(); }
 });

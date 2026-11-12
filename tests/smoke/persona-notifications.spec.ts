@@ -55,7 +55,7 @@ test('bubble editor preserves role/source drafts, previews actual styles, persis
     const pet = await app.firstWindow(); await pet.evaluate(() => window.desktopPlay.openSettings());
     let settings = app.windows().find(page => page !== pet) ?? await app.waitForEvent('window');
     const errors: string[] = []; settings.on('pageerror', error => errors.push(error.message));
-    await settings.locator('[data-category="pet"]').click(); await settings.locator('#tab-bubbles').click();
+    await settings.locator('[data-category="bubbles"]').click(); await settings.locator('#tab-bubbles').click();
     for (const persona of personas) {
       await settings.locator(`[data-bubble-persona="${persona}"]`).click();
       for (const source of sources) { await settings.locator('#bubble-scenario').selectOption(`completion-${source}`); await settings.locator('#bubble-copy').fill(`${persona} ${source} <b>独立文案</b>`); }
@@ -76,6 +76,7 @@ test('bubble editor preserves role/source drafts, previews actual styles, persis
     await settings.locator('[data-category="reminders"]').click(); await settings.locator('#tab-completion').click();
     await expect(settings.locator('input[name="chatgptCompletionEnabled"]')).toBeChecked(); await settings.locator('input[name="chatgptCompletionEnabled"]').uncheck();
     await app.evaluate(({ dialog }, directory) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [directory] }); }, f.sessions);
+    await settings.locator('.integration-card[data-source="deepseek-harness"] .integration-details > summary').click();
     await settings.locator('#dsh-choose-directory').click(); await expect(settings.locator('#dsh-directory')).toHaveValue(f.sessions);
     await settings.locator('[data-edit-completion="deepseek-harness"]').click(); await expect(settings.locator('#bubble-title')).toHaveValue('白龙 DSH 专属提醒');
     await settings.locator('#save-settings').click(); await expect(settings.locator('#operation-status')).toContainText('设置已保存');

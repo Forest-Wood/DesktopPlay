@@ -10,6 +10,7 @@ export interface BubbleStyle {
 }
 export interface BubbleTiming { durationSeconds: number; hoverDelaySeconds: number }
 export interface BubbleRule {
+  dismissal?: { mode: 'click' | 'timed'; seconds: number };
   enabled: boolean; title: string; message: string;
   style: Partial<BubbleStyle>; timing: Partial<BubbleTiming>;
   soundEnabled: boolean; volume: number;

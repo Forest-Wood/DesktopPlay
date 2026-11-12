@@ -35,7 +35,7 @@ test('v0.5.0 independent audio slots, stopped previews, uninstall safeguards and
     const pet = application.windows().find(page => page.url().includes('view=pet'))!;
     const errors: string[] = []; for (const page of [settings, pet]) page.on('pageerror', error => errors.push(error.message));
     await settings.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
-    await settingsPage(settings, 'preferences', 'sound');
+    await settingsPage(settings, 'reminders', 'sound');
     await settings.locator('input[name="soundEnabled"]').uncheck();
     await settings.locator('#volume').fill('0.45');
     let state = await settings.evaluate(() => window.desktopPlay.getState());
@@ -72,9 +72,9 @@ test('v0.5.0 independent audio slots, stopped previews, uninstall safeguards and
     await expect.poll(async () => (await audioSnapshot()).plays).toBe(1);
     expect((await audioSnapshot()).volume).toBe(.45);
     await expect.poll(async () => (await audioSnapshot()).allStopped).toBe(false);
-    await settingsPage(settings, 'preferences', 'behavior');
+    await settingsPage(settings, 'pet', 'behavior');
     await expect.poll(async () => (await audioSnapshot()).allStopped).toBe(true);
-    await settingsPage(settings, 'preferences', 'sound');
+    await settingsPage(settings, 'reminders', 'sound');
     await settings.locator('#sound-preview-press').click();
     await expect.poll(async () => (await audioSnapshot()).plays).toBe(2);
     await settings.locator('[data-sound-persona="gpt"]').click();
@@ -163,16 +163,16 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
     expect(await settings.evaluate(() => window.desktopPlay.getState())).toMatchObject({ hasApiKey: false, status: 'unconfigured' });
     await settingsPage(settings, 'pet', 'appearance');
     await settings.locator('#scale').fill('1.25');
-    await settingsPage(settings, 'preferences', 'sound');
+    await settingsPage(settings, 'reminders', 'sound');
     await settings.locator('input[name="soundEnabled"]').uncheck();
-    await settingsPage(settings, 'pet', 'bubbles');
+    await settingsPage(settings, 'bubbles', 'bubbles');
     await settings.locator('#bubble-profile-duration').fill('7');
     await settings.locator('#bubble-profile-hover').fill('4');
     await settingsPage(settings, 'reminders', 'reminders');
     await settings.locator('#low-balance').fill('10.12345678');
     await settingsPage(settings, 'pet', 'appearance');
     await expect(settings.locator('#scale')).toHaveValue('1.25');
-    await settingsPage(settings, 'pet', 'bubbles');
+    await settingsPage(settings, 'bubbles', 'bubbles');
     await expect(settings.locator('#bubble-profile-duration')).toHaveValue('7');
     await expect(settings.locator('#bubble-profile-hover')).toHaveValue('4');
     expect((await settings.evaluate(() => window.desktopPlay.getState())).settings).toMatchObject({ bubbleDurationSeconds: 3, bubbleHoverDelaySeconds: 0 });
@@ -261,7 +261,7 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
       for (let click = 0; click < 2; click++) await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
       await expect(pet.locator('.bubble-message')).toHaveText(`smoke-${appearance === 'dragon' ? 'dragon' : 'gpt'}`);
     }
-    for (const [category, tabs] of Object.entries({ account: ['overview', 'codex'], pet: ['appearance', 'companionship'], preferences: ['behavior', 'sound'], reminders: ['reminders', 'records'], about: ['version', 'guide', 'licenses', 'uninstall'] })) {
+    for (const [category, tabs] of Object.entries({ pet: ['appearance', 'behavior', 'companionship'], account: ['overview', 'codex', 'records'], reminders: ['completion', 'reminders', 'sound'], bubbles: ['bubbles'], about: ['version', 'guide', 'licenses', 'uninstall'] })) {
       for (const tab of tabs) {
         await settingsPage(settings, category, tab);
         await expect(settings.locator(`#${tab}`)).toBeVisible();
