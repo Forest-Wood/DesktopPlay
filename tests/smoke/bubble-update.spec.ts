@@ -130,14 +130,16 @@ test('full weekly reset countdown stays on one line and fits both GPT appearance
     const settings = application.windows().find(page => page.url().includes('view=settings'))!;
     for (const colorScheme of ['light', 'dark'] as const) {
       await settings.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
-      for (const selector of ['body', '.sidebar', '.save-bar', '.panel']) {
+      for (const selector of ['body', '.save-bar', '#codex > .panel']) {
         await expect(settings.locator(selector).first()).toHaveCSS('background-color', 'rgb(255, 255, 255)');
       }
+      await expect(settings.locator('.sidebar')).toHaveCSS('background-color', 'rgb(247, 249, 245)');
+      await expect(settings.locator('.deepseek-period')).toHaveCSS('background-color', 'rgb(248, 250, 247)');
       await expect(settings.locator('body')).toHaveCSS('background-image', 'none');
       await expect(settings.locator('body')).toHaveCSS('color-scheme', 'light');
     }
     await settings.screenshot({ path: path.join(previews, 'settings-white.png') });
-    await settings.locator('[data-category="pet"]').click();
+    await settings.locator('[data-category="bubbles"]').click();
     await settings.locator('#tab-bubbles').click();
     await expect(settings.locator('#bubble-profile-duration')).toHaveValue('3');
     await expect(settings.locator('#bubble-profile-hover')).toHaveValue('0');

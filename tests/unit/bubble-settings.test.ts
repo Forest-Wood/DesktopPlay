@@ -31,3 +31,20 @@ describe('persona bubble configuration', () => {
     for (const mutate of mutations) { const profiles = structuredClone(DEFAULT_BUBBLE_PROFILES); mutate(profiles); expect(() => validateBubbleProfiles(profiles)).toThrow(); }
   });
 });
+
+it('keeps old rules click-only and validates independent reminder dismissal', () => {
+  const profiles = structuredClone(DEFAULT_BUBBLE_PROFILES);
+  expect(resolveBubble(profiles, 'gpt', 'attention-codex').dismissal).toEqual({ mode: 'click', seconds: 5 });
+  profiles.gpt.rules['attention-codex'].dismissal = { mode: 'timed', seconds: 1 };
+  validateBubbleProfiles(profiles);
+  expect(resolveBubble(profiles, 'dragon', 'attention-codex').dismissal.mode).toBe('click');
+  expect(resolveBubble(profiles, 'gpt', 'completion-codex').dismissal.mode).toBe('click');
+  for (const seconds of [0, 61, 1.5, NaN]) {
+    profiles.gpt.rules['attention-codex'].dismissal.seconds = seconds;
+    expect(() => validateBubbleProfiles(profiles)).toThrow();
+  }
+  profiles.gpt.rules['attention-codex'].dismissal = { mode: 'timed', seconds: 60 };
+  validateBubbleProfiles(profiles);
+  Object.assign(profiles.gpt.rules['attention-codex'].dismissal, { mode: 'invalid' });
+  expect(() => validateBubbleProfiles(profiles)).toThrow();
+});

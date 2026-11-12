@@ -45,7 +45,7 @@ export const DEFAULT_BUBBLE_PROFILES: BubbleProfiles = Object.fromEntries(PERSON
 
 export function resolveBubble(profiles: BubbleProfiles, persona: PetPersona, scenario: BubbleScenario) {
   const base = profiles[persona], rule = base.rules[scenario];
-  return { ...rule, style: { ...base.style, ...rule.style }, timing: { ...base.timing, ...rule.timing } };
+  return { ...rule, dismissal: rule.dismissal ?? { mode: 'click' as const, seconds: 5 }, style: { ...base.style, ...rule.style }, timing: { ...base.timing, ...rule.timing } };
 }
 
 const plain = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value) && [Object.prototype, null].includes(Object.getPrototypeOf(value));
@@ -68,7 +68,12 @@ export function validateBubbleProfiles(value: unknown): asserts value is BubbleP
   for (const profile of Object.values(value)) {
     keys(profile, ['style', 'timing', 'rules'], true); validateStyle(profile.style, true); validateTiming(profile.timing, true); keys(profile.rules, SCENARIOS, true);
     for (const [scenario, rule] of Object.entries(profile.rules)) {
-      keys(rule, ['enabled', 'title', 'message', 'style', 'timing', 'soundEnabled', 'volume'], true);
+      keys(rule, ['enabled', 'title', 'message', 'style', 'timing', 'soundEnabled', 'volume', 'dismissal']);
+      for (const key of ['enabled', 'title', 'message', 'style', 'timing', 'soundEnabled', 'volume']) if (!Object.hasOwn(rule, key)) throw new Error('提醒关闭配置无效');
+      if (Object.hasOwn(rule, 'dismissal')) {
+        keys(rule.dismissal, ['mode', 'seconds'], true);
+        if (!['click', 'timed'].includes(rule.dismissal.mode as string) || !numeric(rule.dismissal.seconds, 1, 60, true)) throw new Error('提醒关闭配置无效');
+      }
       if (typeof rule.enabled !== 'boolean' || typeof rule.soundEnabled !== 'boolean' || !numeric(rule.volume, 0, 1) || typeof rule.title !== 'string' || !rule.title.trim() || rule.title.length > 40 || typeof rule.message !== 'string' || rule.message.length > 200 || ((scenario.startsWith('completion-') || scenario === 'retention') && !rule.message.trim())) throw new Error('气泡标题、文案或音效设置无效');
       validateStyle(rule.style, false); validateTiming(rule.timing, false);
     }

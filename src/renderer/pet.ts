@@ -51,7 +51,12 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const flushNotices = () => { flushCompletion(); if (!completionActive && !completionQueue.length) { flushAlert(); flushUpdate(); } };
   const close = () => { clearTimeout(timer); endCompletion(); visible = false; retention = false; hovered = false; notice = ''; bubble.hidden = true; api.setBubbleVisible(false); queueMicrotask(flushNotices); };
   const persistent = () => visible && (noticeKind === 'completion' || noticeKind === 'attention') && !!notice;
-  const schedule = (duration = rule().timing.durationSeconds * 1000) => { clearTimeout(timer); if (visible && !retention && !persistent() && !(hovered && rule().timing.hoverDelaySeconds > 0)) timer = setTimeout(close, duration); };
+  const schedule = (duration = rule().timing.durationSeconds * 1000) => {
+    clearTimeout(timer);
+    if (!visible || retention || hidden) return;
+    if (persistent()) { if (rule().dismissal.mode === 'timed') timer = setTimeout(close, rule().dismissal.seconds * 1000); }
+    else if (!(hovered && rule().timing.hoverDelaySeconds > 0)) timer = setTimeout(close, duration);
+  };
   const render = () => {
     const isGpt = state.activePet === 'gpt', total = simple() ? 1 : pageCount(phrases());
     if (page >= total) page = 0;
@@ -119,7 +124,12 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     show(); query('.bubble-content').scrollTop = 0;
   };
   const flushCompletion = () => {
-    if (!completionQueue.length || disposed || hidden || completionActive || drag || retention || switching) return;
+    if (!completionQueue.length || disposed || hidden || drag || retention || switching) return;
+    // A persistent completion must not indefinitely hide a new question/approval.
+    if (completionActive && activeConversation?.kind === 'completion' && completionQueue.some(event => event.kind !== 'completion' && conversationEnabled(state.settings, event) && rule(`attention-${event.source}`).enabled)) {
+      completionQueue.push(activeConversation); clearTimeout(timer); endCompletion();
+    }
+    if (completionActive) return;
     const priority = completionQueue.findIndex(event => event.kind !== 'completion');
     const event = completionQueue.splice(priority < 0 ? 0 : priority, 1)[0], source = event.source;
     if (!conversationEnabled(state.settings, event)) { queueMicrotask(flushNotices); return; }
@@ -138,9 +148,10 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     if (disposed) return;
     revision++; const modeChanged = state.settings.petMode !== next.settings.petMode; const changedPet = persona(state) !== persona(next);
     const phrasesChanged = JSON.stringify([state.settings.phrasesByPersona, state.settings.phraseDisplayByPersona]) !== JSON.stringify([next.settings.phrasesByPersona, next.settings.phraseDisplayByPersona]);
-    const timingChanged = JSON.stringify(state.settings.bubbleProfilesByPersona) !== JSON.stringify(next.settings.bubbleProfilesByPersona);
+    const timingChanged = JSON.stringify(rule().dismissal) !== JSON.stringify(resolveBubble(next.settings.bubbleProfilesByPersona, persona(next), scenario()).dismissal) || (!persistent() && JSON.stringify(state.settings.bubbleProfilesByPersona) !== JSON.stringify(next.settings.bubbleProfilesByPersona));
     if (changedPet || state.sounds[persona(state)].press.revision !== next.sounds[persona(next)].press.revision || state.sounds[persona(state)].release.revision !== next.sounds[persona(next)].release.revision) soundWarning = '';
-    state = next; hidden = !state.petVisible; sounds.sync(persona(state), state.sounds); completionSounds.sync(persona(state), state.sounds);
+    state = next; hidden = !state.petVisible;
+    if (changedPet || hidden) { clearCompletionPending(); close(); } sounds.sync(persona(state), state.sounds); completionSounds.sync(persona(state), state.sounds);
     if (modeChanged) {
       page = 0; retention = false; pendingAlert = null; pendingUpdate = null;
       if (!completionActive) notice = '';
@@ -161,7 +172,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     render();
     if (state.alert && state.alert.id !== lastAlertId) { lastAlertId = state.alert.id; if (!hidden && !simple()) pendingAlert = state.alert; }
     flushAlert();
-    if (changedPet || timingChanged || modeChanged) schedule();
+    if (changedPet || timingChanged || (modeChanged && !persistent())) schedule();
     if (changedPet) flushNotices();
   };
   // Broadcasts may precede IPC resolution; an older response must not overwrite them.
@@ -193,8 +204,8 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const updateButton = document.createElement('button'); updateButton.type = 'button'; updateButton.className = 'bubble-update'; updateButton.textContent = '查看更新'; updateButton.hidden = true;
   query('.bubble-footer').prepend(updateButton);
   updateButton.addEventListener('click', () => { close(); void api.openSettings('version').catch(() => { status.textContent = '无法打开版本页，请从托盘重试。'; }); });
-  bubble.addEventListener('pointerenter', () => { hovered = true; if (rule().timing.hoverDelaySeconds > 0) clearTimeout(timer); });
-  bubble.addEventListener('pointerleave', () => { hovered = false; if (rule().timing.hoverDelaySeconds > 0) schedule(rule().timing.hoverDelaySeconds * 1000); });
+  bubble.addEventListener('pointerenter', () => { hovered = true; if (!persistent() && rule().timing.hoverDelaySeconds > 0) clearTimeout(timer); });
+  bubble.addEventListener('pointerleave', () => { hovered = false; if (!persistent() && rule().timing.hoverDelaySeconds > 0) schedule(rule().timing.hoverDelaySeconds * 1000); });
   const pointerMove = (event: PointerEvent) => { if (!drag) setInteractive(Boolean(event.target instanceof Element && event.target.closest('.pet-character, .pet-bubble'))); };
   const pointerLeave = () => { if (!drag) setInteractive(false); };
   const focusChange = () => setInteractive(Boolean(root.contains(document.activeElement) && document.activeElement !== document.body));
