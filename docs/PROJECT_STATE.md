@@ -1,10 +1,10 @@
 # DesktopPet 当前项目状态
 
-更新日期：2026-11-18（Asia/Shanghai）。入口：[协作指南](../AGENTS.md)、[需求登记](REQUIREMENTS.md)、[界面设计](../DESIGN.md)。
+更新日期：2026-11-19（Asia/Shanghai）。入口：[协作指南](../AGENTS.md)、[需求登记](REQUIREMENTS.md)、[界面设计](../DESIGN.md)。
 
 ## 当前任务
 
-- [T024／R031](tasks/T024-gemini-pet.md) 已在 `D:\desktop1\DesktopPlay` 的 `feat/T024-gemini-pet` 实现，基准为远程 main `90a67b3`，结果未提交。增加 Gemini 两款造型、三个额度窗口和 Antigravity 完成、提问及审批提醒。
+- [T024／R031](tasks/T024-gemini-pet.md) 新增 Gemini 两款造型、三个额度窗口和 Antigravity 完成、提问及审批提醒。实现提交 `eae4eb4` 已推送至 `feat/T024-gemini-pet`，[PR #26](https://github.com/Forest-Wood/DesktopPlay/pull/26) 目标为 `main`，待审阅。2026-11-19 已核实远程主线仍为 `90a67b3`。
 - 构建、324 项单测及 6 项定向隔离 Electron 测试通过。真实 App 与 agy 的额度已按三项对照；真实三端任务提醒和共享池账户仍待验收。当前版本 1.1.0。
 
 ## 主线与发布
