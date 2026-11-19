@@ -27,31 +27,6 @@ function ogg(codec = 'opus'): Buffer {
   packets.forEach((value, index) => { header[27 + index] = value.length; });
   return Buffer.concat([header, ...packets]);
 }
-function oggLargeComments(): Buffer {
-  const head = Buffer.alloc(19); head.write('OpusHead'); head[8] = 1; head[9] = 1;
-  const tags = Buffer.alloc(5 * 1024 * 1024 - 32768); tags.write('OpusTags');
-  const packets = [head, tags, Buffer.from([0, 1])], pages: Buffer[] = [];
-  let sequence = 0;
-  for (const [index, packet] of packets.entries()) {
-    let at = 0, continued = false;
-    while (true) {
-      const lacing: number[] = [];
-      const start = at;
-      while (lacing.length < 255) {
-        const size = Math.min(255, packet.length - at); lacing.push(size); at += size;
-        if (size < 255) break;
-      }
-      const complete = lacing[lacing.length - 1] < 255;
-      const header = Buffer.alloc(27 + lacing.length); header.write('OggS');
-      header[5] = (sequence === 0 ? 2 : 0) | (continued ? 1 : 0) | (complete && index === packets.length - 1 ? 4 : 0);
-      header.writeUInt32LE(1, 14); header.writeUInt32LE(sequence++, 18); header[26] = lacing.length;
-      header.set(lacing, 27); pages.push(header, packet.subarray(start, at));
-      if (complete) break;
-      continued = true;
-    }
-  }
-  return Buffer.concat(pages);
-}
 let directory: string;
 beforeEach(async () => { directory = await mkdtemp(path.join(tmpdir(), 'desktopplay-sound-test-')); });
 afterEach(async () => { vi.restoreAllMocks(); await rm(directory, { recursive: true, force: true }); });
@@ -65,17 +40,6 @@ describe('sound format validation', () => {
     for (const bytes of [Buffer.from('not audio'), Buffer.from('ID3\x04\0\0\0\0\0\0'), wav().subarray(0, 44), mp3().subarray(0, 400), ogg().subarray(0, 35), ogg('video'), Buffer.alloc(5 * 1024 * 1024 + 1)]) {
       expect(() => inspectAudio(bytes)).toThrow();
     }
-  });
-  it('validates large continued OGG packets with bounded copying and rejects incomplete pages', () => {
-    const bytes = oggLargeComments(); expect(bytes.length).toBeLessThanOrEqual(5 * 1024 * 1024);
-    const concatenate = vi.spyOn(Buffer, 'concat');
-    expect(inspectAudio(bytes)).toBe('ogg');
-    const copiedBytes = concatenate.mock.calls.reduce((sum, [chunks]) => sum + chunks.reduce((size, chunk) => size + chunk.length, 0), 0);
-    expect(copiedBytes).toBeLessThanOrEqual(bytes.length);
-    concatenate.mockClear();
-    expect(() => inspectAudio(bytes.subarray(0, bytes.length - 30))).toThrow();
-    const rejectedCopyBytes = concatenate.mock.calls.reduce((sum, [chunks]) => sum + chunks.reduce((size, chunk) => size + chunk.length, 0), 0);
-    expect(rejectedCopyBytes).toBeLessThanOrEqual(bytes.length);
   });
 });
 

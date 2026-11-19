@@ -1,4 +1,4 @@
-param()
+param([switch]$IncludeSlowTimeout)
 $ErrorActionPreference = 'Stop'
 $repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $root = Join-Path $repository ('.tmp\T008-helper-' + [Guid]::NewGuid().ToString())
@@ -51,5 +51,5 @@ Case 'cancel keeps old program' $good 'cancel'
 Case 'changed target is preserved' $good 'changed'
 Case 'locked target is preserved' $good 'locked'
 Case 'read-only target is preserved' $good 'readonly'
-Case 'source-process wait timeout leaves old program and source alive' $good 'timeout'
+if ($IncludeSlowTimeout) { Case 'source-process wait timeout leaves old program and source alive' $good 'timeout' }
 Write-Output "Fixture artifacts: $root"

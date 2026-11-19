@@ -94,14 +94,6 @@ describe('ChatGPT Work log monitoring', () => {
     await appendFile(f.file, line('four', instant + 3)); await utimes(f.file, new Date(instant), new Date(instant)); await f.service.check();
     expect(f.notices).toHaveLength(4);
   });
-  it('detects equal-length rewrites after an unchanged header with preserved timestamps', async () => {
-    const header = 'unchanged-prefix'.repeat(30) + '\n';
-    const f = await fixture(header + line('old'));
-    await writeFile(f.file, header + line('new')); await utimes(f.file, new Date(instant), new Date(instant));
-    await f.service.check(); expect(f.notices).toHaveLength(1);
-    await writeFile(f.file, header + line('end')); await utimes(f.file, new Date(instant), new Date(instant));
-    await f.service.check(); expect(f.notices).toHaveLength(2);
-  });
   it('skips disabled history on reopening and handles source directory changes', async () => {
     const f = await fixture(); await f.service.configure(false, [f.logs]);
     expect(f.service.getState().status).toBe('disabled'); await appendFile(f.file, line('off'));

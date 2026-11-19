@@ -301,3 +301,14 @@ DeepSeek 展示和每日统计跟随电脑时区。旧账本保留日期及金�
 2026-11-19 用户明确授权将已合并的 T029（软件更新下载预计剩余时间估计、Gemini 任务完成气泡修复与临时测试文件滚动清理规范）作为新版本正式发布。按项目版本规则，两项已有功能完善／缺陷修复均为 `patch`，以最新正式版 `v2.0.1` 为基准一次递增至 `v2.0.2`；同步修复 `tests/unit/services/gemini.test.ts` 在较慢 Windows CI 下的轮询时序竞态。同步版本字段、发布计划、简短中文公告与交接文档，验证并通过 CI 后整合到 `main`，创建 `v2.0.2` 标签并触发 Release 工作流完成草稿上传、校验与转正。
 
 验收：三个版本字段、标签、`release-plan.json` 与 `docs/releases/v2.0.2.md` 一致；`release:check`、构建、全量单测与 CI 通过；GitHub 正式 latest Release 为 `v2.0.2`，正文与软件更新公告一致，五项 Windows x64 更新资源（安装版、免安装版、`SHA256SUMS.txt`、`latest.yml`、NSIS blockmap）完整上传且校验通过。见 [T030](tasks/T030-release-v202.md)。
+
+## R038：精简过度防御性测试并补充测试编写规范（T031）
+
+2026-11-19 用户要求排查 `tests/` 目录下所有测试用例的必要性，精简不必要的过度防御与重复测试，并将“避免使用过度防御性测试用例”的原则写入项目协作文档。
+
+行为：
+- 审查 `tests/unit/`、`tests/smoke/` 与 PowerShell 助手测试，在保留核心功能、持久化兼容、跨角色行为及关键安全边界（校验和、路径防符号链接、脱敏、回滚与卸载保护）覆盖的前提下，移除冗余／过度防御的合成边界测试（包括重复的 Electron 冒烟测试文件、全角色 × 全来源笛卡尔积循环、毫秒级假时钟微调与 DOMMatrix 细节检查、5000+ 行缓存淘汰压测、5 MiB 伪造 OGG 分片及 mock `realpath` 伪造 8.3 短路径等）。
+- 将 `tests/update-helper-fixtures.ps1` 中耗时约 2 分钟的进程等待超时用例改为显式 `-IncludeSlowTimeout` 开关，默认执行 6 项快速安全场景，大幅缩短常规 CI 耗时。
+- 在 `AGENTS.md` 与 `.github/pull_request_template.md` 中正式写入“避免过度防御性测试”原则与 PR 核对项。
+
+验收：`npm.cmd run build`、全量单元测试、`tests/update-helper-fixtures.ps1` 及全量 Electron 冒烟测试（`npm.cmd run test:smoke`）均通过；`git diff --check` 无异常；保持现有软件版本 `2.0.2` 不变。见 [T031](tasks/T031-prune-overdefensive-tests.md)。

@@ -92,8 +92,8 @@ test('bubble editor preserves role/source drafts, previews actual styles, persis
   } finally { await app.close(); }
 });
 
-test('nine completion combinations use independent sounds, source queues, sound-only playback and hidden cancellation', async () => {
-  test.setTimeout(90000); const f = await fixture(), app = await f.launch();
+test('completion queues support independent sounds, sound-only playback, hidden cancellation and cross-persona balance alerts', async () => {
+  const f = await fixture(), app = await f.launch();
   try {
     const pet = await app.firstWindow(); await expect(pet.locator('.pet-character')).toBeVisible();
     await pet.evaluate(async () => {
@@ -105,35 +105,24 @@ test('nine completion combinations use independent sounds, source queues, sound-
     });
     const emit = (id: string, source: CompletionSource) => app.evaluate(({ BrowserWindow }, notice) => BrowserWindow.getAllWindows().find(win => win.webContents.getURL().includes('view=pet'))!.webContents.send('desktopplay:conversation-notice', { ...notice, kind: 'completion', occurredAt: new Date().toISOString() }), { id, source });
     let count = 0;
-    for (const persona of personas) {
-      await pet.evaluate(async persona => { await window.desktopPlay.selectPet(persona === 'whale' ? 'deepseek' : 'gpt'); if (persona !== 'whale') await window.desktopPlay.selectGptAppearance(persona === 'dragon' ? 'dragon' : 'classic'); }, persona);
-      for (const source of sources) await emit(`${persona}:${source}`, source);
-      for (const source of sources) {
+    for (const persona of ['whale', 'dragon'] as const) {
+      await pet.evaluate(async persona => { await window.desktopPlay.selectPet(persona === 'whale' ? 'deepseek' : 'gpt'); if (persona !== 'whale') await window.desktopPlay.selectGptAppearance('dragon'); }, persona);
+      for (const source of ['codex', 'deepseek-harness'] as const) await emit(`${persona}:${source}`, source);
+      for (const source of ['codex', 'deepseek-harness'] as const) {
         await expect(pet.locator('.bubble-message')).toHaveText(`${persona}:${source}`); await expect(pet.locator('body')).toHaveAttribute('data-audio-count', String(++count));
         await pet.locator('.bubble-close').dispatchEvent('click');
       }
     }
     await pet.evaluate(async () => { await window.desktopPlay.selectPet('deepseek'); const profiles = (await window.desktopPlay.getState()).settings.bubbleProfilesByPersona; profiles.whale.rules['completion-codex'].enabled = false; await window.desktopPlay.updateSettings({ bubbleProfilesByPersona: profiles }); });
-    await emit('sound-only', 'codex'); await expect(pet.locator('body')).toHaveAttribute('data-audio-count', '10'); await expect(pet.locator('.pet-bubble')).toBeHidden();
+    await emit('sound-only', 'codex'); await expect(pet.locator('body')).toHaveAttribute('data-audio-count', String(++count)); await expect(pet.locator('.pet-bubble')).toBeHidden();
     await emit('queued-dsh', 'deepseek-harness'); await new Promise(resolve => setTimeout(resolve, 200)); await expect(pet.locator('.pet-bubble')).toBeHidden();
     await pet.evaluate(() => (window as any).lastAudio.dispatchEvent(new Event('ended'))); await expect(pet.locator('.bubble-message')).toHaveText('whale:deepseek-harness');
     await emit('hidden-work', 'chatgpt-work'); await pet.evaluate(() => window.desktopPlay.hidePet());
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].showInactive()); await new Promise(resolve => setTimeout(resolve, 300)); await expect(pet.locator('.pet-bubble')).toBeHidden();
-    await expect(pet.locator('body')).toHaveAttribute('data-audio-count', '11');
-    await pet.evaluate(() => window.desktopPlay.hidePet());
-    const hiddenState = await pet.evaluate(() => window.desktopPlay.getState());
-    expect(hiddenState.petVisible).toBe(false);
-    hiddenState.alert = { id: 'balance-while-hidden', kind: 'low-balance', message: '隐藏期间的提醒' };
-    await app.evaluate(({ BrowserWindow }, state) => BrowserWindow.getAllWindows()[0].webContents.send('desktopplay:state', state), hiddenState);
-    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].showInactive());
-    await expect(pet.locator('.pet-bubble')).toBeHidden();
-    // Every displayed persona can receive balance alerts, retaining the fixed data.
-    for (const persona of personas) {
-      await pet.evaluate(async persona => { await window.desktopPlay.selectPet(persona === 'whale' ? 'deepseek' : 'gpt'); if (persona !== 'whale') await window.desktopPlay.selectGptAppearance(persona === 'dragon' ? 'dragon' : 'classic'); }, persona);
-      const state = await pet.evaluate(() => window.desktopPlay.getState()); state.alert = { id: `balance-${persona}`, kind: 'low-balance', message: '余额低于设置的提醒金额。' };
-      await app.evaluate(({ BrowserWindow }, state) => BrowserWindow.getAllWindows()[0].webContents.send('desktopplay:state', state), state);
-      await expect(pet.locator('.bubble-label')).toHaveText('低余额提醒'); await expect(pet.locator('.bubble-message')).toContainText(state.settings.bubbleProfilesByPersona[persona].rules['low-balance'].message);
-      await pet.locator('.bubble-close').dispatchEvent('click');
-    }
+    await expect(pet.locator('body')).toHaveAttribute('data-audio-count', String(++count));
+    await pet.evaluate(async () => { await window.desktopPlay.selectPet('gpt'); await window.desktopPlay.selectGptAppearance('dragon'); });
+    const state = await pet.evaluate(() => window.desktopPlay.getState()); state.alert = { id: 'balance-dragon', kind: 'low-balance', message: '余额低于设置的提醒金额。' };
+    await app.evaluate(({ BrowserWindow }, state) => BrowserWindow.getAllWindows()[0].webContents.send('desktopplay:state', state), state);
+    await expect(pet.locator('.bubble-label')).toHaveText('低余额提醒'); await expect(pet.locator('.bubble-message')).toContainText(state.settings.bubbleProfilesByPersona.dragon.rules['low-balance'].message);
   } finally { await app.close(); }
 });

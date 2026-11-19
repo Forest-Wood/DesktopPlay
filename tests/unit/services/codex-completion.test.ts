@@ -99,15 +99,7 @@ describe('desktop paginated completion history', () => {
     await f.service.configure(false, f.home); f.db.turn('disabled', instant); await f.service.check();
     await f.service.configure(true, f.home); expect(f.notices).toEqual([]);
     f.db.turn('enabled', instant); await f.service.check();
-    expect(f.notices.map(n => n.id)).toEqual(['desktop:enabled']);
-  });
-  it('does not replay database completions when the shared bounded duplicate cache rolls over', async () => {
-    const f = await historyFixture(); await f.service.configure(true, f.home);
-    f.db.history.exec('BEGIN');
-    for (let i = 0; i < 5002; i++) f.db.turn(`turn-${i}`, instant + i * 1000);
-    f.db.history.exec('COMMIT'); f.clock.now += 5002000;
-    await f.service.check(); expect(f.notices).toHaveLength(5002);
-    await f.service.check(); expect(f.notices).toHaveLength(5002);
+    expect(f.notices).toEqual([{ id: 'desktop:enabled', completedAt: new Date(instant).toISOString() }]);
   });
 });
 
@@ -168,13 +160,6 @@ describe('local Codex completion monitoring', () => {
     await appendFile(f.file, event('old-dir', f.clock.now));
     await writeFile(path.join(other, 'sessions', 'new.jsonl'), meta('other') + event('new-dir', f.clock.now)); await f.service.check();
     expect(f.notices.map(n => n.id)).toEqual(['thread:enabled', 'other:new-dir']);
-  });
-  it('does not replay renamed history after the bounded duplicate-id cache rolls over', async () => {
-    const f = await fixture(meta());
-    await appendFile(f.file, Array.from({ length: 5002 }, (_, i) => event(`turn-${i}`, instant + i)).join(''));
-    await f.service.check(); expect(f.notices).toHaveLength(5002);
-    await rename(f.file, path.join(f.sessions, 'renamed.jsonl')); await f.service.check();
-    expect(f.notices).toHaveLength(5002);
   });
   it('recovers a missing directory with polling and ignores old events copied into it', async () => {
     const f = await fixture(); const home = path.join(f.home, 'late');
