@@ -109,6 +109,8 @@ export class AppUpdateService {
     const controller = new AbortController(); this.controller = controller;
     const samples: Array<{ at: number; transferred: number }> = [{ at: this.now(), transferred: 0 }];
     let smoothedSpeed: number | null = null;
+    let lastTotal = 0;
+    let lastTransferred = 0;
     this.set({ status: 'downloading', error: null, progress: 0, transferred: 0, total: 0, bytesPerSecond: null, estimatedRemainingSeconds: null });
     const job = (async () => {
       try {
@@ -117,6 +119,12 @@ export class AppUpdateService {
           const now = this.now();
           const transferred = Math.max(0, Number.isFinite(value.transferred) ? value.transferred : 0);
           const total = Math.max(0, Number.isFinite(value.total) ? value.total : 0);
+          if (transferred === 0 || transferred < lastTransferred || (lastTotal > 0 && total > 0 && total !== lastTotal)) {
+            smoothedSpeed = null;
+            samples.splice(0, samples.length, { at: now, transferred });
+          }
+          lastTotal = total;
+          lastTransferred = transferred;
           while (samples.length > 1 && now - samples[1].at > 5000) samples.shift();
           const last = samples[samples.length - 1];
           if (last && now <= last.at) last.transferred = transferred;
@@ -147,7 +155,7 @@ export class AppUpdateService {
           this.set({ transferred, total, progress: total > 0 ? Math.min(100, transferred / total * 100) : 0, bytesPerSecond, estimatedRemainingSeconds });
         }, controller.signal);
         if (!this.disposed && !controller.signal.aborted) this.set({ status: 'ready', progress: 100, bytesPerSecond: null, estimatedRemainingSeconds: null });
-      } catch (error) { if (!this.disposed) this.set(controller.signal.aborted ? { status: 'available', error: null, progress: 0, bytesPerSecond: null, estimatedRemainingSeconds: null } : { status: 'error', bytesPerSecond: null, estimatedRemainingSeconds: null, error: updateError(error) }); }
+      } catch (error) { if (!this.disposed) this.set(controller.signal.aborted ? { status: 'available', error: null, progress: 0, transferred: 0, total: 0, bytesPerSecond: null, estimatedRemainingSeconds: null } : { status: 'error', bytesPerSecond: null, estimatedRemainingSeconds: null, error: updateError(error) }); }
       return this.getState();
     })().finally(() => { if (this.downloading === job) this.downloading = null; if (this.controller === controller) this.controller = null; });
     this.downloading = job; return job;

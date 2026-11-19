@@ -30,7 +30,7 @@ app.whenReady().then(async () => {
     const original = new URL(String(url));
     return fetch(endpoint + (original.hostname === 'api.github.com' ? '/release.json' : '/' + original.pathname.split('/').at(-1)), init);
   });
-  const backend = portable ? new PortableUpdateBackend({ cacheDir: path.join(profile, 'downloads'), transport, prepare: (file, hash, v) => manager!.prepare(file, hash, v) }) : new InstalledUpdateBackend(new NsisUpdater({ provider: 'generic', url: endpoint + '/' }));
+  const backend = portable ? new PortableUpdateBackend({ cacheDir: path.join(profile, 'downloads'), programPath: process.env.PORTABLE_EXECUTABLE_FILE!, transport, prepare: (file, hash, v) => manager!.prepare(file, hash, v) }) : new InstalledUpdateBackend(new NsisUpdater({ provider: 'generic', url: endpoint + '/', useMultipleRangeRequest: false }));
   let writes = Promise.resolve();
   const publish = () => { const data = JSON.stringify({ version, pid: process.pid, executable: process.execPath, portablePath: process.env.PORTABLE_EXECUTABLE_FILE, state: service.getState(), startup: app.getLoginItemSettings({ path: portable ? process.env.PORTABLE_EXECUTABLE_FILE : process.execPath, args: [] }).openAtLogin }); writes = writes.catch(() => {}).then(() => writeFile(path.join(profile, 'status.json'), data)); };
   service = new AppUpdateService({ version, kind, dataDir: profile, backend, onState: publish }); await service.init();

@@ -61,6 +61,7 @@ DesktopPet 是 Windows 10/11 x64 桌宠：DeepSeek 小鲸鱼显示余额与本�
 - 每个独立功能、修复或重构任务分配唯一任务编号，明确目标、修改范围、负责人、依赖和验收条件。使用递增编号 `T001`、`T002` 等，先检查已有任务，避免冲突。
 - 新任务使用独立分支；同一任务的后续修改继续使用原分支。
 - 创建分支前核实目标合并分支，获取远程状态，确认工作区修改已妥善保存。无法获取远程时记录原因与引用时效，不把本地跟踪引用当作最新远程事实，不自动同步或改写已有修改。
+- 开始新任务时，若当前任务分支仍存在前序任务已完成但尚未提交的本地改动，默认先在原任务分支本地提交前序任务（仅限本地提交，不扩大推送、PR 或合并授权），再从目标合并分支（如 `origin/main`）切出新任务分支，避免改动混入或覆盖。
 - 已合并任务产生新的修改需求时，创建新任务和新分支。
 - 分支名包含任务编号和简短用途，例如 `feat/T012-export`、`fix/T013-quota`、`docs/T014-handoff`。本项目当前目标合并分支为 `main`；每次仍须核实任务目标与远程状态。
 - 多个开发者或 AI 并行修改时使用独立工作目录，明确共享文件、接口负责人和必要的合并顺序。
@@ -91,6 +92,8 @@ README 与 CI 使用 Windows x64、Node.js 24 和 npm；具体依赖与版本以
 | `npm.cmd run test:smoke` | 对构建产物执行 Playwright Electron 交互测试，需可运行 Electron 的桌面环境 |
 | `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tests/helper-fixtures.ps1` | 卸载辅助脚本的隔离文件测试；不包含在 `npm test` 中 |
 | `npm.cmd run dist` | 构建 Windows x64 NSIS 与 portable 包到 `release/`，配置为 `--publish never` |
+| `node scripts/verify-release.mjs`、`node scripts/verify-update-runtime.mjs` | 校验六个更新资源（含 NSIS 与免安装版 `.blockmap`）、生成校验文件，并核实打包运行依赖／固定发布源 |
+| `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tests/update-helper-fixtures.ps1` | 更新助手七场景，含约两分钟来源进程等待超时；不触碰真实程序 |
 | `node scripts/verify-release.mjs`、`node scripts/verify-update-runtime.mjs` | 校验五个更新资源、生成校验文件，并核实打包运行依赖／固定发布源 |
 | `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tests/update-helper-fixtures.ps1` | 更新助手六项快速安全场景（加 `-IncludeSlowTimeout` 可额外运行约两分钟的来源进程等待超时验证）；不触碰真实程序 |
 | `node tests/update-packaged.mjs` | 构建独立 ID 的 0.0.1／0.0.2 测试程序，实际覆盖升级／回滚；需 Windows、打包工具和安装权限 |

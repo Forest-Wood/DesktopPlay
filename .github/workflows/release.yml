@@ -96,6 +96,7 @@ jobs:
             release/SHA256SUMS.txt
             release/latest.yml
             release/*-Setup-x64.exe.blockmap
+            release/*-Portable-x64.exe.blockmap
 
       - name: Replace draft assets and announcement
         if: steps.release_guard.outputs.draft_exists == 'true'
@@ -104,7 +105,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $version = $env:RELEASE_TAG -replace '^v', ''
-          $names = @("DesktopPet-$version-Setup-x64.exe", "DesktopPet-$version-Portable-x64.exe", 'SHA256SUMS.txt', 'latest.yml', "DesktopPet-$version-Setup-x64.exe.blockmap")
+          $names = @("DesktopPet-$version-Setup-x64.exe", "DesktopPet-$version-Portable-x64.exe", 'SHA256SUMS.txt', 'latest.yml', "DesktopPet-$version-Setup-x64.exe.blockmap", "DesktopPet-$version-Portable-x64.exe.blockmap")
           $files = @($names | ForEach-Object { (Get-Item -LiteralPath (Join-Path 'release' $_)).FullName })
           gh release upload $env:RELEASE_TAG @files --repo $env:GITHUB_REPOSITORY --clobber
           if ($LASTEXITCODE -ne 0) { throw 'Failed to replace draft assets; keep release unpublished' }
@@ -125,7 +126,7 @@ jobs:
           $notes = [IO.File]::ReadAllText((Join-Path 'docs/releases' "$env:RELEASE_TAG.md")).Replace("`r`n", "`n").Trim()
           if ([string]::IsNullOrWhiteSpace($notes) -or ([string]$release.body).Replace("`r`n", "`n").Trim() -cne $notes) { throw 'Draft announcement does not match the verified release notes' }
           $version = $env:RELEASE_TAG -replace '^v', ''
-          $names = @("DesktopPet-$version-Setup-x64.exe", "DesktopPet-$version-Portable-x64.exe", 'SHA256SUMS.txt', 'latest.yml', "DesktopPet-$version-Setup-x64.exe.blockmap")
+          $names = @("DesktopPet-$version-Setup-x64.exe", "DesktopPet-$version-Portable-x64.exe", 'SHA256SUMS.txt', 'latest.yml', "DesktopPet-$version-Setup-x64.exe.blockmap", "DesktopPet-$version-Portable-x64.exe.blockmap")
           if ($release.assets.Count -ne $names.Count) { throw 'Unexpected release asset count' }
           foreach ($name in $names) {
             $asset = @($release.assets | Where-Object name -eq $name)

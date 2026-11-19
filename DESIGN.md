@@ -70,7 +70,7 @@ phraseDisplayByPersona 为三桌宠保存 count、mode、selectedIndices，旧�
 
 更新提醒低于完成和余额提醒，等待现有气泡结束及拖拽／角色确认结束后展示；隐藏时丢弃、不补弹。每个版本的提示标记单独持久化；主动检查已看到的新版本也计为已提示。“查看更新”仅在用户点击后打开版本页。
 
-更新地址固定为 Forest-Wood/DesktopPlay 的公开 HTTPS Release，不读取 GitHub 登录凭据。AppUpdateService 管理状态、调度、取消和提醒；安装后端使用 electron-updater 6.8.9／NSIS，关闭自动下载、退出安装和差分。免安装后端核对同一 Release 的 SHA256SUMS，整包下载再校验；渲染层四个 IPC 不接收路径或 URL。
+更新地址固定为 Forest-Wood/DesktopPlay 的公开 HTTPS Release，不读取 GitHub 登录凭据。AppUpdateService 管理状态、调度、取消、进度与预计剩余时间估算（当差分失败自动回退整包导致总字节变化或已传字节重置时重置速率滑动窗口）；安装后端使用 electron-updater 6.8.9／NSIS，保持关闭自动下载、退出安装、预发布与降级，同时启用 `.blockmap` 块级差分下载（复用本地 `%LOCALAPPDATA%\desktopplay-updater\installer.exe`，差分异常、缓存缺失或校验失败自动回退整包下载并校验 SHA-512）。免安装后端在 Release 提供 `DesktopPet-<版本>-Portable-x64.exe.blockmap` 时，对当前运行中的 `programPath` 流式计算 Rabin CDC 块表并按 64 KiB 间隔合并 HTTP Range（`206 Partial Content`）拉取差异块在缓存目录合成新版 EXE；合成后仍强制执行 `SHA256SUMS.txt` 完整 SHA-256 校验，任一步骤异常均清理临时分片并无感降级为整包下载。进度与预计剩余时间反映本次实际网络下载字节数；渲染层四个 IPC 不接收路径或 URL。
 
 免安装管理器核实当前 Electron 和祖先 Portable 启动器的 PID、创建时间与路径，原目录暂存并校验后启动隐藏助手；助手 ready 后才提交 go、排空保存并退出。助手等待两个精确进程退出，原子替换并备份，健康启动后删除备份；明确启动失败恢复旧文件，仍运行但未确认时保留备份并显示异常。权限、占用、超时、重解析路径或文件变化均保留可恢复文件，不强杀、不递归删除；更新与卸载互斥。
 

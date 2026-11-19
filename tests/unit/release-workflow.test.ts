@@ -15,7 +15,7 @@ afterEach(async () => { for (const directory of directories.splice(0)) { if (!pa
 async function fixture(mode = 'valid', stepName = 'Publish only after every asset is verified') {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'desktoppet-release-gate-')); directories.push(directory); await mkdir(path.join(directory, 'release')); await mkdir(path.join(directory, 'docs/releases'), { recursive: true });
   await writeFile(path.join(directory, 'docs/releases/v0.5.3.md'), mode === 'notes-blank' ? '  ' : '- User-facing change.\n');
-  const names = ['DesktopPet-0.5.3-Setup-x64.exe', 'DesktopPet-0.5.3-Portable-x64.exe', 'SHA256SUMS.txt', 'latest.yml', 'DesktopPet-0.5.3-Setup-x64.exe.blockmap'];
+  const names = ['DesktopPet-0.5.3-Setup-x64.exe', 'DesktopPet-0.5.3-Portable-x64.exe', 'SHA256SUMS.txt', 'latest.yml', 'DesktopPet-0.5.3-Setup-x64.exe.blockmap', 'DesktopPet-0.5.3-Portable-x64.exe.blockmap'];
   const assets = await Promise.all(names.map(async name => { const data = Buffer.from(`fixture ${name}`); await writeFile(path.join(directory, 'release', name), data); return { name, size: data.length, state: 'uploaded', digest: `sha256:${createHash('sha256').update(data).digest('hex')}` }; }));
   if (mode === 'missing') assets.pop();
   if (mode === 'digest') assets[0].digest = 'sha256:' + '0'.repeat(64);
@@ -68,14 +68,14 @@ it.skipIf(process.platform !== 'win32').each(['valid', 'none'])('selects the dra
 it.skipIf(process.platform !== 'win32')('rejects ambiguous drafts before replacing assets', async () => {
   const f = await fixture('duplicate', 'Refuse to overwrite a published release'); expect(f.result.status).not.toBe(0);
 });
-it.skipIf(process.platform !== 'win32')('replaces only the five draft assets without patching tag or target', async () => {
+it.skipIf(process.platform !== 'win32')('replaces only the six draft assets without patching tag or target', async () => {
   const f = await fixture('valid', 'Replace draft assets and announcement'); expect(f.result.status, f.result.stderr).toBe(0);
   const command = await readFile(path.join(f.directory, 'uploaded'), 'utf8');
   expect(command.split('|').slice(0, 3)).toEqual(['release', 'upload', 'v0.5.3']);
   expect(command).toContain('--repo|Forest-Wood/DesktopPlay|--clobber');
   expect(await readFile(path.join(f.directory, 'notes-updated'), 'utf8')).toContain('--notes-file|');
   const uploaded = command.split('|').slice(3, -3).map(filename => realpathSync.native(filename)).sort();
-  const expected = ['DesktopPet-0.5.3-Setup-x64.exe', 'DesktopPet-0.5.3-Portable-x64.exe', 'SHA256SUMS.txt', 'latest.yml', 'DesktopPet-0.5.3-Setup-x64.exe.blockmap'].map(name => realpathSync.native(path.join(f.directory, 'release', name))).sort();
+  const expected = ['DesktopPet-0.5.3-Setup-x64.exe', 'DesktopPet-0.5.3-Portable-x64.exe', 'SHA256SUMS.txt', 'latest.yml', 'DesktopPet-0.5.3-Setup-x64.exe.blockmap', 'DesktopPet-0.5.3-Portable-x64.exe.blockmap'].map(name => realpathSync.native(path.join(f.directory, 'release', name))).sort();
   expect(uploaded).toEqual(expected);
   await expect(readFile(path.join(f.directory, 'published'))).rejects.toThrow();
 });

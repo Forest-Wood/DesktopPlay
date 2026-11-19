@@ -4,6 +4,7 @@ import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
+import { parsePortableBlockMap } from '../src/shared/portable-blockmap.mjs';
 import { announcement, readReleasePlan } from './release-policy.mjs';
 
 export async function digest(filename, algorithm, encoding = 'hex') {
@@ -23,6 +24,11 @@ export async function verifyRelease(directory, version, writeChecksums = true, e
   if (file.url !== setup || file.sha512 !== sha512 || file.size !== size || (info.path && info.path !== setup) || (info.sha512 && info.sha512 !== sha512)) throw new Error('NSIS update metadata does not match installer');
   const blockmap = `${setup}.blockmap`;
   if ((await stat(path.join(directory, blockmap))).size < 1) throw new Error('NSIS blockmap missing');
+  const portablePath = path.join(directory, portable), portableSize = (await stat(portablePath)).size;
+  const portableBlockmap = `${portable}.blockmap`;
+  const portableBlockmapBytes = await readFile(path.join(directory, portableBlockmap));
+  if (portableBlockmapBytes.length < 1) throw new Error('Portable blockmap missing');
+  parsePortableBlockMap(portableBlockmapBytes, portable, portableSize);
   const lines = [];
   for (const name of executables) {
     if ((await stat(path.join(directory, name))).size < 1) throw new Error('Empty executable');
@@ -31,7 +37,7 @@ export async function verifyRelease(directory, version, writeChecksums = true, e
   const sums = `${lines.join('\n')}\n`;
   if (writeChecksums) await writeFile(path.join(directory, 'SHA256SUMS.txt'), sums, 'ascii');
   else if ((await readFile(path.join(directory, 'SHA256SUMS.txt'), 'ascii')).replace(/\r\n/g, '\n') !== sums) throw new Error('SHA256SUMS does not match executables');
-  return [...executables, 'SHA256SUMS.txt', 'latest.yml', blockmap];
+  return [...executables, 'SHA256SUMS.txt', 'latest.yml', blockmap, portableBlockmap];
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const pkg = JSON.parse(await readFile('package.json', 'utf8'));
