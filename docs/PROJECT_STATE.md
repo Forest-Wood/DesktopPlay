@@ -4,7 +4,7 @@
 
 ## 当前任务
 
-- [T027／R034](tasks/T027-retention-bubble.md)（分支 `fix/T027-retention-bubble`，基准 `8c8c69e`／远程 `main` `c101c7e`，工作区未提交）：修复在“用量小报告”或“陪伴短句”气泡页点击“换角色”时，挽留提示词被拼接在原页面文案后面的问题，使挽留状态作为独立气泡内容展示并在取消后恢复原分页。`npm.cmd run build`、`desktop.spec.ts`（`comic bubble pages`）隔离 Electron 测试与 `git diff --check` 均通过，待用户审阅。
+- [T027／R034](tasks/T027-retention-bubble.md)（分支 `fix/T027-retention-bubble`，实现提交 `807338f`，[PR #30](https://github.com/Forest-Wood/DesktopPlay/pull/30) 目标 `main`）：修复在“用量小报告”或“陪伴短句”气泡页点击“换角色”时，挽留提示词被拼接在原页面文案后面的问题，使挽留状态作为独立气泡内容展示并在取消后恢复原分页。`npm.cmd run build`、`desktop.spec.ts`（`comic bubble pages`）隔离 Electron 测试与 `git diff --check` 均通过，已提交推送并创建 PR 待审阅。
 - [T026／R033](tasks/T026-gemini-ui.md) 已通过 [PR #29](https://github.com/Forest-Wood/DesktopPlay/pull/29) 合入主线 `c101c7e`，优化 Gemini 气泡双列排版、设置页三栏额度卡与状态胶囊、星光紫角色舞台（`gemini-theme`）、三角色并排选择器与提醒／关于文案，并将经典与手绘两张内置 PNG 无损左右对称翻转。
 - [T025／R032](tasks/T025-release-v200.md) 已发布 v2.0.0。[PR #27](https://github.com/Forest-Wood/DesktopPlay/pull/27) 合入主线，标签指向 `163a87a`。构建、324 项单测、27 项 Electron 测试及两套文件助手验证通过。
 - [T024／R031](tasks/T024-gemini-pet.md) 已经 [PR #26](https://github.com/Forest-Wood/DesktopPlay/pull/26) 合并，随 v2.0.0 提供 Gemini 的两款造型、三项额度与对话提醒。真实 App 与 agy 的额度已按三项对照，真实三端任务提醒和共享池账户仍待验收。
