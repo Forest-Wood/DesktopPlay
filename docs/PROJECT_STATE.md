@@ -4,8 +4,8 @@
 
 ## 当前任务
 
-- [T033／R040](tasks/T033-release-v210.md)（分支 `release/T033-v210`，进行中）：以 `v2.0.2` 为基准按 `minor` 准备正式版 `v2.1.0`（包含 T032 增量／差分更新与 T031 测试精简），整理主线合并后文档重复行并同步版本、`release-plan.json` 与 `docs/releases/v2.1.0.md`，待 PR 合入 `main` 并打标签 `v2.1.0` 发布。
-- [T032／R039](tasks/T032-incremental-update.md) 已通过 [PR #37](https://github.com/Forest-Wood/DesktopPlay/pull/37) 合入主线 `5b6f13a`（待随 v2.1.0 分发）：实现 NSIS（`electron-updater` `.blockmap`）与 Portable（流式 Rabin CDC + `64 KiB` Range 合并 + 本地 `programPath` 扫描 + 完整 SHA-256 校验）增量／差分更新、自动回退整包、增量进度与回退 ETA 重置及 6 项 Release 资产校验；并在 `AGENTS.md` 补充前序未提交任务先原分支本地提交再切新分支的隔离规则。
+- [T033／R040](tasks/T033-release-v210.md) 已发布 [v2.1.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.1.0)。[PR #38](https://github.com/Forest-Wood/DesktopPlay/pull/38) 合入主线，标签 `v2.1.0` 指向 `07f774b`。[发布工作流 44549546635](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44549546635) 通过单测、Windows x64 打包、更新运行时与全部六项附件摘要（含 NSIS 与免安装版 `.blockmap`）及公告校验。
+- [T032／R039](tasks/T032-incremental-update.md) 已通过 [PR #37](https://github.com/Forest-Wood/DesktopPlay/pull/37) 合入主线 `5b6f13a`，随 v2.1.0 分发：实现 NSIS（`electron-updater` `.blockmap`）与 Portable（流式 Rabin CDC + `64 KiB` Range 合并 + 本地 `programPath` 扫描 + 完整 SHA-256 校验）增量／差分更新、自动回退整包、增量进度与回退 ETA 重置及 6 项 Release 资产校验；并在 `AGENTS.md` 补充前序未提交任务先原分支本地提交再切新分支的隔离规则。
 - [T031／R038](tasks/T031-prune-overdefensive-tests.md) 已通过 [PR #36](https://github.com/Forest-Wood/DesktopPlay/pull/36) 合入主线 `9adeb77`：精简 `tests/` 中过度防御与跨层重复测试，将 `update-helper-fixtures.ps1` 的 2 分钟等待超时改为 `-IncludeSlowTimeout` 显式开关，并将“避免过度防御性测试”原则写入 `AGENTS.md` 与 PR 模板。
 - [T030／R037](tasks/T030-release-v202.md) 已发布 [v2.0.2](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.2)。[PR #34](https://github.com/Forest-Wood/DesktopPlay/pull/34) 合入主线，标签 `v2.0.2` 指向 `b36bbc6`。[发布工作流 44531740265](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44531740265) 通过单测、Windows x64 打包、更新运行时与五项附件摘要及公告校验。
 - [T029／R036](tasks/T029-update-eta-gemini-completion.md) 已通过 [PR #33](https://github.com/Forest-Wood/DesktopPlay/pull/33) 合入主线 `d7c32c2`，随 v2.0.2 分发。应用内软件更新下载新增平滑速率与预计剩余时间估计；修复 Gemini 任务完成提示气泡在 VS Code 与桌面 App 均未展示的问题；在协作文档新增完成 `T(N)` 清理 `T(N-2)` 临时测试文件的滚动规范。真实 VS Code／App 端完成弹泡待实机验收。
@@ -17,8 +17,8 @@
 
 ## 主线与发布
 
-- [v2.0.2](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.2) 于 2026-11-19 21:18:18（Asia/Shanghai）成为最新正式版。[发布工作流](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44531740265) 校验了五个附件和更新公告。
-- T029 随 v2.0.2 分发；T026 与 T027 随 [v2.0.1](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.1) 分发；T021 至 T024 随 [v2.0.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.0) 分发。此前 v1.1.0 的发布记录见 [T020](tasks/T020-release-v110.md)，本地 `release/` 仍保留该历史版本。
+- [v2.1.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.1.0) 于 2026-11-19 23:00:40（Asia/Shanghai）成为最新正式版。[发布工作流](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44549546635) 校验了六个附件（含免安装版 `.blockmap`）和更新公告。
+- T031 与 T032 随 v2.1.0 分发；T029 随 [v2.0.2](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.2) 分发；T026 与 T027 随 [v2.0.1](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.1) 分发；T021 至 T024 随 [v2.0.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.0) 分发。此前 v1.1.0 的发布记录见 [T020](tasks/T020-release-v110.md)。
 
 ## 有效限制与后续
 
