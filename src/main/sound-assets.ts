@@ -1,4 +1,4 @@
-import { SOUND_SLOTS, builtinSound } from '../shared/bubble-settings';
+import { PERSONAS, SOUND_SLOTS, builtinSound } from '../shared/bubble-settings';
 import { mkdir, open, rename, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -6,7 +6,6 @@ import { DEFAULT_SOUNDS } from '../shared/defaults';
 import type { PetPersona, SoundSlot, SoundMetadataMap, SoundData } from '../shared/types';
 
 const MAX_BYTES = 5 * 1024 * 1024;
-const PERSONAS = ['whale', 'gpt', 'dragon'] as const;
 const SLOTS = SOUND_SLOTS;
 type Format = 'mp3' | 'wav' | 'ogg';
 interface Entry { name: string; revision: string; file: string; hash: string }

@@ -27,11 +27,28 @@ describe('persona phrase storage', () => {
     await fs.writeFile(file, JSON.stringify(legacy));
     const restored = (await fixture([], { dataDir })).service;
     expect(restored.getState().settings).toMatchObject({ volume: 0.2, codexCompletionEnabled: true, codexCompletionDirectory: null, completionMessagesByPersona: DEFAULT_COMPLETION_MESSAGES });
-    const messages = { whale: '鲸鱼提醒', gpt: '<b>纯文本</b>', dragon: '龙'.repeat(200) }, directory = path.resolve('.tmp/fake-codex-home');
+    const messages = { gemini: 'Gemini 提醒', whale: '鲸鱼提醒', gpt: '<b>纯文本</b>', dragon: '龙'.repeat(200) }, directory = path.resolve('.tmp/fake-codex-home');
     await restored.updateSettings({ completionMessagesByPersona: messages, codexCompletionEnabled: false, codexCompletionDirectory: directory }); restored.dispose();
     const restarted = (await fixture([], { dataDir })).service;
     expect(restarted.getState().settings).toMatchObject({ completionMessagesByPersona: messages, codexCompletionEnabled: false, codexCompletionDirectory: directory });
     expect(restarted.getState().settings.phrasesByPersona).toEqual(DEFAULT_PHRASES_BY_PERSONA);
+  });
+  it('extends pre-Gemini settings without losing custom phrases, bubbles or disabled sources', async () => {
+    const { service, dataDir } = await fixture();
+    await service.updateSettings({ volume: .23 }); service.dispose();
+    const file = path.join(dataDir, 'desktopplay.json'), disk = JSON.parse(await fs.readFile(file, 'utf8'));
+    const old = disk.settings;
+    for (const key of ['phrasesByPersona','phraseDisplayByPersona','completionMessagesByPersona','bubbleProfilesByPersona']) delete old[key].gemini;
+    delete old.attentionEnabledBySource.antigravity; old.attentionEnabledBySource.codex = false;
+    for (const profile of Object.values(old.bubbleProfilesByPersona) as {rules: Record<string, unknown>}[]) {
+      delete profile.rules['completion-antigravity']; delete profile.rules['attention-antigravity'];
+    }
+    old.bubbleProfilesByPersona.dragon.rules.retention.message = '旧白龙文案';
+    await fs.writeFile(file, JSON.stringify(disk));
+    const restored = (await fixture([], {dataDir})).service.getState().settings;
+    expect(restored.volume).toBe(.23); expect(restored.attentionEnabledBySource.codex).toBe(false);
+    expect(restored.bubbleProfilesByPersona.dragon.rules.retention.message).toBe('旧白龙文案');
+    expect(restored.bubbleProfilesByPersona.gemini.rules['completion-antigravity'].message).toContain('Gemini');
   });
   it('rejects malformed completion messages, directories and switches atomically', async () => {
     const { service } = await fixture(); const before = service.getState().settings;
@@ -51,7 +68,7 @@ describe('persona phrase storage', () => {
     delete legacy.settings.phrasesByPersona;
     await fs.writeFile(file, JSON.stringify(legacy));
     const restored = (await fixture([], { dataDir })).service;
-    expect(restored.getState().settings.phrasesByPersona).toEqual({ whale: legacy.settings.phrases, gpt: DEFAULT_PHRASES_BY_PERSONA.gpt, dragon: DEFAULT_PHRASES_BY_PERSONA.dragon });
+    expect(restored.getState().settings.phrasesByPersona).toEqual({ ...DEFAULT_PHRASES_BY_PERSONA, whale: legacy.settings.phrases });
     const phrases = restored.getState().settings.phrasesByPersona;
     phrases.dragon = ['龙族自定义'];
     await restored.updateSettings({ phrasesByPersona: phrases }); restored.dispose();

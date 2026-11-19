@@ -1,6 +1,7 @@
 import type { AppSettings, AppState, BubbleProfiles, BubbleScenario, BubbleStyle, DesktopApi, PetPersona, SoundSlot } from '../shared/types';
 import { COMPLETION_SOURCES, DEFAULT_BUBBLE_PROFILES, PERSONAS, SCENARIO_LABELS, SCENARIOS, petPersona, resolveBubble } from '../shared/bubble-settings';
-import { DEFAULT_PET, GPT_PET, GPT_DRAGON_PET } from '../shared/defaults';
+import { demoGeminiQuota } from '../shared/gemini';
+import { GEMINI_PETS, DEFAULT_PET, GPT_PET, GPT_DRAGON_PET } from '../shared/defaults';
 import { mountPet } from './pet';
 import { PersonaSoundPlayer } from './sounds';
 
@@ -8,8 +9,8 @@ export function mountBubbleEditor(root: HTMLElement, api: DesktopApi, initial: A
   let profiles = structuredClone(initial.settings.bubbleProfilesByPersona), persona = petPersona(initial), kind: BubbleScenario | 'base' = 'base';
   let state = initial, disposed = false, busy = false;
   const q = <T extends HTMLElement = HTMLElement>(selector: string) => root.querySelector<T>(selector)!;
-  root.innerHTML = `<p class="hint">三个桌宠独立保存；自定义 GPT 沿用原版 GPT。先调整基础设置，再为不同提示单独覆盖。金额、额度和系统状态由程序生成。</p>
-    <div class="persona-tabs" role="group" aria-label="气泡桌宠">${PERSONAS.map((id, i) => `<button type="button" data-bubble-persona="${id}">${['小鲸鱼', '原版 GPT', '白龙'][i]}</button>`).join('')}</div>
+  root.innerHTML = `<p class="hint">各角色独立保存；自定义 GPT 沿用原版 GPT。先调整基础设置，再为不同提示单独覆盖。金额、额度和系统状态由程序生成。</p>
+    <div class="persona-tabs" role="group" aria-label="气泡桌宠">${PERSONAS.map((id, i) => `<button type="button" data-bubble-persona="${id}">${['小鲸鱼', '原版 GPT', '白龙', 'Gemini'][i]}</button>`).join('')}</div>
     <label class="field-label" for="bubble-scenario">提示类型</label><select id="bubble-scenario"><option value="base">基础设置（所有气泡）</option>${SCENARIOS.map(id => `<option value="${id}">${SCENARIO_LABELS[id]}</option>`).join('')}</select>
     <div class="bubble-editor-grid"><div class="bubble-editor-fields">
       <div id="bubble-copy-fields"><label id="bubble-enabled-row" class="toggle-label"><span>显示此类气泡</span><input id="bubble-enabled" type="checkbox"></label>
@@ -31,7 +32,7 @@ export function mountBubbleEditor(root: HTMLElement, api: DesktopApi, initial: A
   for (const field of root.querySelectorAll('input, textarea, select')) field.setAttribute('form', 'settings-form');
   const audio = new PersonaSoundPlayer(api, (_slot, text) => { if (!disposed) q('#bubble-sound-warning').textContent = text; }, undefined, COMPLETION_SOURCES.map(source => `completion-${source}` as const));
   const fakeState = (): AppState => ({ ...state, petVisible: true, settings: { ...state.settings, bubbleProfilesByPersona: structuredClone(profiles), scale: .68, phrasesByPersona: { ...state.settings.phrasesByPersona, [persona]: ['工作一会儿，记得照顾自己。'] } },
-    activePet: persona === 'whale' ? 'deepseek' : 'gpt', gptAppearance: persona === 'dragon' ? 'dragon' : 'classic', pet: persona === 'whale' ? DEFAULT_PET : persona === 'dragon' ? GPT_DRAGON_PET : GPT_PET,
+    geminiQuota: demoGeminiQuota(), activePet: persona === 'gemini' ? 'gemini' : persona === 'whale' ? 'deepseek' : 'gpt', gptAppearance: persona === 'dragon' ? 'dragon' : 'classic', pet: persona === 'gemini' ? GEMINI_PETS[state.geminiAppearance] : persona === 'whale' ? DEFAULT_PET : persona === 'dragon' ? GPT_DRAGON_PET : GPT_PET,
     effectiveScale: .68, flipped: false, verticalFlipped: q<HTMLSelectElement>('#bubble-preview-placement').value === 'below', bubblePlacement: q<HTMLSelectElement>('#bubble-preview-placement').value === 'below' ? 'below' : 'above',
     status: 'ready', error: null, warning: null, alert: null, balance: { currency: 'CNY', total: '28.36', granted: '0', toppedUp: '28.36', isAvailable: true, observedAt: new Date().toISOString() },
     ledger: { today: { date: '2026-10-21', currency: 'CNY', spent: '1.24', increased: '0', startedAt: '' }, history: [] },

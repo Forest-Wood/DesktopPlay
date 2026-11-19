@@ -6,7 +6,9 @@ import type { AppSettings, AppState, DesktopApi, PetPersona, SoundSlot, Completi
 import { validatePhraseDisplays } from '../shared/phrases';
 import { decimalSetting, money, updateMoney } from './format';
 import { localTime, quotaStatus, renderQuota } from './quota';
-import { APP_VERSION, GPT_DRAGON_PET, GPT_PET } from '../shared/defaults';
+import { geminiStatus, renderGeminiQuota } from './gemini-quota';
+import { COMPLETION_SOURCES, petPersona } from '../shared/bubble-settings';
+import { APP_VERSION, GEMINI_PETS, GPT_DRAGON_PET, GPT_PET } from '../shared/defaults';
 import { PersonaSoundPlayer } from './sounds';
 
 export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppState, demo: boolean) {
@@ -14,7 +16,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   let dirty = false;
   let draftRevision = 0;
   let disposed = false;
-  let soundPersona: PetPersona = initial.activePet === 'deepseek' ? 'whale' : initial.gptAppearance === 'dragon' ? 'dragon' : 'gpt';
+  let soundPersona: PetPersona = petPersona(initial);
   const soundWarnings = new Map<string, string>();
   const warningKey = (slot: SoundSlot) => `${soundPersona}:${slot}:${state.sounds[soundPersona][slot].revision}`;
   const preview = new PersonaSoundPlayer(api, (slot, text) => { if (!disposed) { soundWarnings.set(warningKey(slot), text); root.querySelector<HTMLElement>(`#sound-warning-${slot}`)!.textContent = text; } });
@@ -44,9 +46,10 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
         <section id="codex" class="section codex-section"><div class="section-heading"><h2>Codex 编程额度</h2><span id="codex-status" class="status-chip"></span></div><div class="panel"><div id="codex-quotas" class="quota-cards"></div><div class="codex-actions"><span id="codex-updated" class="hint"></span><div class="button-row"><button id="refresh-codex" type="button" class="secondary-button">↻ 刷新额度</button><button id="choose-codex" type="button" class="text-button">选择 codex.exe</button><button id="codex-usage" type="button" class="text-button">查看使用量 ↗</button></div></div><p class="hint">读取本机已登录的 Codex；未连接时请安装并登录 Codex，也可选择 codex.exe。</p></div></section>
         <form id="settings-form">
           <section id="appearance" class="section"><div class="section-heading"><h2>角色造型</h2><span class="section-note">切换角色与图片立即生效</span></div>
-            <div class="panel"><div class="pet-selector" role="group" aria-label="切换内置桌宠"><button id="select-deepseek" type="button" class="pet-option" aria-pressed="false"><img src="./assets/whale.png" alt=""><span>DeepSeek 小鲸鱼<small>账户余额与消费</small></span></button><button id="select-gpt" type="button" class="pet-option" aria-pressed="false"><img src="./assets/gpt.png" alt=""><span>GPT 小伙伴<small>Codex 额度与重置时间</small></span></button></div>
+            <div class="panel"><div class="pet-selector" role="group" aria-label="切换内置桌宠"><button id="select-deepseek" type="button" class="pet-option" aria-pressed="false"><img src="./assets/whale.png" alt=""><span>DeepSeek 小鲸鱼<small>账户余额与消费</small></span></button><button id="select-gpt" type="button" class="pet-option" aria-pressed="false"><img src="./assets/gpt.png" alt=""><span>GPT 小伙伴<small>Codex 额度与重置时间</small></span></button><button id="select-gemini" type="button" class="pet-option" aria-pressed="false"><img src="${GEMINI_PETS.classic.url}" alt=""><span>Gemini<small>Argon 与 Gemini 剩余额度</small></span></button></div>
+            <div id="gemini-appearance-options" hidden><div class="pet-selector" role="group" aria-label="Gemini 造型">${(['classic', 'sketch'] as const).map(id => `<button id="gemini-${id}" type="button" class="pet-option"><img src="${GEMINI_PETS[id].url}" alt=""><span>${id === 'classic' ? '经典' : '手绘'}</span></button>`).join('')}</div></div>
             <div id="gpt-appearance-options"><p class="hint">GPT 造型切换不影响 Codex 额度，两种内置造型共用同一份额度。</p><div class="pet-selector" role="group" aria-label="GPT 造型"><button id="appearance-classic" type="button" class="pet-option" aria-pressed="false"><img src="${GPT_PET.url}" alt=""><span>原版 GPT<small>薄荷绿小伙伴</small></span></button><button id="appearance-dragon" type="button" class="pet-option" aria-pressed="false"><img src="${GPT_DRAGON_PET.url}" alt=""><span>GPT 白龙<small>淡紫色小伙伴</small></span></button><button id="appearance-custom" type="button" class="pet-option" aria-pressed="false"><span>自定义图片<small>保留已导入的造型</small></span></button></div></div>
-            <div class="pet-preview-row"><div class="pet-preview"><img id="pet-preview-image" alt="当前桌宠角色"></div><div><h3 id="pet-name"></h3><p>点击桌宠查看余额或 Codex 额度，拖动它换个位置。<br>右键打开快捷菜单。</p><div class="button-row"><button id="choose-pet" type="button" class="secondary-button">换一张图片</button><button id="reset-pet" type="button" class="text-button">恢复当前角色</button></div></div></div>
+            <div class="pet-preview-row"><div class="pet-preview"><img id="pet-preview-image" alt="当前桌宠角色"></div><div><h3 id="pet-name"></h3><p>点击桌宠查看余额或剩余额度，拖动它换个位置。<br>右键打开快捷菜单。</p><div class="button-row"><button id="choose-pet" type="button" class="secondary-button">换一张图片</button><button id="reset-pet" type="button" class="text-button">恢复当前角色</button></div></div></div>
             <div class="setting-row"><label for="pet-mode">桌宠模式<small>所有桌宠共用；保存后生效。简洁模式只保留剩余额度、完成及问答提醒，原设置仍保留。</small></label><select id="pet-mode" name="petMode" form="settings-form"><option value="full">完整模式</option><option value="simple">简洁模式</option></select></div><div class="setting-row"><label for="scale">角色大小<small>屏幕空间不足时自动缩小，保留所选比例</small></label><div class="range-control"><input id="scale" name="scale" type="range" min="0.5" max="2" step="0.05"><output id="scale-output" for="scale"></output></div></div>
             <div class="setting-row"><label for="volume">音效音量<small>点击音效音量；完成音效在气泡与提示中独立设置</small></label><div class="range-control"><input id="volume" name="volume" type="range" min="0" max="1" step="0.05"><output id="volume-output" for="volume"></output></div></div>
             <div class="toggle-grid"><label class="toggle-label"><span>启用点击音效</span><input name="soundEnabled" type="checkbox"></label><label class="toggle-label"><span>始终置于顶层</span><input name="alwaysOnTop" type="checkbox"></label><label class="toggle-label"><span>贴近边缘时自动吸附</span><input name="snapToEdges" type="checkbox"></label><label class="toggle-label"><span>开机自动启动</span><input name="launchAtLogin" type="checkbox"></label></div>
@@ -68,7 +71,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const tabs = document.createElement('nav'); tabs.className = 'page-tabs'; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', '设置子页面');
   const pages = [
     { category: 'pet', label: '我的桌宠', children: [['appearance', '角色与模式'], ['behavior', '桌面行为'], ['companionship', '陪伴短句']] },
-    { category: 'account', label: '账户与用量', children: [['overview', 'DeepSeek'], ['codex', 'Codex'], ['records', '消费记录']] },
+    { category: 'account', label: '账户与用量', children: [['overview', 'DeepSeek'], ['codex', 'Codex'], ['gemini', 'Gemini'], ['records', '消费记录']] },
     { category: 'reminders', label: '提醒与声音', children: [['completion', '对话提醒'], ['reminders', '余额提醒'], ['sound', '声音']] },
     { category: 'bubbles', label: '气泡与文案', children: [['bubbles', '文案与样式']] },
     { category: 'about', label: '关于', children: [['version', '版本与更新'], ['guide', '使用说明'], ['licenses', '素材与许可证'], ['uninstall', '卸载']] },
@@ -91,6 +94,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     const section = document.createElement('section'); section.id = id; section.className = 'section'; section.innerHTML = `<div class="section-heading"><h2>${title}</h2></div><div class="panel">${html}</div>`; content.append(section); return section;
   };
   for (const id of ['overview', 'codex', 'appearance', 'reminders', 'records']) content.append(element(id));
+  makePage('gemini', 'Gemini 剩余额度', '<div id="gemini-quotas"></div><div class="codex-actions"><p id="gemini-status" class="hint" role="status"></p><button id="refresh-gemini" class="secondary-button" type="button">刷新额度</button></div>');
   const behavior = makePage('behavior', '桌面行为', '<p class="page-description">让小伙伴按你的习惯，留在桌面上。</p>');
   const sound = makePage('sound', '声音', '<p class="page-description">给每次轻轻按下，留一点回应。</p>');
   makePage('bubbles', '气泡与提示', '<div id="bubble-editor"></div>');
@@ -99,7 +103,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     <p class="hint">选择包含 sessions 的 Codex 主目录，一般为 .codex。只读监听，不补发历史。</p>
     <label class="toggle-label"><span>监听 ChatGPT Work 原生结束通知</span><input name="chatgptCompletionEnabled" type="checkbox"></label><p id="chatgpt-completion-status" class="hint" role="status"></p><p class="hint">请在 ChatGPT 桌面应用中将回合结束通知设为“始终”（Always）。这里只接收原生结束通知，失败或中止也会提醒；启动前的通知不会补弹。</p><button type="button" class="text-button" data-edit-completion="chatgpt-work">编辑 Work 提示</button>
     <label class="toggle-label"><span>监听 DeepSeek Harness 成功完成事件</span><input name="deepseekCompletionEnabled" type="checkbox"></label><p id="dsh-completion-status" class="hint" role="status"></p><p id="dsh-current-directory" class="hint completion-path"></p><label class="field-label" for="dsh-directory">DSH 会话目录</label><input id="dsh-directory" type="text" readonly><div class="button-row"><button id="dsh-choose-directory" class="secondary-button" type="button">选择会话目录</button><button id="dsh-default-directory" class="text-button" type="button">使用默认目录</button><button type="button" class="text-button" data-edit-completion="deepseek-harness">编辑 DSH 提示</button></div><p class="hint">默认 DSH_HOME/sessions，未设置时为 ~/.dsh/sessions。支持本机 v4 普通与压缩日志；目录及开关保存后生效。隐藏桌宠时不提醒。</p>`);
-  const phrases = makePage('companionship', '陪伴短句', '<p class="page-description">三套内容独立保存。自定义 GPT 图片使用原版 GPT 短句。</p><div class="persona-tabs" role="group" aria-label="短句人设"><button type="button" data-persona="whale">小鲸鱼</button><button type="button" data-persona="gpt">原版 GPT</button><button type="button" data-persona="dragon">白龙</button></div><div class="phrase-preview"><img id="phrase-preview-image" alt=""><p id="phrase-preview-text"></p></div><label class="field-label" for="phrases">陪伴短句 <span>每行一句 · 保存后生效</span></label>');
+  const phrases = makePage('companionship', '陪伴短句', '<p class="page-description">各角色独立保存。自定义 GPT 图片使用原版 GPT 短句。</p><div class="persona-tabs" role="group" aria-label="短句人设"><button type="button" data-persona="whale">小鲸鱼</button><button type="button" data-persona="gpt">原版 GPT</button><button type="button" data-persona="dragon">白龙</button><button type="button" data-persona="gemini">Gemini</button></div><div class="phrase-preview"><img id="phrase-preview-image" alt=""><p id="phrase-preview-text"></p></div><label class="field-label" for="phrases">陪伴短句 <span>每行一句 · 保存后生效</span></label>');
   phrases.querySelector('.panel')!.append(element<HTMLTextAreaElement>('phrases'));
   phrases.querySelector('.panel')!.insertAdjacentHTML('beforeend', '<div class="phrase-display-controls"><label class="field-label" for="phrase-count">每轮展示数量 N</label><input id="phrase-count" name="phraseCount" form="settings-form" type="number" min="0" max="20" step="1"><label class="field-label" for="phrase-mode">展示模式</label><select id="phrase-mode" name="phraseMode" form="settings-form"><option value="sequential">按顺序切换</option><option value="random">随机展示</option></select><p class="hint">0 表示关闭短句页。勾选至少 N 条候选；每轮每页展示一句。顺序模式接着上轮看过的位置继续。</p><div id="phrase-candidates" role="group" aria-label="候选短句"></div></div>');
   element('completion').querySelector('.panel')!.insertAdjacentHTML('afterbegin', `<h3>等待回应提醒</h3><p class="hint">提问卡片、填写请求和审批弹窗触发提醒；普通正文里的追问不识别。气泡按所选方式关闭，隐藏或退出时清空；回应仍在原客户端完成。</p>
@@ -122,7 +126,14 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     for (let node: Element | null = start; node && node !== end; node = node.nextElementSibling) nodes.push(node);
     return nodes;
   };
+  const geminiControls = document.createElement('div');
+  geminiControls.innerHTML = `<label class="toggle-label"><span>完成时提醒</span><input name="geminiCompletionEnabled" type="checkbox"></label>
+    <label class="toggle-label"><span>需要回应时提醒</span><input name="attention-antigravity" type="checkbox"></label>
+    <label class="toggle-label"><span>接入 Antigravity 完成 hook</span><input name="geminiHookEnabled" type="checkbox"></label>
+    <p id="gemini-integration-status" class="hint" role="status"></p><p class="hint">保存后生效。启用完成 hook 后请在 Antigravity 中重新加载会话；关闭接入会移除 DesktopPet 的条目。</p>
+    <button type="button" class="text-button" data-edit-completion="antigravity">编辑提示</button>`;
   const integrations = [
+    { source: 'antigravity', title: 'Gemini · Antigravity', description: '桌面 App、IDE 和 agy CLI', nodes: [...geminiControls.children] },
     { source: 'codex', title: 'Codex', description: 'CLI 与 VS Code 中的编程任务', nodes: [
       ...siblingsUntil(waitingLabel('codex'), waitingLabel('deepseek-harness')),
       ...siblingsUntil(completedLabel('codexCompletionEnabled'), completedLabel('chatgptCompletionEnabled')),
@@ -143,7 +154,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     card.innerHTML = `<div class="integration-heading"><div><h3>${integration.title}</h3><p>${integration.description}</p></div></div><div class="integration-toggles"></div><div class="integration-statuses"></div><details class="integration-details"><summary>接入与目录设置</summary><div class="integration-configuration"></div></details>`;
     for (const node of integration.nodes) {
       const control = node.querySelector<HTMLInputElement>('input[type="checkbox"]');
-      if (control && control.name !== 'codexHookEnabled') {
+      if (control && !['codexHookEnabled', 'geminiHookEnabled'].includes(control.name)) {
         const label = node.querySelector('span')!;
         label.textContent = control.name.startsWith('attention-') ? '需要回应时提醒' : '完成时提醒';
         card.querySelector('.integration-toggles')!.append(node);
@@ -160,9 +171,9 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   sound.querySelector('.panel')!.append(root.querySelector('input[name="soundEnabled"]')!.closest('label')!);
   sound.querySelector('.panel')!.append(element('volume').closest('.setting-row')!); toggles.remove();
   const soundProfiles = document.createElement('div'); soundProfiles.className = 'sound-profiles';
-  soundProfiles.innerHTML = `<p class="hint">三个角色的按下与松开音效独立保存。更换与恢复立即生效，音量及开关需保存设置。</p><div class="persona-tabs" role="group" aria-label="音效角色"><button type="button" data-sound-persona="whale">小鲸鱼</button><button type="button" data-sound-persona="gpt">原版 GPT</button><button type="button" data-sound-persona="dragon">白龙</button></div>${(['press', 'release'] as const).map(slot => `<article class="sound-file"><div class="sound-file-heading"><h3>${slot === 'press' ? '按下音效' : '松开音效'}</h3><span id="sound-kind-${slot}" class="sound-kind"></span></div><p id="sound-name-${slot}" class="sound-filename"></p><div class="button-row"><button id="sound-choose-${slot}" type="button" class="secondary-button">更换音频</button><button id="sound-preview-${slot}" type="button" class="secondary-button">试听</button><button id="sound-stop-${slot}" type="button" class="text-button">停止</button><button id="sound-reset-${slot}" type="button" class="text-button">恢复内置音效</button></div><p id="sound-warning-${slot}" class="sound-warning" role="status"></p></article>`).join('')}<p class="hint">试听使用当前音量草稿；即使关闭点击音效，也可以试听。音量为零时不会播放。</p>`;
+  soundProfiles.innerHTML = `<p class="hint">各角色的按下与松开音效独立保存。更换与恢复立即生效，音量及开关需保存设置。</p><div class="persona-tabs" role="group" aria-label="音效角色"><button type="button" data-sound-persona="whale">小鲸鱼</button><button type="button" data-sound-persona="gpt">原版 GPT</button><button type="button" data-sound-persona="dragon">白龙</button><button type="button" data-sound-persona="gemini">Gemini</button></div>${(['press', 'release'] as const).map(slot => `<article class="sound-file"><div class="sound-file-heading"><h3>${slot === 'press' ? '按下音效' : '松开音效'}</h3><span id="sound-kind-${slot}" class="sound-kind"></span></div><p id="sound-name-${slot}" class="sound-filename"></p><div class="button-row"><button id="sound-choose-${slot}" type="button" class="secondary-button">更换音频</button><button id="sound-preview-${slot}" type="button" class="secondary-button">试听</button><button id="sound-stop-${slot}" type="button" class="text-button">停止</button><button id="sound-reset-${slot}" type="button" class="text-button">恢复内置音效</button></div><p id="sound-warning-${slot}" class="sound-warning" role="status"></p></article>`).join('')}<p class="hint">试听使用当前音量草稿；即使关闭点击音效，也可以试听。音量为零时不会播放。</p>`;
   sound.querySelector('.panel')!.append(soundProfiles);
-  sound.querySelector('.panel')!.insertAdjacentHTML('beforeend', '<div class="related-settings"><h3>对话完成音效</h3><p>每个应用的完成音效可独立开关、调节音量和更换音频。</p><div class="button-row"><button type="button" class="secondary-button" data-edit-sound="codex">Codex 音效 ↗</button><button type="button" class="secondary-button" data-edit-sound="chatgpt-work">Work 音效 ↗</button><button type="button" class="secondary-button" data-edit-sound="deepseek-harness">DSH 音效 ↗</button></div></div>');
+  sound.querySelector('.panel')!.insertAdjacentHTML('beforeend', '<div class="related-settings"><h3>对话完成音效</h3><p>每个应用的完成音效可独立开关、调节音量和更换音频。</p><div class="button-row"><button type="button" class="secondary-button" data-edit-sound="codex">Codex 音效 ↗</button><button type="button" class="secondary-button" data-edit-sound="chatgpt-work">Work 音效 ↗</button><button type="button" class="secondary-button" data-edit-sound="deepseek-harness">DSH 音效 ↗</button><button type="button" class="secondary-button" data-edit-sound="antigravity">Gemini 音效 ↗</button></div></div>');
   element('overview').insertAdjacentHTML('beforeend', '<div class="related-links"><button type="button" class="text-button" data-settings-page="records">查看消费记录 →</button><button type="button" class="text-button" data-settings-page="reminders">设置余额提醒 →</button></div>');
   element('bubbles').insertAdjacentHTML('afterbegin', '<div class="related-links bubble-links"><span>提醒来源与声音开关</span><button type="button" class="text-button" data-settings-page="completion">对话提醒 →</button><button type="button" class="text-button" data-settings-page="sound">声音设置 →</button></div>');
   makePage('version', '关于 DesktopPet', `<div class="about-hero"><span class="brand-mark">≈</span><div><h3>DesktopPet <span class="version-chip">v${APP_VERSION}</span></h3><p>让桌面多一点陪伴。</p></div></div><p>小鲸鱼陪你关注余额，GPT 小伙伴与白龙陪你照顾编程节奏。</p><p class="hint">原有账户、图片、记录和桌面位置会继续保留。</p><div class="about-detail">项目仓库 · Forest-Wood / DesktopPlay<br>代码许可证 · MIT</div>`);
@@ -190,6 +201,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   let stopBubblePreview = () => {};
   const showPage = (id: string) => {
     refreshPageTime();
+    if (id === 'gemini') void api.refreshGeminiQuota().catch(() => {});
     preview.stop(); stopBubblePreview();
     pageMemory.set(activeCategory, id);
     for (const section of content.querySelectorAll<HTMLElement>(':scope > section')) section.hidden = section.id !== id;
@@ -207,7 +219,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   };
   for (const group of pages) { const button = document.createElement('button'); button.type = 'button'; button.dataset.category = group.category; button.innerHTML = `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${navigationPaths[group.category]}</svg><span>${group.label}</span>`; button.addEventListener('click', () => showCategory(group.category)); sidebar.append(button); }
   tabs.addEventListener('keydown', event => { if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return; event.preventDefault(); const buttons = [...tabs.querySelectorAll<HTMLButtonElement>('button')]; const index = buttons.indexOf(document.activeElement as HTMLButtonElement); const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length; buttons[next].click(); buttons[next].focus(); });
-  pageMemory.set('account', initial.activePet === 'gpt' ? 'codex' : 'overview'); showCategory('account');
+  pageMemory.set('account', initial.activePet === 'gemini' ? 'gemini' : initial.activePet === 'gpt' ? 'codex' : 'overview'); showCategory('account');
   const openVersion = () => { showCategory('about'); showPage('version'); };
   if (new URLSearchParams(location.search).get('page') === 'version') openVersion();
   const stopSettingsPage = api.onSettingsPage(openVersion);
@@ -218,7 +230,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     const group = pages.find(page => page.children.some(([pageId]) => pageId === id))!;
     showCategory(group.category); showPage(id); element(`tab-${id}`).focus();
   });
-  let persona: PetPersona = initial.activePet === 'deepseek' ? 'whale' : initial.gptAppearance === 'dragon' ? 'dragon' : 'gpt';
+  let persona: PetPersona = petPersona(initial);
   let phraseDraft: Record<PetPersona, string[]> = structuredClone(initial.settings.phrasesByPersona);
   let phraseDisplayDraft = structuredClone(initial.settings.phraseDisplayByPersona);
   const phraseInput = element<HTMLTextAreaElement>('phrases');
@@ -233,7 +245,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     phraseDraft[persona] = lines;
   };
   const previewPhrases = () => {
-    element<HTMLImageElement>('phrase-preview-image').src = persona === 'whale' ? './assets/whale.png' : persona === 'dragon' ? GPT_DRAGON_PET.url : GPT_PET.url;
+    element<HTMLImageElement>('phrase-preview-image').src = persona === 'gemini' ? GEMINI_PETS[state.geminiAppearance].url : persona === 'whale' ? './assets/whale.png' : persona === 'dragon' ? GPT_DRAGON_PET.url : GPT_PET.url;
     element('phrase-preview-text').textContent = phraseInput.value.split('\n').find(line => line.trim()) ?? '写一句话，给今天一点陪伴。';
     for (const button of root.querySelectorAll<HTMLButtonElement>('[data-persona]')) button.setAttribute('aria-pressed', String(button.dataset.persona === persona));
     element<HTMLInputElement>('phrase-count').value = String(phraseDisplayDraft[persona].count);
@@ -337,9 +349,11 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     input('scale').value = String(settings.scale); input('volume').value = String(settings.volume);
     input('codexCompletionEnabled').checked = settings.codexCompletionEnabled;
     input('chatgptCompletionEnabled').checked = settings.chatgptCompletionEnabled; input('deepseekCompletionEnabled').checked = settings.deepseekCompletionEnabled;
+    input('geminiCompletionEnabled').checked = settings.geminiCompletionEnabled;
+    input('geminiHookEnabled').checked = settings.geminiHookEnabled;
     input('codexHookEnabled').checked = settings.codexHookEnabled;
     element('codex-attention-draft').hidden = true;
-    for (const source of ['codex', 'chatgpt-work', 'deepseek-harness'] as const) input(`attention-${source}`).checked = settings.attentionEnabledBySource[source];
+    for (const source of COMPLETION_SOURCES) input(`attention-${source}`).checked = settings.attentionEnabledBySource[source];
     directoryDraft = settings.codexCompletionDirectory; dshDirectoryDraft = settings.deepseekCompletionDirectory; renderCompletionDraft(); bubbleEditor.fill(settings);
     input('lowBalanceThreshold').value = settings.lowBalanceThreshold ?? ''; input('dailyBudget').value = settings.dailyBudget ?? '';
     phraseDraft = structuredClone(settings.phrasesByPersona); phraseDisplayDraft = structuredClone(settings.phraseDisplayByPersona); phraseInput.value = phraseDraft[persona].join('\n'); previewPhrases(); ranges();
@@ -352,7 +366,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     element<HTMLImageElement>('companion-image').src = state.pet.url;
     element('companion-name').textContent = state.pet.name;
     element('companion-name').title = state.pet.name;
-    element('companion-mode').textContent = `${state.settings.petMode === 'simple' ? '简洁模式' : '完整模式'} · ${state.activePet === 'deepseek' ? '关注余额与消费' : '关注 Codex 额度'}`;
+    element('companion-mode').textContent = `${state.settings.petMode === 'simple' ? '简洁模式' : '完整模式'} · ${state.activePet === 'deepseek' ? '关注余额与消费' : state.activePet === 'gemini' ? '关注 Gemini 额度' : '关注 Codex 额度'}`;
     element('companion-presence').textContent = state.petVisible ? '正在桌面陪伴' : '桌宠已隐藏';
     element('companion-presence').dataset.visible = String(state.petVisible);
     if (!modeDirty) element<HTMLSelectElement>('pet-mode').value = state.settings.petMode;
@@ -374,7 +388,14 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     renderSounds(); bubbleEditor.update(next);
     root.classList.toggle('gpt-theme', state.activePet === 'gpt');
     root.classList.toggle('dragon-theme', state.activePet === 'gpt' && state.gptAppearance === 'dragon');
-    for (const id of ['deepseek', 'gpt'] as const) element(`select-${id}`).setAttribute('aria-pressed', String(state.activePet === id));
+    for (const id of ['deepseek', 'gpt', 'gemini'] as const) element(`select-${id}`).setAttribute('aria-pressed', String(state.activePet === id));
+    element('gemini-appearance-options').hidden = state.activePet !== 'gemini';
+    element('choose-pet').hidden = state.activePet === 'gemini';
+    for (const id of ['classic', 'sketch'] as const) element('gemini-' + id).setAttribute('aria-pressed', String(state.geminiAppearance === id));
+    renderGeminiQuota(element('gemini-quotas'), state.geminiQuota);
+    element('gemini-status').textContent = geminiStatus(state.geminiQuota, demo);
+    element<HTMLButtonElement>('refresh-gemini').disabled = state.geminiQuota.status === 'loading';
+    element('gemini-integration-status').textContent = state.geminiIntegration;
     element('gpt-appearance-options').hidden = state.activePet !== 'gpt';
     element('appearance-custom').hidden = !state.hasCustomGpt;
     element('appearance-custom').style.display = state.hasCustomGpt ? '' : 'none';
@@ -429,13 +450,16 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
       const result = await action(); update(result);
       if (button.id === 'refresh' && result.status !== 'ready') notify(result.error || (result.status === 'unconfigured' ? '尚未连接账户，请先保存 API Key。' : result.status === 'loading' ? '余额仍在更新中，请稍候。' : '余额查询失败，请稍后重试。'), result.status === 'error');
       else if (button.id === 'refresh' && result.balance && !result.balance.isAvailable) notify('账户余额暂不可用，请检查账户状态。', true);
+      else if (button.id === 'refresh-gemini' && result.geminiQuota.error) notify(result.geminiQuota.error, true);
       else if ((button.id === 'refresh-codex' || button.id === 'choose-codex') && result.codex.status !== 'ready') notify(result.codex.error || quotaStatus(result.codex, demo), result.codex.status === 'error');
       else notify(success);
     } catch (error) { notify(error instanceof Error ? error.message : '操作失败，请重试。', true); }
     finally { button.disabled = button.id === 'clear-key' ? !state.hasApiKey : button.id === 'refresh' ? state.status === 'loading' : button.id === 'refresh-codex' ? state.codex.status === 'loading' : false; }
   };
-  for (const id of ['deepseek', 'gpt'] as const) element(`select-${id}`).addEventListener('click', () => void run(element(`select-${id}`), () => api.selectPet(id), `已切换到${id === 'gpt' ? ' GPT 小伙伴' : '小鲸鱼'}。`));
+  for (const id of ['deepseek', 'gpt', 'gemini'] as const) element(`select-${id}`).addEventListener('click', () => void run(element(`select-${id}`), () => api.selectPet(id), `已切换到${id === 'gemini' ? ' Gemini' : id === 'gpt' ? ' GPT 小伙伴' : '小鲸鱼'}。`));
   for (const id of ['classic', 'dragon', 'custom'] as const) element(`appearance-${id}`).addEventListener('click', () => void run(element(`appearance-${id}`), () => api.selectGptAppearance(id), 'GPT 造型已切换，Codex 额度保持共用。'));
+  for (const id of ['classic', 'sketch'] as const) element('gemini-' + id).addEventListener('click', () => void run(element('gemini-' + id), () => api.selectGeminiAppearance(id), 'Gemini 造型已切换。'));
+  element('refresh-gemini').addEventListener('click', () => void run(element('refresh-gemini'), () => api.refreshGeminiQuota(), 'Gemini 额度已刷新。'));
   element('refresh-codex').addEventListener('click', () => void run(element('refresh-codex'), () => api.refreshCodexQuota(), 'Codex 额度已刷新。'));
   element('choose-codex').addEventListener('click', () => void run(element('choose-codex'), () => api.chooseCodexExecutable(), 'Codex 路径已更新。'));
   element('codex-usage').addEventListener('click', () => { void api.openCodexUsage().catch(() => notify('无法打开使用量页面，请重试。', true)); });
@@ -468,8 +492,10 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
       const patch: AppSettings = { ...state.settings, petMode: element<HTMLSelectElement>('pet-mode').value as AppSettings['petMode'], autoCheckUpdates: input('autoCheckUpdates').checked, codexCompletionEnabled: input('codexCompletionEnabled').checked, codexCompletionDirectory: directoryDraft, bubbleProfilesByPersona: bubbleEditor.getProfiles(), chatgptCompletionEnabled: input('chatgptCompletionEnabled').checked, deepseekCompletionEnabled: input('deepseekCompletionEnabled').checked, deepseekCompletionDirectory: dshDirectoryDraft, scale: Math.max(0.5, Math.min(2, Number(input('scale').value))), volume: Math.max(0, Math.min(1, Number(input('volume').value))), lowBalanceThreshold: decimalSetting(input('lowBalanceThreshold').value), dailyBudget: decimalSetting(input('dailyBudget').value), phrasesByPersona: Object.fromEntries(Object.entries(phraseDraft).map(([key, lines]) => [key, lines.map(line => line.trim()).filter(Boolean)])) as Record<PetPersona, string[]>, soundEnabled: input('soundEnabled').checked, alwaysOnTop: input('alwaysOnTop').checked, snapToEdges: input('snapToEdges').checked, launchAtLogin: input('launchAtLogin').checked };
       const savingRevision = draftRevision;
       patch.phraseDisplayByPersona = structuredClone(phraseDisplayDraft);
+      patch.geminiCompletionEnabled = input('geminiCompletionEnabled').checked;
+      patch.geminiHookEnabled = input('geminiHookEnabled').checked;
       patch.codexHookEnabled = input('codexHookEnabled').checked;
-      patch.attentionEnabledBySource = Object.fromEntries((['codex', 'chatgpt-work', 'deepseek-harness'] as CompletionSource[]).map(source => [source, input(`attention-${source}`).checked])) as AppSettings['attentionEnabledBySource'];
+      patch.attentionEnabledBySource = Object.fromEntries(COMPLETION_SOURCES.map(source => [source, input(`attention-${source}`).checked])) as AppSettings['attentionEnabledBySource'];
       void run(element('save-settings'), async () => { const next = await api.updateSettings(patch); if (savingRevision === draftRevision) { dirty = false; fill(next.settings); setSaveHint('设置已保存'); } else { setSaveHint('已保存先前调整；新草稿尚未保存'); } return next; }, '设置已保存，桌宠已经收到啦。');
     } catch (error) { notify(error instanceof Error ? error.message : '请检查输入。', true); }
   });
@@ -488,6 +514,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   document.addEventListener('visibilitychange', refreshTime); window.addEventListener('focus', refreshTime);
   const periodTimer = setInterval(refreshTime, 60000);
   update(initial); fill(initial.settings);
+  const geminiTimer = setInterval(() => { if (!element('gemini').hidden && state.activePet !== 'gemini') void api.refreshGeminiQuota().catch(() => {}); }, 60000);
   const countdown = setInterval(() => { renderQuota(element('codex-quotas'), state.codex, false, demo); element('codex-status').textContent = quotaStatus(state.codex, demo); }, 30000);
-  return { update, dispose: () => { disposed = true; clearInterval(periodTimer); document.removeEventListener('visibilitychange', refreshTime); window.removeEventListener('focus', refreshTime); stopSettingsPage(); preview.dispose(); bubbleEditor.dispose(); clearInterval(countdown); } };
+  return { update, dispose: () => { disposed = true; clearInterval(periodTimer); document.removeEventListener('visibilitychange', refreshTime); window.removeEventListener('focus', refreshTime); stopSettingsPage(); preview.dispose(); bubbleEditor.dispose(); clearInterval(geminiTimer); clearInterval(countdown); } };
 }

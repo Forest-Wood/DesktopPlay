@@ -15,6 +15,7 @@ export function usageStatus(state: AppState, demo: boolean): string {
 }
 
 export function summaryText(state: AppState): string {
+  if (state.activePet === 'gemini') return state.geminiQuota.updatedAt ? '最近一次额度更新于 ' + new Date(state.geminiQuota.updatedAt).toLocaleTimeString('zh-CN') + '。点击用量页查看三个窗口。' : '打开 Antigravity 或登录 agy，即可查看剩余额度。';
   if (state.activePet === 'gpt') {
     const values = state.codex.buckets.flatMap(bucket => [bucket.primary, bucket.secondary]).filter(window => window && Number.isFinite(window.remainingPercent)).map(window => window!.remainingPercent);
     if (!values.length) return '额度未知，请连接本机 Codex 后刷新。';

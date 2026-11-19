@@ -1,3 +1,5 @@
+import { demoGeminiQuota } from '../shared/gemini';
+import { GEMINI_PETS } from '../shared/defaults';
 import { dateInZone, systemTimeZone } from '../shared/deepseek-time';
 import { builtinSound } from '../shared/bubble-settings';
 import { BUILTIN_PETS, DEFAULT_SETTINGS, GPT_DRAGON_PET, DEFAULT_SOUNDS } from '../shared/defaults';
@@ -5,10 +7,12 @@ import type { AppState, DesktopApi } from '../shared/types';
 import { initialUpdateState } from '../shared/app-update';
 
 export function createDemoApi(): DesktopApi {
-  const activePet = localStorage.getItem('desktopplay-demo-pet') === 'gpt' ? 'gpt' : 'deepseek';
+  const savedPet = localStorage.getItem('desktopplay-demo-pet');
+  const activePet = savedPet === 'gemini' || savedPet === 'gpt' ? savedPet : 'deepseek';
+  const geminiAppearance = localStorage.getItem('desktopplay-demo-gemini') === 'sketch' ? 'sketch' : 'classic';
   const gptAppearance = localStorage.getItem('desktopplay-demo-appearance') === 'dragon' ? 'dragon' : 'classic';
   let state: AppState = {
-    petVisible: true,
+    petVisible: true, geminiAppearance, geminiQuota: demoGeminiQuota(), geminiIntegration: '浏览器演示',
     appUpdate: initialUpdateState(),
     codexAttention: { status: 'disabled', directory: '浏览器演示不配置 hook', error: null, lastAttentionAt: null },
     codexCompletion: { status: 'disabled', directory: '浏览器演示不读取本机会话', error: null },
@@ -17,7 +21,7 @@ export function createDemoApi(): DesktopApi {
     sounds: structuredClone(DEFAULT_SOUNDS),
     settings: structuredClone(DEFAULT_SETTINGS), hasApiKey: false, balance: { currency: 'CNY', total: '28.36000000', granted: '0.00000000', toppedUp: '28.36000000', observedAt: new Date().toISOString(), isAvailable: true },
     ledger: { today: { date: dateInZone(new Date()), timeZone: systemTimeZone(), segmentId: 'demo', currency: 'CNY', spent: '1.24000000', increased: '0.00000000', startedAt: new Date().toISOString() }, history: [] },
-    status: 'ready', error: null, warning: null, alert: null, pet: { ...(activePet === 'gpt' && gptAppearance === 'dragon' ? GPT_DRAGON_PET : BUILTIN_PETS[activePet]) }, activePet, gptAppearance, hasCustomGpt: false, flipped: false, verticalFlipped: false, bubblePlacement: 'above',
+    status: 'ready', error: null, warning: null, alert: null, pet: { ...(activePet === 'gemini' ? GEMINI_PETS[geminiAppearance] : activePet === 'gpt' && gptAppearance === 'dragon' ? GPT_DRAGON_PET : BUILTIN_PETS[activePet]) }, activePet, gptAppearance, hasCustomGpt: false, flipped: false, verticalFlipped: false, bubblePlacement: 'above',
     codex: { resetCredits: { availableCount: 2, credits: [{ id: 'demo-reset', status: 'available', expiresAt: new Date(Date.now() + 604800000).toISOString() }] }, planType: 'pro', status: 'ready', source: 'codex-app-server', available: true, updatedAt: new Date().toISOString(), error: null, buckets: [{ id: 'demo', name: 'Codex · 演示数据', planType: 'pro', primary: { usedPercent: 24, remainingPercent: 76, windowMinutes: 300, resetsAt: new Date(Date.now() + 10800000).toISOString() }, secondary: { usedPercent: 42, remainingPercent: 58, windowMinutes: 10080, resetsAt: new Date(Date.now() + 345600000).toISOString() }, creditsRemaining: null, unlimitedCredits: false }] },
   };
   const listeners = new Set<(state: AppState) => void>();
@@ -45,8 +49,10 @@ export function createDemoApi(): DesktopApi {
     getSoundData: async (persona, slot) => ({ url: builtinSound(slot), revision: state.sounds[persona][slot].revision, warning: null }),
     getUninstallInfo: async () => ({ kind: 'unsupported', programPath: null, dataPath: '%APPDATA%\\DesktopPlay', available: false, reason: '浏览器演示不提供卸载，请在桌面应用中使用。' }),
     requestUninstall: async () => ({ started: false }),
-    resetPet: async () => { if (state.activePet === 'gpt') localStorage.setItem('desktopplay-demo-appearance', 'classic'); state = { ...state, gptAppearance: state.activePet === 'gpt' ? 'classic' : state.gptAppearance, pet: { ...BUILTIN_PETS[state.activePet] } }; return emit(); },
-    selectPet: async id => { localStorage.setItem('desktopplay-demo-pet', id); state = { ...state, activePet: id, pet: { ...(id === 'gpt' && state.gptAppearance === 'dragon' ? GPT_DRAGON_PET : BUILTIN_PETS[id]) } }; return emit(); },
+    resetPet: async () => { if (state.activePet === 'gemini') { localStorage.setItem('desktopplay-demo-gemini', 'classic'); state.geminiAppearance = 'classic'; } if (state.activePet === 'gpt') localStorage.setItem('desktopplay-demo-appearance', 'classic'); state = { ...state, gptAppearance: state.activePet === 'gpt' ? 'classic' : state.gptAppearance, pet: { ...BUILTIN_PETS[state.activePet] } }; return emit(); },
+    selectPet: async id => { localStorage.setItem('desktopplay-demo-pet', id); state = { ...state, activePet: id, pet: { ...(id === 'gemini' ? GEMINI_PETS[state.geminiAppearance] : id === 'gpt' && state.gptAppearance === 'dragon' ? GPT_DRAGON_PET : BUILTIN_PETS[id]) } }; return emit(); },
+    selectGeminiAppearance: async id => { localStorage.setItem('desktopplay-demo-gemini', id); state = { ...state, geminiAppearance: id, pet: state.activePet === 'gemini' ? GEMINI_PETS[id] : state.pet }; return emit(); },
+    refreshGeminiQuota: async () => { state = { ...state, geminiQuota: demoGeminiQuota() }; return emit(); },
     selectGptAppearance: async id => {
       if (id !== 'classic' && id !== 'dragon') throw new Error('本地演示不提供自定义图片。');
       localStorage.setItem('desktopplay-demo-appearance', id);

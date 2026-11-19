@@ -16,7 +16,7 @@ describe('persona bubble configuration', () => {
     for (const persona of PERSONAS) {
       expect(Object.keys(DEFAULT_BUBBLE_PROFILES[persona].rules)).toHaveLength(SCENARIOS.length);
       const completion = Object.entries(DEFAULT_BUBBLE_PROFILES[persona].rules).filter(([key]) => key.startsWith('completion-')).map(([, rule]) => rule);
-      expect(new Set(completion.map(rule => rule.message)).size).toBe(3); expect(completion.every(rule => !rule.soundEnabled && rule.enabled)).toBe(true);
+      expect(new Set(completion.map(rule => rule.message)).size).toBe(completion.length); expect(completion.every(rule => !rule.soundEnabled && rule.enabled)).toBe(true);
     }
   });
   it('rejects invalid ranges, CSS injection, unknown fields, blank completion text and accessor properties', () => {

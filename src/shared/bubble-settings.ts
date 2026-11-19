@@ -1,9 +1,10 @@
 import type { AppSettings, BubbleProfiles, BubbleRule, BubbleScenario, BubbleStyle, CompletionSource, PetPersona, SoundSlot } from './types';
 
-export const PERSONAS: PetPersona[] = ['whale', 'gpt', 'dragon'];
-export const COMPLETION_SOURCES: CompletionSource[] = ['codex', 'chatgpt-work', 'deepseek-harness'];
+export const PERSONAS: PetPersona[] = ['whale', 'gpt', 'dragon', 'gemini'];
+export const COMPLETION_SOURCES: CompletionSource[] = ['codex', 'chatgpt-work', 'deepseek-harness', 'antigravity'];
 export const SOUND_SLOTS: SoundSlot[] = ['press', 'release', ...COMPLETION_SOURCES.map(source => `completion-${source}` as const)];
 export const SCENARIO_LABELS: Record<BubbleScenario, string> = {
+  'completion-antigravity': 'Gemini 完成提醒', 'attention-antigravity': 'Gemini 等待回应',
   usage: '用量页', summary: '用量小报告', phrases: '陪伴短句', retention: '换角色挽留',
   'low-balance': '低余额提醒', 'daily-budget': '每日预算提醒', update: '软件更新',
   'completion-codex': 'Codex 完成提醒', 'completion-chatgpt-work': 'ChatGPT Work 结束提醒', 'completion-deepseek-harness': 'DeepSeek Harness 完成提醒',
@@ -11,11 +12,12 @@ export const SCENARIO_LABELS: Record<BubbleScenario, string> = {
 };
 export const SCENARIOS = Object.keys(SCENARIO_LABELS) as BubbleScenario[];
 export const builtinSound = (slot: SoundSlot) => slot.startsWith('completion-') ? './assets/completion.wav' : `./assets/${slot}.mp3`;
-export const sourceEnabled = (settings: AppSettings, source: CompletionSource) => source === 'codex' ? settings.codexCompletionEnabled : source === 'chatgpt-work' ? settings.chatgptCompletionEnabled : settings.deepseekCompletionEnabled;
+export const sourceEnabled = (settings: AppSettings, source: CompletionSource) => source === 'codex' ? settings.codexCompletionEnabled : source === 'chatgpt-work' ? settings.chatgptCompletionEnabled : source === 'antigravity' ? settings.geminiCompletionEnabled : settings.deepseekCompletionEnabled;
 export const conversationEnabled = (settings: AppSettings, notice: { source: CompletionSource; kind: string }) => notice.kind === 'completion' ? sourceEnabled(settings, notice.source) : settings.attentionEnabledBySource[notice.source];
-export const petPersona = (state: { activePet: string; gptAppearance: string }): PetPersona => state.activePet === 'deepseek' ? 'whale' : state.gptAppearance === 'dragon' ? 'dragon' : 'gpt';
+export const petPersona = (state: { activePet: string; gptAppearance: string }): PetPersona => state.activePet === 'gemini' ? 'gemini' : state.activePet === 'deepseek' ? 'whale' : state.gptAppearance === 'dragon' ? 'dragon' : 'gpt';
 
 const palettes = {
+  gemini: ['#faf3ff', '#50356b', '#7b579e', '#ecdcfa'],
   whale: ['#edf0ff', '#384d87', '#4b5f9b', '#dee5fc'],
   gpt: ['#effaf4', '#3f7361', '#285c50', '#d9efe4'],
   dragon: ['#f6f0ff', '#624480', '#705392', '#e9dcf8'],
@@ -23,22 +25,23 @@ const palettes = {
 export const DEFAULT_BUBBLE_PROFILES: BubbleProfiles = Object.fromEntries(PERSONAS.map(persona => {
   const [background, ink, border, ring] = palettes[persona];
   const messages: Record<string, string[]> = {
-    retention: ['我还想陪着你，再留一会儿，好吗？', '代码还没写完呢，再陪我一会儿，好吗？', '翅膀还为你留着位置，再陪我一会儿吧。'],
-    'low-balance': ['小鲸鱼发现余额有点少啦，记得补充哦。', '余额低于提醒金额，留意账户余量。', '储备渐少，我会陪你留意补给。'],
-    'daily-budget': ['今天的投入达到预算啦，休息一下吧～', '今日观测消费已达预算，留意使用节奏。', '今日补给已达预算，我替你记下了。'],
-    update: ['有新版本来找你啦～', '发现新版本，可以查看更新。', '新的旅程已备妥，去看看更新吧。'],
+    retention: ['我还想陪着你，再留一会儿，好吗？', '代码还没写完呢，再陪我一会儿，好吗？', '翅膀还为你留着位置，再陪我一会儿吧。', '星星还亮着，再陪我一会儿吧。'],
+    'low-balance': ['小鲸鱼发现余额有点少啦，记得补充哦。', '余额低于提醒金额，留意账户余量。', '储备渐少，我会陪你留意补给。', '余额低于提醒金额。'],
+    'daily-budget': ['今天的投入达到预算啦，休息一下吧～', '今日观测消费已达预算，留意使用节奏。', '今日补给已达预算，我替你记下了。', '今天的观测消费达到预算了。'],
+    update: ['有新版本来找你啦～', '发现新版本，可以查看更新。', '新的旅程已备妥，去看看更新吧。', '有新版本可以查看了。'],
   };
   const index = PERSONAS.indexOf(persona);
+  const usageTitle = persona === 'gemini' ? 'Gemini 剩余额度' : persona === 'whale' ? 'DeepSeek 用量' : 'GPT 用量';
   const rules = Object.fromEntries(SCENARIOS.map(scenario => {
     let message = messages[scenario]?.[index] ?? '';
-    if (scenario.startsWith('attention-')) message = ['有问题在等你回应，记得去看看呀～', '需要你的回应，请回到原客户端处理。', '有一份决定等你回应，我会在这里守候。'][index];
+    if (scenario.startsWith('attention-')) message = ['有问题在等你回应，记得去看看呀～', '需要你的回应，请回到原客户端处理。', '有一份决定等你回应，我会在这里守候。', '请回到原客户端回应。'][index];
     if (scenario.startsWith('completion-')) {
-      const name = scenario === 'completion-codex' ? 'Codex' : scenario === 'completion-chatgpt-work' ? 'ChatGPT Work' : 'DeepSeek';
+      const name = scenario === 'completion-codex' ? 'Codex' : scenario === 'completion-chatgpt-work' ? 'ChatGPT Work' : scenario === 'completion-antigravity' ? 'Gemini' : 'DeepSeek';
       message = scenario === 'completion-chatgpt-work'
-        ? [`${name} 的这一轮结束啦，快去看看吧～`, `${name} 本轮对话已结束，来看看吧。`, `${name} 的回合已结束，我在这里等你。`][index]
-        : [`${name} 已经回复完啦，快去看看吧～`, `${name} 这轮输出完成了，来看看结果吧。`, `${name} 的答复已送达，我替你守候着。`][index];
+        ? [`${name} 的这一轮结束啦，快去看看吧～`, `${name} 本轮对话已结束，来看看吧。`, `${name} 的回合已结束，我在这里等你。`, `${name} 本轮结束了。`][index]
+        : [`${name} 已经回复完啦，快去看看吧～`, `${name} 这轮输出完成了，来看看结果吧。`, `${name} 的答复已送达，我替你守候着。`, `${name} 的任务完成啦，来看看吧。`][index];
     }
-    return [scenario, { enabled: true, title: scenario === 'usage' ? `${persona === 'whale' ? 'DeepSeek' : 'GPT'} 用量` : SCENARIO_LABELS[scenario], message, style: {}, timing: {}, soundEnabled: false, volume: .35 } satisfies BubbleRule];
+    return [scenario, { enabled: true, title: scenario === 'usage' ? usageTitle : SCENARIO_LABELS[scenario], message, style: {}, timing: {}, soundEnabled: false, volume: .35 } satisfies BubbleRule];
   }));
   return [persona, { style: { background, ink, border, ring, font: 'system', fontScale: 1, backgroundOpacity: 1 }, timing: { durationSeconds: 3, hoverDelaySeconds: 0 }, rules }];
 })) as BubbleProfiles;

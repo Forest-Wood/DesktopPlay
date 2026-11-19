@@ -1,3 +1,4 @@
+import { PERSONAS } from './bubble-settings';
 import type { PetPersona, PhraseDisplay } from './types';
 
 export const defaultPhraseDisplay = (lines: string[]): PhraseDisplay => ({ count: lines.length, mode: 'sequential', selectedIndices: lines.map((_, index) => index) });
@@ -5,8 +6,8 @@ export const phraseDisplays = (phrases: Record<PetPersona, string[]>) => Object.
 const safeRecord = (value: unknown, names: string[]): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value) && [Object.prototype, null].includes(Object.getPrototypeOf(value)) && Reflect.ownKeys(value).length === names.length && names.every(name => { const descriptor = Object.getOwnPropertyDescriptor(value, name); return descriptor && Object.hasOwn(descriptor, 'value'); });
 
 export function validatePhraseDisplays(value: unknown, phrases?: Record<PetPersona, string[]>): asserts value is Record<PetPersona, PhraseDisplay> {
-  if (!safeRecord(value, ['whale', 'gpt', 'dragon'])) throw new Error('短句展示设置无效');
-  for (const persona of ['whale', 'gpt', 'dragon'] as const) {
+  if (!safeRecord(value, PERSONAS)) throw new Error('短句展示设置无效');
+  for (const persona of PERSONAS) {
     const config = (value as Record<PetPersona, PhraseDisplay>)[persona];
     if (!safeRecord(config, ['count', 'mode', 'selectedIndices']) || !Number.isInteger(config.count) || config.count < 0 || config.count > 20 || !['sequential', 'random'].includes(config.mode) || !Array.isArray(config.selectedIndices) || new Set(config.selectedIndices).size !== config.selectedIndices.length || config.selectedIndices.some(index => !Number.isInteger(index) || index < 0 || index >= (phrases?.[persona].length ?? 20))) throw new Error('短句展示设置无效');
     if (config.selectedIndices.length < config.count) throw new Error('候选短句数不能少于每轮展示数量');

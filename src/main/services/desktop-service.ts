@@ -1,5 +1,5 @@
 import { dateInZone, systemTimeZone } from '../../shared/deepseek-time';
-import { PERSONAS, validateBubbleProfiles } from '../../shared/bubble-settings';
+import { COMPLETION_SOURCES, PERSONAS, validateBubbleProfiles } from '../../shared/bubble-settings';
 import { phraseDisplays, validatePhraseDisplays } from '../../shared/phrases';
 import { createHash, randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
@@ -32,7 +32,7 @@ function settings(patch: unknown, base = DEFAULT_SETTINGS): AppSettings {
   const result = structuredClone(base);
   for (const [key, value] of Object.entries(patch)) {
     if (!Object.hasOwn(DEFAULT_SETTINGS, key)) throw new Error('包含未知设置');
-    if (['autoCheckUpdates', 'alwaysOnTop', 'launchAtLogin', 'snapToEdges', 'soundEnabled', 'codexHookEnabled'].includes(key)) {
+    if (['autoCheckUpdates', 'alwaysOnTop', 'launchAtLogin', 'snapToEdges', 'soundEnabled', 'codexHookEnabled', 'geminiHookEnabled'].includes(key)) {
       if (typeof value !== 'boolean') throw new Error('开关设置无效');
     } else if (key === 'petMode') {
       if (value !== 'simple' && value !== 'full') throw new Error('桌宠模式无效');
@@ -40,22 +40,22 @@ function settings(patch: unknown, base = DEFAULT_SETTINGS): AppSettings {
       if (typeof value !== 'number' || !Number.isFinite(value) || value < (key === 'scale' ? 0.5 : 0) || value > (key === 'scale' ? 2 : 1)) throw new Error('数值设置无效');
     } else if (key === 'bubbleDurationSeconds' || key === 'bubbleHoverDelaySeconds') {
       if (typeof value !== 'number' || !Number.isInteger(value) || value < (key === 'bubbleDurationSeconds' ? 1 : 0) || value > 60) throw new Error('气泡时间设置无效');
-    } else if (['codexCompletionEnabled', 'chatgptCompletionEnabled', 'deepseekCompletionEnabled'].includes(key)) {
+    } else if (['codexCompletionEnabled', 'chatgptCompletionEnabled', 'deepseekCompletionEnabled', 'geminiCompletionEnabled'].includes(key)) {
       if (typeof value !== 'boolean') throw new Error('完成提醒开关无效');
     } else if (key === 'codexCompletionDirectory' || key === 'deepseekCompletionDirectory') {
       if (value !== null && (typeof value !== 'string' || !path.isAbsolute(value) || value.startsWith('\\\\') || value.includes('\0') || value.length > 4096)) throw new Error('请选择有效的本机会话目录');
     } else if (key === 'bubbleProfilesByPersona') {
       validateBubbleProfiles(value);
     } else if (key === 'attentionEnabledBySource') {
-      if (!plain(value) || Reflect.ownKeys(value).length !== 3 || ['codex', 'chatgpt-work', 'deepseek-harness'].some(source => { const descriptor = Object.getOwnPropertyDescriptor(value, source); return !descriptor || !Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'boolean'; })) throw new Error('等待回应开关无效');
+      if (!plain(value) || Reflect.ownKeys(value).length !== COMPLETION_SOURCES.length || COMPLETION_SOURCES.some(source => { const descriptor = Object.getOwnPropertyDescriptor(value, source); return !descriptor || !Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'boolean'; })) throw new Error('等待回应开关无效');
     } else if (key === 'phraseDisplayByPersona') {
       validatePhraseDisplays(value); // Validate descriptors before cloning; check the final library below.
     } else if (key === 'completionMessagesByPersona') {
-      if (!plain(value) || Reflect.ownKeys(value).length !== 3 || ['whale', 'gpt', 'dragon'].some(persona => !Object.hasOwn(value, persona) || !Object.hasOwn(Object.getOwnPropertyDescriptor(value, persona)!, 'value') || typeof value[persona] !== 'string' || !value[persona].trim() || value[persona].length > 200)) throw new Error('每个角色的完成提醒需为 1–200 字符的非空文本');
+      if (!plain(value) || Reflect.ownKeys(value).length !== PERSONAS.length || PERSONAS.some(persona => !Object.hasOwn(value, persona) || !Object.hasOwn(Object.getOwnPropertyDescriptor(value, persona)!, 'value') || typeof value[persona] !== 'string' || !value[persona].trim() || value[persona].length > 200)) throw new Error('每个角色的完成提醒需为 1–200 字符的非空文本');
     } else if (key === 'phrases') {
       if (!validPhrases(value)) throw new Error('短句设置无效');
     } else if (key === 'phrasesByPersona') {
-      if (!plain(value) || Reflect.ownKeys(value).length !== 3 || ['whale', 'gpt', 'dragon'].some(persona => !Object.hasOwn(value, persona) || !Object.hasOwn(Object.getOwnPropertyDescriptor(value, persona)!, 'value') || !validPhrases(value[persona]))) throw new Error('人设短句设置无效');
+      if (!plain(value) || Reflect.ownKeys(value).length !== PERSONAS.length || PERSONAS.some(persona => !Object.hasOwn(value, persona) || !Object.hasOwn(Object.getOwnPropertyDescriptor(value, persona)!, 'value') || !validPhrases(value[persona]))) throw new Error('人设短句设置无效');
     } else if (value !== null) amount(value);
     Object.assign(result, { [key]: structuredClone(value) });
   }
@@ -96,16 +96,23 @@ function disk(value: unknown): Disk {
     accounts[id] = { ...(raw.timeZone ? { timeZone: raw.timeZone as string, segmentId: raw.segmentId as string } : {}), balance: raw.balance === null ? null : snapshot(raw.balance), days: days.slice(-365), low: raw.low, budgetDays: raw.budgetDays.slice(-365) as string[] };
   }
   const stored = structuredClone(value.settings);
+  if (plain(stored)) {
+    for (const key of ['phrasesByPersona', 'phraseDisplayByPersona', 'completionMessagesByPersona', 'bubbleProfilesByPersona'] as const) {
+      const map = stored[key];
+      if (plain(map) && !Object.hasOwn(map, 'gemini')) map.gemini = structuredClone(DEFAULT_SETTINGS[key].gemini);
+    }
+    if (plain(stored.attentionEnabledBySource) && !Object.hasOwn(stored.attentionEnabledBySource, 'antigravity')) stored.attentionEnabledBySource.antigravity = true;
+  }
   if (plain(stored) && plain(stored.bubbleProfilesByPersona)) for (const persona of PERSONAS) {
     const profile = stored.bubbleProfilesByPersona[persona];
     if (plain(profile) && plain(profile.rules)) for (const [scenario, rule] of Object.entries(DEFAULT_SETTINGS.bubbleProfilesByPersona[persona].rules)) {
-      if (scenario.startsWith('attention-') && !Object.hasOwn(profile.rules, scenario)) profile.rules[scenario] = structuredClone(rule);
+      if ((scenario.startsWith('attention-') || scenario === 'completion-antigravity') && !Object.hasOwn(profile.rules, scenario)) profile.rules[scenario] = structuredClone(rule);
     }
   }
   const restoredSettings = settings(stored);
   if (plain(value.settings) && !Object.hasOwn(value.settings, 'chatgptCompletionEnabled')) restoredSettings.chatgptCompletionEnabled = restoredSettings.codexCompletionEnabled;
   if (plain(value.settings) && !Object.hasOwn(value.settings, 'phrasesByPersona')) {
-    restoredSettings.phrasesByPersona = { whale: structuredClone(restoredSettings.phrases), gpt: [...DEFAULT_PHRASES_BY_PERSONA.gpt], dragon: [...DEFAULT_PHRASES_BY_PERSONA.dragon] };
+    restoredSettings.phrasesByPersona = { whale: structuredClone(restoredSettings.phrases), gpt: [...DEFAULT_PHRASES_BY_PERSONA.gpt], dragon: [...DEFAULT_PHRASES_BY_PERSONA.dragon], gemini: [...DEFAULT_PHRASES_BY_PERSONA.gemini] };
   }
   if (plain(value.settings) && !Object.hasOwn(value.settings, 'phraseDisplayByPersona')) restoredSettings.phraseDisplayByPersona = phraseDisplays(restoredSettings.phrasesByPersona);
   return { version: 1, settings: restoredSettings, key: value.key as string | null, accounts };

@@ -1,4 +1,6 @@
-import { SOUND_SLOTS, sourceEnabled, conversationEnabled } from '../shared/bubble-settings';
+import { PERSONAS, SOUND_SLOTS, sourceEnabled, conversationEnabled } from '../shared/bubble-settings';
+import { GeminiQuotaService, readCliQuota, readLocalQuota } from './services/gemini-quota';
+import { GeminiNotices } from './services/gemini-notices';
 import { CodexAttentionService, supportsCodexHooks } from './services/codex-attention';
 import { createHash } from 'node:crypto';
 import { DeepseekCompletionService } from './services/deepseek-completion';
@@ -23,7 +25,7 @@ import { UninstallManager } from './uninstall';
 import { characterOrigin, fitScale, petSize, placeCharacter } from './geometry';
 import type { Orientation, Point } from './geometry';
 import { contains, getPetLayout, PET_WIDTH } from '../shared/pet-layout';
-import type { AppState, AppSettings, BuiltinPetId, GptAppearance, BubblePlacement, CodexCompletionNotice, ConversationNotice } from '../shared/types';
+import type { AppState, AppSettings, BuiltinPetId, GeminiAppearance, GptAppearance, BubblePlacement, CodexCompletionNotice, ConversationNotice } from '../shared/types';
 
 app.setName('DesktopPet');
 app.setAppUserModelId('io.github.forestwood.desktopplay');
@@ -40,6 +42,8 @@ let service: DesktopService;
 let assets: PetAssets;
 let sounds: SoundAssets;
 let uninstaller: UninstallManager;
+let gemini: GeminiQuotaService;
+let geminiNotices: GeminiNotices;
 let codex: CodexQuotaService;
 let completion: CodexCompletionService;
 let chatgptCompletion: ChatgptCompletionService;
@@ -71,7 +75,7 @@ else {
 }
 app.on('window-all-closed', () => { /* The tray keeps the desktop pet alive. */ });
 app.on('before-quit', () => {
-  quitting = true; service?.dispose(); codex?.dispose(); completion?.dispose(); chatgptCompletion?.dispose(); deepseekCompletion?.dispose(); codexAttention?.dispose(); updates?.dispose();
+  quitting = true; geminiNotices?.pause(); service?.dispose(); codex?.dispose(); completion?.dispose(); chatgptCompletion?.dispose(); deepseekCompletion?.dispose(); codexAttention?.dispose(); updates?.dispose();
   if (codexTimer) clearInterval(codexTimer);
   if (dragTimer) clearInterval(dragTimer);
   if (hitTimer) clearInterval(hitTimer);
@@ -84,7 +88,7 @@ function sendConversationNotice(notice: ConversationNotice): void {
 }
 
 function orientation(): Orientation { return { flipped, verticalFlipped, bubblePlacement }; }
-function getState(): AppState { return { ...service.getState(), petVisible: !!petWindow && !petWindow.isDestroyed() && petWindow.isVisible(), appUpdate: updates?.getState() ?? initialUpdateState(), sounds: sounds.getMetadata(), pet: assets.get(), activePet: assets.getSelected(), gptAppearance: assets.getGptAppearance(), hasCustomGpt: assets.hasCustomGpt(), codex: codex.getState(), codexCompletion: completion.getState(), chatgptCompletion: chatgptCompletion.getState(), deepseekCompletion: deepseekCompletion.getState(), codexAttention: codexAttention.getState(), ...orientation(), effectiveScale: petWindow && !petWindow.isDestroyed() ? petWindow.getBounds().width / PET_WIDTH : service.getState().settings.scale }; }
+function getState(): AppState { return { ...service.getState(), petVisible: !!petWindow && !petWindow.isDestroyed() && petWindow.isVisible(), appUpdate: updates?.getState() ?? initialUpdateState(), sounds: sounds.getMetadata(), pet: assets.get(), activePet: assets.getSelected(), gptAppearance: assets.getGptAppearance(), hasCustomGpt: assets.hasCustomGpt(), geminiAppearance: assets.getGeminiAppearance(), geminiQuota: gemini.getState(), geminiIntegration: geminiNotices.status, codex: codex.getState(), codexCompletion: completion.getState(), chatgptCompletion: chatgptCompletion.getState(), deepseekCompletion: deepseekCompletion.getState(), codexAttention: codexAttention.getState(), ...orientation(), effectiveScale: petWindow && !petWindow.isDestroyed() ? petWindow.getBounds().width / PET_WIDTH : service.getState().settings.scale }; }
 function publish(): void {
   const state = getState();
   for (const win of [petWindow, settingsWindow]) if (win && !win.isDestroyed() && !win.webContents.isLoadingMainFrame()) win.webContents.send('desktopplay:state', state);
@@ -103,6 +107,11 @@ async function start(): Promise<void> {
     if (typeof preference.executablePath === 'string') executablePath = preference.executablePath;
   } catch { /* Default to native Codex discovery. */ }
   const noCodex = !app.isPackaged && process.env.DESKTOPPLAY_TEST_NO_CODEX === '1';
+  const geminiHome = noCodex ? path.join(dataDir, 'gemini-test-home') : path.join(os.homedir(), '.gemini');
+  gemini = new GeminiQuotaService(
+    () => noCodex ? readFile(path.join(geminiHome, 'quota.json'), 'utf8').then(JSON.parse) : readLocalQuota(geminiHome),
+    () => noCodex ? Promise.reject(new Error('隔离环境尚未提供额度数据。')) : readCliQuota(geminiHome), publish);
+  geminiNotices = new GeminiNotices(geminiHome, dataDir, path.join(__dirname, 'gemini-hook.ps1'), sendConversationNotice, publish);
   codex = new CodexQuotaService({ cwd: dataDir, ...(noCodex ? { discoverExecutable: async () => null } : { executablePath }) });
   await codex.init();
   const completionOptions = {
@@ -134,6 +143,7 @@ async function start(): Promise<void> {
   createTray();
   applySettings();
   startCodexTimer();
+  if (assets.getSelected() === 'gemini') void gemini.refresh();
   if (assets.getSelected() === 'gpt') void codex.refresh();
   screen.on('display-added', restoreToScreen);
   screen.on('display-removed', restoreToScreen);
@@ -145,7 +155,9 @@ async function start(): Promise<void> {
 
 function startCodexTimer(): void {
   if (codexTimer) clearInterval(codexTimer);
-  codexTimer = setInterval(() => { if (!shuttingDown && (assets.getSelected() === 'gpt' || settingsWindow?.isVisible())) void codex.refresh(); }, 60000);
+  codexTimer = setInterval(() => { if (shuttingDown) return;
+    if (assets.getSelected() === 'gpt' || settingsWindow?.isVisible()) void codex.refresh();
+    if (assets.getSelected() === 'gemini') void gemini.refresh(); }, 60000);
 }
 function assertWritable(): void { if (shuttingDown) throw new Error('正在准备卸载，请等待。'); }
 function track<T>(action: () => T | Promise<T>): Promise<T> {
@@ -218,20 +230,30 @@ async function selectPet(id: BuiltinPetId): Promise<void> {
   const anchor = petWindow ? characterOrigin(petWindow.getBounds(), orientation(), assets.get()) : null;
   await assets.select(id); if (anchor) positionPet(anchor, service.getState().settings.snapToEdges); updateTray(); publish();
   if (id === 'gpt') void codex.refresh();
+  if (id === 'gemini') void gemini.refresh();
+}
+async function selectGeminiAppearance(id: GeminiAppearance): Promise<void> {
+  assertWritable();
+  const anchor = petWindow ? characterOrigin(petWindow.getBounds(), orientation(), assets.get()) : null;
+  await assets.selectGeminiAppearance(id);
+  if (anchor) positionPet(anchor, service.getState().settings.snapToEdges);
+  updateTray(); publish();
 }
 async function selectGptAppearance(id: GptAppearance): Promise<void> {
   assertWritable();
   const anchor = petWindow ? characterOrigin(petWindow.getBounds(), orientation(), assets.get()) : null;
   await assets.selectGptAppearance(id); if (anchor) positionPet(anchor, service.getState().settings.snapToEdges); updateTray(); publish();
 }
-function refreshCurrent(): void { if (shuttingDown) return; if (assets.getSelected() === 'gpt') void codex.refresh(); else void service.refresh(); }
+function refreshCurrent(): void { if (shuttingDown) return; if (assets.getSelected() === 'gpt') void codex.refresh(); else if (assets.getSelected() === 'gemini') void gemini.refresh(); else void service.refresh(); }
 function petMenu(): Electron.MenuItemConstructorOptions[] {
   return [
     { label: 'DeepSeek · 小鲸鱼', type: 'radio', checked: assets.getSelected() === 'deepseek', click: () => { void selectPet('deepseek').catch(() => {}); } },
+    { label: 'Gemini · 星猫', type: 'radio', checked: assets.getSelected() === 'gemini', click: () => { void selectPet('gemini').catch(() => {}); } },
     { label: 'GPT · Codex 小伙伴', type: 'radio', checked: assets.getSelected() === 'gpt', click: () => { void selectPet('gpt').catch(() => {}); } },
   ];
 }
 function appearanceMenu(): Electron.MenuItemConstructorOptions[] {
+  if (assets.getSelected() === 'gemini') return (['classic', 'sketch'] as const).map(id => ({ label: id === 'classic' ? 'Gemini · 经典' : 'Gemini · 手绘', type: 'radio', checked: assets.getGeminiAppearance() === id, click: () => { void selectGeminiAppearance(id).catch(() => {}); } }));
   return ([['classic', 'GPT · 原版'], ['dragon', 'GPT · 白龙'], ...(assets.hasCustomGpt() ? [['custom', 'GPT · 自定义']] : [])] as [GptAppearance, string][]).map(([id, label]) => ({ label, type: 'radio', checked: assets.getGptAppearance() === id, click: () => { void selectGptAppearance(id).catch(() => {}); } }));
 }
 function createTray(): void {
@@ -245,13 +267,13 @@ function modeMenu(): Electron.MenuItemConstructorOptions {
 function updateTray(): void {
   if (tray) {
     tray.setToolTip(`DesktopPet · ${assets.get().name}`);
-    tray.setImage(nativeImage.createFromPath(path.join(__dirname, `../dist/assets/${assets.getSelected() === 'gpt' ? assets.getGptAppearance() === 'dragon' ? 'gpt-dragon-v2' : 'gpt' : 'whale'}.png`)).resize({ width: 32, height: 32 }));
+    tray.setImage(nativeImage.createFromPath(path.join(__dirname, `../dist/assets/${assets.getSelected() === 'gemini' ? 'gemini-' + assets.getGeminiAppearance() : assets.getSelected() === 'gpt' ? assets.getGptAppearance() === 'dragon' ? 'gpt-dragon-v2' : 'gpt' : 'whale'}.png`)).resize({ width: 32, height: 32 }));
   }
   tray?.setContextMenu(Menu.buildFromTemplate([
     { label: '显示桌宠', click: showPet },
     modeMenu(),
     { label: '切换桌宠', submenu: petMenu() },
-    { label: 'GPT 造型', submenu: appearanceMenu() },
+    { label: assets.getSelected() === 'gemini' ? 'Gemini 造型' : 'GPT 造型', submenu: appearanceMenu() },
     { label: '设置、余额与额度', click: () => { void openSettings(); } },
     { label: updates?.getState().latestVersion ? `发现新版本 v${updates.getState().latestVersion} · 查看更新` : '检查软件更新…', click: () => { if (!uninstallBusy && !updateBusy && !shuttingDown) void openSettings('version').then(() => updates.check()); } },
     { label: '刷新当前额度', click: refreshCurrent },
@@ -264,7 +286,7 @@ function updateTray(): void {
 function applySettings(): void {
   const settings = service.getState().settings;
   updates?.configure(settings.autoCheckUpdates);
-  if (!lastSettings || (['codexCompletionEnabled', 'codexCompletionDirectory', 'chatgptCompletionEnabled', 'deepseekCompletionEnabled', 'deepseekCompletionDirectory', 'codexHookEnabled', 'attentionEnabledBySource'] as const).some(key => settings[key] !== lastSettings![key])) configureCompletion();
+  if (!lastSettings || (['codexCompletionEnabled', 'codexCompletionDirectory', 'chatgptCompletionEnabled', 'deepseekCompletionEnabled', 'deepseekCompletionDirectory', 'geminiHookEnabled', 'geminiCompletionEnabled', 'codexHookEnabled', 'attentionEnabledBySource'] as const).some(key => settings[key] !== lastSettings![key])) configureCompletion();
   if (petWindow && !petWindow.isDestroyed()) {
     petWindow.setAlwaysOnTop(settings.alwaysOnTop);
     if (!lastSettings || settings.scale !== lastSettings.scale) {
@@ -285,6 +307,7 @@ function configureCompletion(): void {
   const settings = service.getState().settings;
   const isolated = !app.isPackaged && process.env.DESKTOPPLAY_TEST_NO_CODEX === '1';
   const directory = settings.codexCompletionDirectory ?? (isolated ? process.env.DESKTOPPLAY_TEST_CODEX_HOME || path.join(dataDir, 'codex-test-home') : process.env.CODEX_HOME || path.join(os.homedir(), '.codex'));
+  void geminiNotices.configure(settings.geminiHookEnabled, settings.geminiCompletionEnabled, settings.attentionEnabledBySource.antigravity);
   void codexAttention.configure(settings.codexHookEnabled && !shuttingDown, directory, String(settings.attentionEnabledBySource.codex));
   void completion.configure(settings.codexCompletionEnabled && !shuttingDown, directory);
   const logs = isolated ? [process.env.DESKTOPPLAY_TEST_CHATGPT_LOG_DIR || path.join(dataDir, 'chatgpt-test-logs')]
@@ -379,14 +402,15 @@ async function requestUninstall(event: IpcMainInvokeEvent, removeData: unknown):
     if (codexTimer) clearInterval(codexTimer);
     if (hitTimer) clearInterval(hitTimer);
     service.pause(); codex.pause();
-    codexAttention.pause();
+    geminiNotices.pause(); codexAttention.pause();
     updates.configure(false);
     void completion.configure(false, completion.getState().directory);
     void chatgptCompletion.configure(false, []); void deepseekCompletion.configure(false, deepseekCompletion.getState().directory);
     await Promise.allSettled([...pendingActions]);
     saveWindowPosition();
-    await Promise.all([service.drain(), codex.drain(), updates.drain(), completion.drain(), chatgptCompletion.drain(), deepseekCompletion.drain(), codexAttention.drain(), assets.drain(), sounds.drain(), geometryWrites, preferenceWrites.catch(() => {})]);
+    await Promise.all([service.drain(), codex.drain(), updates.drain(), completion.drain(), chatgptCompletion.drain(), deepseekCompletion.drain(), codexAttention.drain(), geminiNotices.drain(), gemini.drain(), assets.drain(), sounds.drain(), geometryWrites, preferenceWrites.catch(() => {})]);
     await codexAttention.removeForUninstall();
+    await geminiNotices.removeForUninstall();
     await prepared.commit();
     setTimeout(() => app.quit(), 100);
     return { started: true };
@@ -413,10 +437,10 @@ async function requestUpdate(event: IpcMainInvokeEvent): Promise<{ started: bool
     if (codexTimer) clearInterval(codexTimer);
     if (hitTimer) clearInterval(hitTimer);
     updates.configure(false); service.pause(); codex.pause();
-    codexAttention.pause();
+    geminiNotices.pause(); codexAttention.pause();
     void completion.configure(false, completion.getState().directory); void chatgptCompletion.configure(false, []); void deepseekCompletion.configure(false, deepseekCompletion.getState().directory);
     await Promise.allSettled([...pendingActions]); saveWindowPosition();
-    await Promise.all([updates.drain(), service.drain(), codex.drain(), completion.drain(), chatgptCompletion.drain(), deepseekCompletion.drain(), codexAttention.drain(), assets.drain(), sounds.drain(), geometryWrites, preferenceWrites]);
+    await Promise.all([updates.drain(), service.drain(), codex.drain(), completion.drain(), chatgptCompletion.drain(), deepseekCompletion.drain(), codexAttention.drain(), geminiNotices.drain(), gemini.drain(), assets.drain(), sounds.drain(), geometryWrites, preferenceWrites]);
     await prepared.commit();
     if (updates.getState().kind === 'portable') setTimeout(() => app.quit(), 100);
     return { started: true };
@@ -461,7 +485,7 @@ function registerIpc(): void {
   });
   handle('choose-sound', async (event, persona, slot) => {
     assertSettingsSender(event);
-    if (!['whale', 'gpt', 'dragon'].includes(persona) || !SOUND_SLOTS.includes(slot)) throw new Error('音效槽位无效。');
+    if (!PERSONAS.includes(persona) || !SOUND_SLOTS.includes(slot)) throw new Error('音效槽位无效。');
     const selection = await dialog.showOpenDialog(settingsWindow!, { title: '选择音效（不超过 5 MiB）', properties: ['openFile'], filters: [{ name: '音频文件', extensions: ['mp3', 'wav', 'ogg'] }] });
     assertWritable();
     if (!selection.canceled && selection.filePaths[0]) { await sounds.import(selection.filePaths[0], persona, slot); publish(); }
@@ -470,11 +494,13 @@ function registerIpc(): void {
   handle('reset-sound', async (event, persona, slot) => { assertSettingsSender(event); await sounds.reset(persona, slot); publish(); return getState(); });
   handle('uninstall-info', (event) => { assertSettingsSender(event); return uninstaller.getInfo(); });
   handle('uninstall', requestUninstall);
-  handle('update-settings', async (_event, patch) => { await service.updateSettings(patch); await Promise.all([completion.drain(), chatgptCompletion.drain(), deepseekCompletion.drain(), codexAttention.drain()]); return getState(); });
+  handle('update-settings', async (_event, patch) => { await service.updateSettings(patch); await Promise.all([completion.drain(), chatgptCompletion.drain(), deepseekCompletion.drain(), codexAttention.drain(), geminiNotices.drain()]); return getState(); });
   handle('set-key', async (_event, key) => { await service.setApiKey(key); return getState(); });
   handle('clear-key', async () => { await service.clearApiKey(); return getState(); });
   handle('refresh', async () => { await service.refresh(); return getState(); });
   handle('select-pet', async (_event, id) => { await selectPet(id); return getState(); });
+  handle('select-gemini-appearance', async (_event, id) => { await selectGeminiAppearance(id); return getState(); });
+  handle('refresh-gemini', async () => { await gemini.refresh(); return getState(); });
   handle('select-gpt-appearance', async (_event, id) => { await selectGptAppearance(id); return getState(); });
   handle('refresh-codex', async () => { await codex.refresh(); return getState(); });
   handle('open-codex-usage', async () => { await shell.openExternal('https://chatgpt.com/codex/settings/usage'); });
@@ -503,7 +529,7 @@ function registerIpc(): void {
   handle('reset-pet', async () => { const anchor = petWindow ? characterOrigin(petWindow.getBounds(), orientation(), assets.get()) : null; await assets.reset(); if (anchor) positionPet(anchor, service.getState().settings.snapToEdges); updateTray(); publish(); return getState(); });
   handle('open-settings', (_event, page) => { if (page !== undefined && page !== 'version') throw new Error('设置页面无效。'); return openSettings(page); });
   handle('show-menu', () => {
-    Menu.buildFromTemplate([modeMenu(), { label: '切换桌宠', submenu: petMenu() }, { label: 'GPT 造型', submenu: appearanceMenu() }, { label: '设置、余额与额度', click: () => { void openSettings(); } }, { label: '刷新当前额度', click: refreshCurrent }, { type: 'separator' }, { label: '隐藏桌宠', click: () => petWindow?.hide() }, { label: '退出', click: () => { if (!uninstallBusy && !updateBusy) app.quit(); } }]).popup({ window: petWindow ?? undefined });
+    Menu.buildFromTemplate([modeMenu(), { label: '切换桌宠', submenu: petMenu() }, { label: assets.getSelected() === 'gemini' ? 'Gemini 造型' : 'GPT 造型', submenu: appearanceMenu() }, { label: '设置、余额与额度', click: () => { void openSettings(); } }, { label: '刷新当前额度', click: refreshCurrent }, { type: 'separator' }, { label: '隐藏桌宠', click: () => petWindow?.hide() }, { label: '退出', click: () => { if (!uninstallBusy && !updateBusy) app.quit(); } }]).popup({ window: petWindow ?? undefined });
   });
   handle('hide-pet', () => { finishDrag(); petWindow?.hide(); });
   handle('quit', () => { if (!uninstallBusy && !updateBusy) app.quit(); });

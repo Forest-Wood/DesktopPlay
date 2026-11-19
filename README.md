@@ -1,6 +1,6 @@
 # DesktopPet
 
-DesktopPet 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek 余额，GPT 小伙伴查看 Codex 编程额度。GPT 角色可在原版与白龙两种内置造型间切换，也可继续使用自定义图片。面向 Windows 10/11 x64，提供 NSIS 安装版和 portable 免安装版。桌宠本身不需要 Node.js 或 DeepSeek Harness（DSH）；实时 Codex 额度需要本机已有原生 Codex 程序，并已使用 ChatGPT 账户登录。
+DesktopPet 是 Windows 桌宠。小鲸鱼显示 DeepSeek 余额，GPT 小伙伴显示 Codex 编程额度，Gemini 显示 Antigravity 剩余额度。GPT 角色可在原版与白龙两种内置造型间切换，也可继续使用自定义图片。面向 Windows 10/11 x64，提供 NSIS 安装版和 portable 免安装版。桌宠本身不需要 Node.js 或 DeepSeek Harness（DSH）；实时 Codex 额度需要本机已有原生 Codex 程序，并已使用 ChatGPT 账户登录。
 
 已发布 [v1.0.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v1.0.0)，包含三来源等待提醒、常驻对话气泡和陪伴短句展示控制。发布核实见 [T014 任务记录](docs/tasks/T014-release-v100.md)，功能实现与验证见 [T013](docs/tasks/T013-conversation-attention.md)。
 
@@ -21,9 +21,11 @@ DesktopPet 是 Windows 桌面上的双角色桌宠：小鲸鱼查看 DeepSeek �
 - DeepSeek 余额自动刷新、今日已观测消费、余额增加记录、低余额和每日预算提醒。
 - 本地加密保存 API Key，开机启动默认关闭。
 - “关于 → 版本”检查、下载及重启更新，支持安装版和免安装版；默认启动 30 秒后、每 6 小时自动检查，可关闭自动检查。
-- 设置或右键菜单切换 DeepSeek / GPT 角色并记住选择；GPT 的原版、白龙和自定义图片作为独立造型保存，切换造型不影响 Codex 额度。
+- 设置或右键菜单切换 DeepSeek、GPT、Gemini 角色并记住选择；GPT 的原版、白龙和自定义图片作为独立造型保存，切换造型不影响 Codex 额度。
 - GPT 小伙伴显示 Codex 剩余百分比、额度窗口、重置时间及倒计时，支持自动和手动刷新。
-- 小鲸鱼、原版 GPT、白龙分别设置按下／松开音效；支持导入音频、试听和恢复内置音效。
+- Gemini 的经典和手绘造型共用台词、声音和气泡。简洁模式同时显示 Argon 周额度、Gemini 周额度和 Gemini 5 小时额度。完整模式及「账户与用量 → Gemini」还显示重置时间；关闭客户端后可通过已登录的 `agy` 1.1.11 或更新版本刷新。
+- 在「提醒 → 对话提醒 → Gemini」启用完成 hook 并保存，重新加载 Antigravity 会话后可接收本轮完成提醒。提问与审批使用客户端的本地等待记录，各端的可用状态见同一页面。
+- 小鲸鱼、原版 GPT、白龙和 Gemini 分别设置按下／松开音效；支持导入音频、试听和恢复内置音效。
 - 在“关于 → 卸载与数据”卸载当前安装版或当前运行的免安装版，并选择是否清理共享的本地数据。
 
 ![漫画对白气泡](docs/screenshots/v030-deepseek-usage.png)
