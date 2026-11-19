@@ -4,7 +4,7 @@
 
 ## 当前任务
 
-- [T028／R035](tasks/T028-release-v201.md)（分支 `release/T028-v201`，基准 `903dd9e`，目标 `main`）：准备 `v2.0.1` 修订版发布（基准 `v2.0.0`，类型 `patch`，包含 T026 与 T027）。`release:prepare`、`release:check`、`npm.cmd run build` 与发布策略单测通过，正在推进合入主线与标签发布。
+- [T028／R035](tasks/T028-release-v201.md)（分支 `release/T028-v201`，准备提交 `d0faff3`，[PR #31](https://github.com/Forest-Wood/DesktopPlay/pull/31) 目标 `main`）：准备 `v2.0.1` 修订版发布（基准 `v2.0.0`，类型 `patch`，包含 T026 与 T027）。`release:prepare`、`release:check`、`npm.cmd run build` 与发布策略单测通过，正在推进合入主线与 `v2.0.1` 标签发布。
 - [T027／R034](tasks/T027-retention-bubble.md) 已通过 [PR #30](https://github.com/Forest-Wood/DesktopPlay/pull/30) 合入主线 `903dd9e`，修复在“用量小报告”或“陪伴短句”气泡页点击“换角色”时挽留提示词拼接在原页面文案后面的问题。
 - [T026／R033](tasks/T026-gemini-ui.md) 已通过 [PR #29](https://github.com/Forest-Wood/DesktopPlay/pull/29) 合入主线 `c101c7e`，优化 Gemini 气泡双列排版、设置页三栏额度卡与状态胶囊、星光紫角色舞台（`gemini-theme`）、三角色并排选择器与提醒／关于文案，并将经典与手绘两张内置 PNG 无损左右对称翻转。
 - [T025／R032](tasks/T025-release-v200.md) 已发布 v2.0.0。[PR #27](https://github.com/Forest-Wood/DesktopPlay/pull/27) 合入主线，标签指向 `163a87a`。构建、324 项单测、27 项 Electron 测试及两套文件助手验证通过。

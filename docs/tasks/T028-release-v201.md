@@ -6,8 +6,9 @@
 - 分支：`release/T028-v201`；目标合并分支：`main`。
 - 工作目录：`D:\desktop1\DesktopPlay`。
 - 基准提交：`903dd9e83b2e290e1e00ed94a206f4f900387f2b`（合并 [PR #29](https://github.com/Forest-Wood/DesktopPlay/pull/29) 与 [PR #30](https://github.com/Forest-Wood/DesktopPlay/pull/30) 后的远程 `main`）。
+- 结果提交：发布准备提交 `d0faff3`，[PR #31](https://github.com/Forest-Wood/DesktopPlay/pull/31) 目标 `main`。
 - 已有未提交修改：开始任务前工作区干净；当前修改全部归属 T028 发布准备。
-- 状态：已完成 `v2.0.1` 版本与公告准备并通过构建及校验，正在推进发布准备 PR、合并与标签发布。
+- 状态：已完成 `v2.0.1` 版本与公告准备并通过构建及校验，已创建 [PR #31](https://github.com/Forest-Wood/DesktopPlay/pull/31) 并推进主线合并与标签发布。
 
 ## 目标与范围
 
