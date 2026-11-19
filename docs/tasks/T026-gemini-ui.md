@@ -6,9 +6,9 @@
 - 分支：`feat/T026-gemini-ui`；目标合并分支：`main`。
 - 工作目录：`D:\desktop1\DesktopPlay`。
 - 基准提交：`3a211f525bf304a535cdc0dfc59c903f15c55d9a`（已通过 [PR #28](https://github.com/Forest-Wood/DesktopPlay/pull/28) 合入远程 `main` `7dc840f7db71b0985629183bee9d252232695f17`）。
-- 结果提交：实现提交 `a799021`，已推送 `origin/feat/T026-gemini-ui` 并创建 [PR #29](https://github.com/Forest-Wood/DesktopPlay/pull/29)（目标 `main`），待审阅。
+- 结果提交：实现提交 `a799021`、交接提交 `8c8c69e`，已通过 [PR #29](https://github.com/Forest-Wood/DesktopPlay/pull/29) 合入 `main`（合并提交 `c101c7ec0759956d8cd66fe8e64a6d82aa5921a3`）。
 - 已有未提交修改：开始任务前工作区干净；本任务共 16 个文件。
-- 状态：已实现并通过构建、单测与隔离 Electron 验证，已按授权提交、推送并创建 PR 待审查（未合并、不发布）。
+- 状态：已合并。
 
 ## 目标与范围
 

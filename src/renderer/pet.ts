@@ -51,7 +51,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const endCompletion = () => { completionActive = false; activeConversation = null; playback++; completionSounds.stop(); };
   const flushNotices = () => { flushCompletion(); if (!completionActive && !completionQueue.length) { flushAlert(); flushUpdate(); } };
   const close = () => { clearTimeout(timer); endCompletion(); visible = false; retention = false; hovered = false; notice = ''; bubble.hidden = true; api.setBubbleVisible(false); queueMicrotask(flushNotices); };
-  const persistent = () => visible && (noticeKind === 'completion' || noticeKind === 'attention') && !!notice;
+  const persistent = () => visible && !retention && (noticeKind === 'completion' || noticeKind === 'attention') && !!notice;
   const schedule = (duration = rule().timing.durationSeconds * 1000) => {
     clearTimeout(timer);
     if (!visible || retention || hidden) return;
@@ -78,7 +78,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     }
     query('.bubble-page').textContent = simple() || retention || notice ? '' : `${page + 1}/${total}`;
     query('.bubble-balances').hidden = !usage || usesQuota; quota.hidden = !usage || !usesQuota;
-    const fixed = notice ? noticeKind === 'completion' ? '' : noticeKind === 'attention' ? completionSource === 'antigravity' ? activeConversation?.kind === 'approval' ? 'Gemini 有操作等你批准' : 'Gemini 有问题等你回答' : activeConversation?.kind === 'approval' ? '有操作需要你审批。' : '有问题需要你回答。' : notice : page === 1 ? summaryText(state) : page >= 2 ? phrases()[page - 2] ?? '' : '';
+    const fixed = retention ? '' : notice ? noticeKind === 'completion' ? '' : noticeKind === 'attention' ? completionSource === 'antigravity' ? activeConversation?.kind === 'approval' ? 'Gemini 有操作等你批准' : 'Gemini 有问题等你回答' : activeConversation?.kind === 'approval' ? '有操作需要你审批。' : '有问题需要你回答。' : notice : page === 1 ? summaryText(state) : page >= 2 ? phrases()[page - 2] ?? '' : '';
     message.hidden = usage && (simple() || !config.message);
     message.textContent = [fixed, config.message].filter(Boolean).join('\n');
     message.classList.toggle('bubble-caption', usage);
@@ -204,7 +204,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   bubble.addEventListener('click', event => { if (persistent() && !(event.target instanceof Element && event.target.closest('button, a, input, select, textarea'))) close(); });
   bubble.addEventListener('keydown', event => { if (persistent() && event.target === bubble && ['Enter', ' '].includes(event.key)) { event.preventDefault(); close(); } });
   refresh.addEventListener('click', () => { void run(() => state.activePet === 'gemini' ? api.refreshGeminiQuota() : state.activePet === 'gpt' ? api.refreshCodexQuota() : api.refreshBalance(), 'refresh'); });
-  query('.bubble-switch').addEventListener('click', () => { retention = true; clearTimeout(timer); render(); });
+  query('.bubble-switch').addEventListener('click', () => { retention = true; clearTimeout(timer); render(); query('.bubble-content').scrollTop = 0; });
   confirm.addEventListener('click', () => { const target = state.activePet === 'gpt' ? 'gemini' : state.activePet === 'gemini' ? 'deepseek' : 'gpt'; void run(() => api.selectPet(target), 'switch'); });
   query('.bubble-cancel').addEventListener('click', () => { retention = false; render(); schedule(); flushNotices(); });
   query('.bubble-appearance').addEventListener('click', () => { void run(() => state.activePet === 'gemini' ? api.selectGeminiAppearance(state.geminiAppearance === 'classic' ? 'sketch' : 'classic') : api.selectGptAppearance(state.gptAppearance === 'dragon' ? 'classic' : 'dragon'), 'appearance'); });
