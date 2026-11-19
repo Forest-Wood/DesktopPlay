@@ -1,7 +1,7 @@
 import { DEFAULT_BUBBLE_PROFILES, PERSONAS, SOUND_SLOTS } from './bubble-settings';
 import { phraseDisplays } from './phrases';
 import type { AppSettings, BuiltinPetId, PetAsset, PetPersona, SoundMetadataMap } from './types';
-export const APP_VERSION = '2.0.1';
+export const APP_VERSION = '2.0.2';
 export const DEFAULT_COMPLETION_MESSAGES: Record<PetPersona, string> = {
   gemini: '这轮任务完成啦，来看看吧。',
   whale: 'GPT 已经回复完啦，快去看看吧～',
