@@ -6,9 +6,9 @@
 - 分支：`release/T030-v202`；目标合并分支：`main`。
 - 工作目录：`D:\desktop1\DesktopPlay`。
 - 基准提交：`d7c32c2`（合并 [PR #33](https://github.com/Forest-Wood/DesktopPlay/pull/33) 后的远程 `origin/main`）。
-- 结果提交：待发布准备提交与合并后回填。
-- 已有未提交修改：开始任务前工作区干净；本任务仅包含 v2.0.2 发布准备、CI 竞态测试修复与文档更新。
-- 状态：进行中（发布准备验证通过，待提交 PR、通过 CI 并合并触发 `v2.0.2` 发布）。
+- 结果提交：发布准备提交 `71a5a34`，已通过 [PR #34](https://github.com/Forest-Wood/DesktopPlay/pull/34) 合入 `main`（合并提交 `b36bbc675043a9579679904e035469c16d8f03f6`），标签 `v2.0.2` 指向该提交。
+- 已有未提交修改：开始任务前工作区干净；当前修改全部归属 T030 发布与核验。
+- 状态：已发布 `v2.0.2` 并完成远程 latest Release 与五项附件核验。
 
 ## 目标与范围
 
@@ -29,4 +29,12 @@
 
 ## 正式发布与核验
 
-- 待合入 `main`、推送 `v2.0.2` 标签并核验 Release 工作流及五项公开附件。
+- [PR #34](https://github.com/Forest-Wood/DesktopPlay/pull/34) 通过 [CI 44530892972](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44530892972) 并合并为 `b36bbc6`，标签 `v2.0.2` 指向该提交。
+- [发布工作流 44531740265](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44531740265) 历时 2 分 27 秒完成单测、Windows x64 打包、更新运行时校验、草稿上传及五项附件摘要与公告核对，[v2.0.2](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.2) 于 2026-11-19 21:18:18（Asia/Shanghai）成为最新正式版（`draft: false`, `prerelease: false`）：
+  - `DesktopPet-2.0.2-Setup-x64.exe`（`120,451,469` B，`sha256:fbc4bf7475ad1fbe30fe240cdebb64f1cc8715094ddde80c66a537ce36dc5f31`）
+  - `DesktopPet-2.0.2-Portable-x64.exe`（`120,129,733` B，`sha256:04f502d3600d382fe7d8b72fa769e94e2ba84cc595736f5e3e2216b08e186f9b`）
+  - `DesktopPet-2.0.2-Setup-x64.exe.blockmap`（`126,951` B，`sha256:7cf7d1cf890269bdf26b679ca01d2b22d38e6fb1015834db77aa57b603b0d71f`）
+  - `latest.yml`（`938` B，`sha256:0bc91d80cab31f1e9179811f2a17e9ed3ef2fbfba67bc41e5353debbe0144243`）
+  - `SHA256SUMS.txt`（`197` B，`sha256:1b80f2752415abcf5028e84e609734ddac1a9e1a6aa881ae97d52035598a4572`）
+- 本轮未在真实用户环境执行安装或升级；后续实机验收仍包括真实 VS Code／桌面 App 端 Gemini 完成气泡、真实网络更新下载 ETA 与共享额度账号。
+
