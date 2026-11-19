@@ -48,7 +48,7 @@ export const GPT_PET = { name: 'GPT 小伙伴', url: './assets/gpt.png', isCusto
 export const GPT_DRAGON_PET: PetAsset = { name: 'GPT 白龙', url: './assets/gpt-dragon-v2.png', isCustom: false,
   contentBounds: { x: 70, y: 57, width: 1120, height: 1129, imageWidth: 1254, imageHeight: 1254 } };
 export const GEMINI_PETS: Record<import('./types').GeminiAppearance, PetAsset> = {
-  classic: { name: 'Gemini · 经典', url: './assets/gemini-classic.png', isCustom: false, contentBounds: { x: 0, y: 9, width: 1253, height: 1245, imageWidth: 1254, imageHeight: 1254 } },
+  classic: { name: 'Gemini · 经典', url: './assets/gemini-classic.png', isCustom: false, contentBounds: { x: 1, y: 9, width: 1253, height: 1245, imageWidth: 1254, imageHeight: 1254 } },
   sketch: { name: 'Gemini · 手绘', url: './assets/gemini-sketch.png', isCustom: false, contentBounds: { x: 0, y: 0, width: 1254, height: 1254, imageWidth: 1254, imageHeight: 1254 } },
 };
 export const BUILTIN_PETS: Record<BuiltinPetId, PetAsset> = { deepseek: DEFAULT_PET, gpt: GPT_PET, gemini: GEMINI_PETS.classic };

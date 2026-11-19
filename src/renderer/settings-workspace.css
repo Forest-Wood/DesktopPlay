@@ -16,6 +16,7 @@
 }
 .settings-view #app.gpt-theme { --companion-tint: #e4f2eb; --companion-ring: #d2e8dd; }
 .settings-view #app.dragon-theme { --companion-tint: #efebf5; --companion-ring: #e1d9ed; }
+.settings-view #app.gemini-theme { --companion-tint: #f2ecfb; --companion-ring: #dfd3f2; }
 .settings-view .settings-shell { grid-template-columns: 220px minmax(0, 1fr); }
 .settings-view .sidebar {
   display: flex;
@@ -113,6 +114,15 @@
 .settings-view #codex .quota-window { padding: 18px; border-radius: 12px; background: #f7f9f6; }
 .settings-view #codex .quota-percentage { letter-spacing: -1px; }
 .settings-view #codex .quota-plan-badge { font-size: 10px; }
+.settings-view #gemini-quotas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.settings-view #gemini-quotas .gemini-quota-row { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: #f7f9f6; }
+.settings-view #gemini-quotas .gemini-quota-row > span { font-size: 12px; color: var(--muted); }
+.settings-view #gemini-quotas .gemini-quota-row > strong { display: block; align-self: flex-start; font-size: 32px; line-height: 1.2; letter-spacing: -1px; color: var(--ink); margin: 2px 0 4px; }
+.settings-view #gemini-quotas .gemini-quota-row[data-state=shared] > strong,
+.settings-view #gemini-quotas .gemini-quota-row[data-state=missing] > strong { font-size: 17px; letter-spacing: 0; line-height: 1.4; margin: 7px 0; color: var(--muted); }
+.settings-view #gemini-quotas .gemini-quota-row[data-state=empty] > strong { color: var(--muted); }
+.settings-view #gemini-quotas .gemini-quota-row > progress { width: 100%; height: 6px; accent-color: var(--accent); margin: 2px 0 6px; }
+.settings-view #gemini-quotas .gemini-quota-row > small { margin-top: auto; font-size: 11px; line-height: 1.55; color: var(--muted); opacity: 1; }
 
 .settings-view .related-links { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .settings-view .related-links .text-button { padding-left: 0; margin-right: 12px; color: var(--accent); }
@@ -158,11 +168,17 @@
 .settings-view .pet-option { position: relative; background: #fff; border-radius: 12px; }
 .settings-view .pet-option[aria-pressed=true] { background: #f0f5ee; border-color: #6c9275; box-shadow: inset 0 0 0 1px #6c9275; }
 .settings-view .pet-option[aria-pressed=true]::after { content: '已选'; position: absolute; top: 6px; right: 7px; color: var(--accent); font-size: 8px; }
+.settings-view #appearance > .panel > .pet-selector { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .settings-view #appearance > .panel > .pet-selector .pet-option { min-height: 78px; padding: 14px 12px; }
 .settings-view #appearance > .panel > .pet-selector .pet-option img { width: 49px; height: 49px; }
-.settings-view #gpt-appearance-options .pet-selector { gap: 10px; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); }
-.settings-view #gpt-appearance-options .pet-option { min-height: 75px; }
-.settings-view #gpt-appearance-options .hint { font-size: 10px !important; }
+.settings-view #gpt-appearance-options .pet-selector,
+.settings-view #gemini-appearance-options .pet-selector { gap: 10px; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); margin-top: 12px; }
+.settings-view #gpt-appearance-options .pet-option,
+.settings-view #gemini-appearance-options .pet-option { min-height: 75px; padding: 10px; gap: 10px; }
+.settings-view #gpt-appearance-options .pet-option img,
+.settings-view #gemini-appearance-options .pet-option img { width: 52px; height: 60px; }
+.settings-view #gpt-appearance-options .hint,
+.settings-view #gemini-appearance-options .hint { font-size: 10px !important; margin-top: 0 !important; }
 .settings-view #pet-mode { padding: 10px 12px; border-radius: 10px; font-size: 12px; background: #f8faf7; }
 .settings-view .setting-row > label { font-size: 12px; min-width: 0; }
 .settings-view .setting-row small { font-size: 10px; line-height: 1.8; max-width: 360px; }
@@ -244,7 +260,7 @@
   .settings-view .sidebar nav button { gap: 7px; padding: 11px 8px; font-size: 10px; }
   .settings-view .sidebar nav button[aria-current=page]::after { display: none; }
   .settings-view .settings-main { padding-inline: 14px; }
-  .settings-view .balance-grid { grid-template-columns: 1fr; }
+  .settings-view .balance-grid, .settings-view #gemini-quotas, .settings-view #appearance > .panel > .pet-selector { grid-template-columns: 1fr; }
   .settings-view .page-tabs { flex-wrap: wrap; gap: 12px; }
   .settings-view #appearance .pet-preview-row { flex-direction: column; }
   .settings-view .save-bar { margin-inline: -14px; padding-inline: 17px; }

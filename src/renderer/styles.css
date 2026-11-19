@@ -18,6 +18,7 @@
 .pet-canvas .pet-bubble{right:auto;bottom:auto;max-height:none;padding:9px 11px;isolation:isolate;border:2px solid var(--bubble-border);border-radius:23px;box-shadow:0 0 0 6px var(--bubble-ring),0 7px 10px #344b7c19;--bubble-ring:#dee5fc;--tail-x:188px;--tail-flip:1;--tail-y:1;--tail-rotate:8deg}
 .pet-canvas.gpt-theme .pet-bubble{--bubble-ring:#d9efe4}
 .pet-canvas.dragon-theme .pet-bubble{--bubble-bg:#f6f0ff;--bubble-border:#705392;--bubble-ink:#624480;--bubble-ring:#e9dcf8}
+.pet-canvas.gemini-theme .pet-bubble{--bubble-bg:#faf3ff;--bubble-border:#7b579e;--bubble-ink:#50356b;--bubble-ring:#ecdcfa}
 .pet-canvas.flipped .pet-bubble{--tail-x:28px;--tail-flip:-1}
 .pet-canvas.bubble-below .pet-bubble{--tail-y:-1;--tail-rotate:8deg}
 .pet-canvas .pet-bubble:before,.pet-canvas .pet-bubble:after{left:var(--tail-x);right:auto;top:calc(100% - 1px);width:18px;height:18px;clip-path:polygon(0 0,100% 0,100% 100%);transform:scale(var(--tail-flip),var(--tail-y)) rotate(var(--tail-rotate));transform-origin:center;z-index:-1}

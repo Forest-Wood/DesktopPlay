@@ -175,7 +175,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     for (const [element, rect] of [[character, layout.character], [bubble, layout.bubble]] as const) { element.style.left = `${rect.x}px`; element.style.top = `${rect.y}px`; element.style.width = `${rect.width}px`; element.style.height = `${rect.height}px`; }
     image.style.left = `${layout.image.x}px`; image.style.top = `${layout.image.y}px`; image.style.width = `${layout.image.width}px`; image.style.height = `${layout.image.height}px`;
     canvas.classList.toggle('flipped', state.flipped); canvas.classList.toggle('vertical-flipped', state.verticalFlipped); canvas.classList.toggle('bubble-below', state.bubblePlacement === 'below');
-    canvas.classList.toggle('gpt-theme', state.activePet === 'gpt'); canvas.classList.toggle('dragon-theme', state.activePet === 'gpt' && state.gptAppearance === 'dragon'); image.src = state.pet.url;
+    canvas.classList.toggle('gpt-theme', state.activePet === 'gpt'); canvas.classList.toggle('dragon-theme', state.activePet === 'gpt' && state.gptAppearance === 'dragon'); canvas.classList.toggle('gemini-theme', state.activePet === 'gemini'); image.src = state.pet.url;
     character.setAttribute('aria-label', `${state.pet.name}，${simple() ? '点击查看剩余额度' : '点击切换用量、小报告和陪伴短句'}，拖动调整位置，右键打开菜单`);
     render();
     if (state.alert && state.alert.id !== lastAlertId) { lastAlertId = state.alert.id; if (!hidden && !simple()) pendingAlert = state.alert; }

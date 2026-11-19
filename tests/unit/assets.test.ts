@@ -3,9 +3,14 @@ import { readFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { inspectImage, PetAssets } from '../../src/main/pet-assets';
+import { GEMINI_PETS } from '../../src/shared/defaults';
 describe('pet image validation', () => {
   it('reads the authorized bundled PNG', async () => {
     expect(inspectImage(await readFile('public/assets/whale.png'))).toEqual({ mime: 'image/png', width: 610, height: 610 });
+    expect(inspectImage(await readFile('public/assets/gemini-classic.png'))).toEqual({ mime: 'image/png', width: 1254, height: 1254 });
+    expect(inspectImage(await readFile('public/assets/gemini-sketch.png'))).toEqual({ mime: 'image/png', width: 1254, height: 1254 });
+    expect(GEMINI_PETS.classic.contentBounds).toEqual({ x: 1, y: 9, width: 1253, height: 1245, imageWidth: 1254, imageHeight: 1254 });
+    expect(GEMINI_PETS.sketch.contentBounds).toEqual({ x: 0, y: 0, width: 1254, height: 1254, imageWidth: 1254, imageHeight: 1254 });
   });
   it('rejects non-images and oversized dimensions', () => {
     expect(() => inspectImage(Buffer.from('<script>alert(1)</script>'))).toThrow();
