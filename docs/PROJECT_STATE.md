@@ -4,6 +4,7 @@
 
 ## 当前任务
 
+- [T026／R033](tasks/T026-gemini-ui.md)（分支 `feat/T026-gemini-ui`，实现提交 `a799021`，[PR #29](https://github.com/Forest-Wood/DesktopPlay/pull/29) 目标 `main`）：优化 Gemini 气泡双列排版、设置页三栏额度卡与状态胶囊、星光紫角色舞台（`gemini-theme`）、三角色并排选择器与提醒／关于文案，并将经典与手绘两张内置 PNG 无损左右对称翻转（同步 `classic` 非透明起点 `x: 1`）。`npm.cmd run build`、22 项相关单测、`gemini.spec.ts` 隔离 Electron 测试及截图核验、`git diff --check` 均通过，已提交推送并创建 PR 待审阅。
 - [T025／R032](tasks/T025-release-v200.md) 已发布 v2.0.0。[PR #27](https://github.com/Forest-Wood/DesktopPlay/pull/27) 合入主线，标签指向 `163a87a`。构建、324 项单测、27 项 Electron 测试及两套文件助手验证通过。
 - [T024／R031](tasks/T024-gemini-pet.md) 已经 [PR #26](https://github.com/Forest-Wood/DesktopPlay/pull/26) 合并，随 v2.0.0 提供 Gemini 的两款造型、三项额度与对话提醒。真实 App 与 agy 的额度已按三项对照，真实三端任务提醒和共享池账户仍待验收。
 
@@ -23,4 +24,4 @@
 - 原生鼠标间歇偏移仍无根因结论，见 T010／T014／T022；T022 当前实现及基准对照均复现按住时位置偏移，不能用早期单次通过认定已解决。
 - 受限 Electron 存在启动超时／AppContainer 环境限制；隔离测试可在沙箱外运行，保持应用 Electron 沙箱启用。测试不得使用真实账户、账本或修改真实客户端设置。
 - appId、`%APPDATA%\DesktopPlay` 及安装／portable 共用数据保持兼容。等待与完成提示默认点击前常驻，可按场景设置定时关闭，隐藏／退出清空，不补历史。
-- 下一独立任务编号 T026／R033。
+- 下一独立任务编号 T027／R034。

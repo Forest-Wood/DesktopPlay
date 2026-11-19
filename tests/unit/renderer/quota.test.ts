@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { planLabel, quotaSlots, remainingLabel, quotaIsStale, resetCountdown, windowLabel, resetCreditExpiry, resetCreditsView } from '../../../src/renderer/quota';
+import { geminiStatus, geminiStatusChip } from '../../../src/renderer/gemini-quota';
+import { emptyGeminiQuota } from '../../../src/shared/gemini';
 import type { CodexQuotaState } from '../../../src/shared/types';
 
 describe('Codex quota time and availability', () => {
@@ -63,5 +65,14 @@ describe('Codex quota time and availability', () => {
     expect(quotaIsStale({ ...quota, status: 'error' }, now)).toBe(true);
     expect(quotaIsStale({ ...quota, updatedAt: null }, now)).toBe(true);
     expect(quotaIsStale({ ...quota, buckets: [] }, now)).toBe(false);
+  });
+  it('summarizes Gemini quota connection states for chip and status text', () => {
+    const idle = emptyGeminiQuota();
+    expect(geminiStatusChip(idle, false)).toEqual({ text: '尚未读取', status: 'idle' });
+    expect(geminiStatusChip(idle, true)).toEqual({ text: '演示额度', status: 'ready' });
+    expect(geminiStatusChip({ ...idle, status: 'loading' }, false)).toEqual({ text: '正在刷新', status: 'loading' });
+    expect(geminiStatusChip({ ...idle, status: 'error', error: '未发现客户端' }, false)).toEqual({ text: '读取异常', status: 'error' });
+    expect(geminiStatusChip({ ...idle, status: 'ready', updatedAt: '2026-11-19T09:00:00Z' }, false)).toEqual({ text: '已连接 Antigravity', status: 'ready' });
+    expect(geminiStatus({ ...idle, status: 'error', error: '未发现客户端', updatedAt: '2026-11-19T09:00:00Z' }, false)).toContain('未发现客户端 · 上次更新');
   });
 });

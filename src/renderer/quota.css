@@ -24,12 +24,19 @@
 .quota-compact .quota-percentage { font-size: 30px; line-height: 1.15; color: inherit; }
 .quota-compact .quota-countdown { font-size: 8.5px; line-height: 1.35; margin: 0; color: inherit; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .quota-compact .quota-plan-badge { float: left; font-size: 9px; line-height: 12px; padding: 1px 6px; margin: 0 6px 1px 0; color: var(--bubble-ink, inherit); background: color-mix(in srgb, var(--bubble-ink, #378a76) 10%, transparent); }
-.gemini-quota-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 8px; padding: 8px 0; border-bottom: 1px solid currentColor; }
+.gemini-quota-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1px 8px; padding: 6px 0; border-bottom: 1px solid var(--border, #d8e2de); }
 .gemini-quota-row:last-child { border-bottom: none; }
-.gemini-quota-row strong { font-variant-numeric: tabular-nums; }
-.gemini-quota-row small { grid-column: 1 / -1; opacity: .8; }
-.bubble-quota .gemini-quota-row { font-size: 11px; line-height: 1.25; padding: 2px 0; border: 0; }
-.bubble-quota .gemini-quota-row small { font-size: 9px; }
-.simple-mode .bubble-quota .gemini-quota-row { padding: 5px 0; font-size: 12px; }
-.simple-mode .gemini-quota-row + .gemini-quota-row { border-top: 1px solid color-mix(in srgb, var(--bubble-ink) 15%, transparent); }
-.simple-mode .gemini-quota-row strong { font-size: 15px; }
+.gemini-quota-row > span { grid-column: 1; min-width: 0; }
+.gemini-quota-row > strong { grid-column: 2; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gemini-quota-row > small { grid-column: 1; opacity: .76; }
+.bubble-quota .gemini-quota-row:has(small) > strong { grid-row: 1 / span 2; align-self: center; }
+.bubble-quota .gemini-quota-row { font-size: calc(11px * var(--bubble-font-scale, 1)); line-height: 1.25; padding: 4px 0; border-bottom: 1px solid color-mix(in srgb, var(--bubble-ink) 14%, transparent); }
+.bubble-quota .gemini-quota-row:last-child { border-bottom: 0; }
+.bubble-quota .gemini-quota-row > span { font-weight: 500; }
+.bubble-quota .gemini-quota-row > strong { font-size: calc(18px * var(--bubble-font-scale, 1)); line-height: 1.05; letter-spacing: -.5px; font-weight: 700; }
+.bubble-quota .gemini-quota-row[data-state="shared"] > strong, .bubble-quota .gemini-quota-row[data-state="missing"] > strong { font-size: calc(10px * var(--bubble-font-scale, 1)); font-weight: 600; letter-spacing: 0; padding: 2px 6px; border-radius: 99px; background: color-mix(in srgb, var(--bubble-ink) 11%, transparent); }
+.bubble-quota .gemini-quota-row[data-state="empty"] > strong { opacity: .58; }
+.bubble-quota .gemini-quota-row > small { font-size: calc(9px * var(--bubble-font-scale, 1)); line-height: 1.2; }
+.simple-mode .bubble-quota .gemini-quota-row { padding: 6px 0; font-size: calc(11.5px * var(--bubble-font-scale, 1)); }
+.simple-mode .gemini-quota-row > strong { font-size: calc(19px * var(--bubble-font-scale, 1)); }
+.simple-mode .gemini-quota-row[data-state="shared"] > strong, .simple-mode .gemini-quota-row[data-state="missing"] > strong { font-size: calc(11px * var(--bubble-font-scale, 1)); }

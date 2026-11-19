@@ -6,7 +6,7 @@ import type { AppSettings, AppState, DesktopApi, PetPersona, SoundSlot, Completi
 import { validatePhraseDisplays } from '../shared/phrases';
 import { decimalSetting, money, updateMoney } from './format';
 import { localTime, quotaStatus, renderQuota } from './quota';
-import { geminiStatus, renderGeminiQuota } from './gemini-quota';
+import { geminiStatus, geminiStatusChip, renderGeminiQuota } from './gemini-quota';
 import { COMPLETION_SOURCES, petPersona } from '../shared/bubble-settings';
 import { APP_VERSION, GEMINI_PETS, GPT_DRAGON_PET, GPT_PET } from '../shared/defaults';
 import { PersonaSoundPlayer } from './sounds';
@@ -47,7 +47,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
         <form id="settings-form">
           <section id="appearance" class="section"><div class="section-heading"><h2>角色造型</h2><span class="section-note">切换角色与图片立即生效</span></div>
             <div class="panel"><div class="pet-selector" role="group" aria-label="切换内置桌宠"><button id="select-deepseek" type="button" class="pet-option" aria-pressed="false"><img src="./assets/whale.png" alt=""><span>DeepSeek 小鲸鱼<small>账户余额与消费</small></span></button><button id="select-gpt" type="button" class="pet-option" aria-pressed="false"><img src="./assets/gpt.png" alt=""><span>GPT 小伙伴<small>Codex 额度与重置时间</small></span></button><button id="select-gemini" type="button" class="pet-option" aria-pressed="false"><img src="${GEMINI_PETS.classic.url}" alt=""><span>Gemini<small>Argon 与 Gemini 剩余额度</small></span></button></div>
-            <div id="gemini-appearance-options" hidden><div class="pet-selector" role="group" aria-label="Gemini 造型">${(['classic', 'sketch'] as const).map(id => `<button id="gemini-${id}" type="button" class="pet-option"><img src="${GEMINI_PETS[id].url}" alt=""><span>${id === 'classic' ? '经典' : '手绘'}</span></button>`).join('')}</div></div>
+            <div id="gemini-appearance-options" hidden><p class="hint">两种 Gemini 造型共用同一份额度、陪伴短句、音效与气泡设置。</p><div class="pet-selector" role="group" aria-label="Gemini 造型">${(['classic', 'sketch'] as const).map(id => `<button id="gemini-${id}" type="button" class="pet-option" aria-pressed="false"><img src="${GEMINI_PETS[id].url}" alt=""><span>${id === 'classic' ? '经典<small>星光紫经典造型</small>' : '手绘<small>彩铅手绘风造型</small>'}</span></button>`).join('')}</div></div>
             <div id="gpt-appearance-options"><p class="hint">GPT 造型切换不影响 Codex 额度，两种内置造型共用同一份额度。</p><div class="pet-selector" role="group" aria-label="GPT 造型"><button id="appearance-classic" type="button" class="pet-option" aria-pressed="false"><img src="${GPT_PET.url}" alt=""><span>原版 GPT<small>薄荷绿小伙伴</small></span></button><button id="appearance-dragon" type="button" class="pet-option" aria-pressed="false"><img src="${GPT_DRAGON_PET.url}" alt=""><span>GPT 白龙<small>淡紫色小伙伴</small></span></button><button id="appearance-custom" type="button" class="pet-option" aria-pressed="false"><span>自定义图片<small>保留已导入的造型</small></span></button></div></div>
             <div class="pet-preview-row"><div class="pet-preview"><img id="pet-preview-image" alt="当前桌宠角色"></div><div><h3 id="pet-name"></h3><p>点击桌宠查看余额或剩余额度，拖动它换个位置。<br>右键打开快捷菜单。</p><div class="button-row"><button id="choose-pet" type="button" class="secondary-button">换一张图片</button><button id="reset-pet" type="button" class="text-button">恢复当前角色</button></div></div></div>
             <div class="setting-row"><label for="pet-mode">桌宠模式<small>所有桌宠共用；保存后生效。简洁模式只保留剩余额度、完成及问答提醒，原设置仍保留。</small></label><select id="pet-mode" name="petMode" form="settings-form"><option value="full">完整模式</option><option value="simple">简洁模式</option></select></div><div class="setting-row"><label for="scale">角色大小<small>屏幕空间不足时自动缩小，保留所选比例</small></label><div class="range-control"><input id="scale" name="scale" type="range" min="0.5" max="2" step="0.05"><output id="scale-output" for="scale"></output></div></div>
@@ -94,7 +94,8 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     const section = document.createElement('section'); section.id = id; section.className = 'section'; section.innerHTML = `<div class="section-heading"><h2>${title}</h2></div><div class="panel">${html}</div>`; content.append(section); return section;
   };
   for (const id of ['overview', 'codex', 'appearance', 'reminders', 'records']) content.append(element(id));
-  makePage('gemini', 'Gemini 剩余额度', '<div id="gemini-quotas"></div><div class="codex-actions"><p id="gemini-status" class="hint" role="status"></p><button id="refresh-gemini" class="secondary-button" type="button">刷新额度</button></div>');
+  const geminiSection = makePage('gemini', 'Gemini 剩余额度', '<div id="gemini-quotas"></div><div class="codex-actions"><p id="gemini-status" class="hint" role="status"></p><div class="button-row"><button id="refresh-gemini" class="secondary-button" type="button">↻ 刷新额度</button></div></div><p class="hint">优先读取本机运行中的 Antigravity 实时额度；客户端关闭时回退到已登录的 agy CLI。</p>');
+  geminiSection.querySelector('.section-heading')!.insertAdjacentHTML('beforeend', '<span id="gemini-status-chip" class="status-chip"></span>');
   const behavior = makePage('behavior', '桌面行为', '<p class="page-description">让小伙伴按你的习惯，留在桌面上。</p>');
   const sound = makePage('sound', '声音', '<p class="page-description">给每次轻轻按下，留一点回应。</p>');
   makePage('bubbles', '气泡与提示', '<div id="bubble-editor"></div>');
@@ -127,10 +128,10 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     return nodes;
   };
   const geminiControls = document.createElement('div');
-  geminiControls.innerHTML = `<label class="toggle-label"><span>完成时提醒</span><input name="geminiCompletionEnabled" type="checkbox"></label>
-    <label class="toggle-label"><span>需要回应时提醒</span><input name="attention-antigravity" type="checkbox"></label>
-    <label class="toggle-label"><span>接入 Antigravity 完成 hook</span><input name="geminiHookEnabled" type="checkbox"></label>
-    <p id="gemini-integration-status" class="hint" role="status"></p><p class="hint">保存后生效。启用完成 hook 后请在 Antigravity 中重新加载会话；关闭接入会移除 DesktopPet 的条目。</p>
+  geminiControls.innerHTML = `<label class="toggle-label"><span>需要回应时提醒</span><input name="attention-antigravity" type="checkbox"></label>
+    <label class="toggle-label"><span>完成时提醒</span><input name="geminiCompletionEnabled" type="checkbox"></label>
+    <label class="toggle-label"><span>接入 Antigravity 完成 hook<small>保存后写入全局 hooks.json；关闭接入只移除 DesktopPet 的条目。</small></span><input name="geminiHookEnabled" type="checkbox"></label>
+    <p id="gemini-integration-status" class="hint" role="status"></p><p class="hint">等待回应只读扫描本机会话摘要；启用完成 hook 后请在 Antigravity 中重新加载会话。</p>
     <button type="button" class="text-button" data-edit-completion="antigravity">编辑提示</button>`;
   const integrations = [
     { source: 'antigravity', title: 'Gemini · Antigravity', description: '桌面 App、IDE 和 agy CLI', nodes: [...geminiControls.children] },
@@ -176,10 +177,10 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   sound.querySelector('.panel')!.insertAdjacentHTML('beforeend', '<div class="related-settings"><h3>对话完成音效</h3><p>每个应用的完成音效可独立开关、调节音量和更换音频。</p><div class="button-row"><button type="button" class="secondary-button" data-edit-sound="codex">Codex 音效 ↗</button><button type="button" class="secondary-button" data-edit-sound="chatgpt-work">Work 音效 ↗</button><button type="button" class="secondary-button" data-edit-sound="deepseek-harness">DSH 音效 ↗</button><button type="button" class="secondary-button" data-edit-sound="antigravity">Gemini 音效 ↗</button></div></div>');
   element('overview').insertAdjacentHTML('beforeend', '<div class="related-links"><button type="button" class="text-button" data-settings-page="records">查看消费记录 →</button><button type="button" class="text-button" data-settings-page="reminders">设置余额提醒 →</button></div>');
   element('bubbles').insertAdjacentHTML('afterbegin', '<div class="related-links bubble-links"><span>提醒来源与声音开关</span><button type="button" class="text-button" data-settings-page="completion">对话提醒 →</button><button type="button" class="text-button" data-settings-page="sound">声音设置 →</button></div>');
-  makePage('version', '关于 DesktopPet', `<div class="about-hero"><span class="brand-mark">≈</span><div><h3>DesktopPet <span class="version-chip">v${APP_VERSION}</span></h3><p>让桌面多一点陪伴。</p></div></div><p>小鲸鱼陪你关注余额，GPT 小伙伴与白龙陪你照顾编程节奏。</p><p class="hint">原有账户、图片、记录和桌面位置会继续保留。</p><div class="about-detail">项目仓库 · Forest-Wood / DesktopPlay<br>代码许可证 · MIT</div>`);
+  makePage('version', '关于 DesktopPet', `<div class="about-hero"><span class="brand-mark">≈</span><div><h3>DesktopPet <span class="version-chip">v${APP_VERSION}</span></h3><p>让桌面多一点陪伴。</p></div></div><p>小鲸鱼陪你关注余额，GPT 小伙伴与白龙陪你照顾编程节奏，Gemini 星猫陪你留意 Antigravity 额度与回应。</p><p class="hint">原有账户、图片、记录和桌面位置会继续保留。</p><div class="about-detail">项目仓库 · Forest-Wood / DesktopPlay<br>代码许可证 · MIT</div>`);
   element('version').querySelector('.panel')!.insertAdjacentHTML('beforeend', `<section class="app-update"><h3>软件更新</h3><p id="update-mode" class="hint"></p><p id="update-status" role="status"></p><p id="update-checked" class="hint"></p><progress id="update-progress" max="100" value="0" hidden></progress><p id="update-bytes" class="hint"></p><p id="update-error" class="sound-warning" role="alert"></p><section id="update-announcement" aria-labelledby="update-notes-title" hidden><h4 id="update-notes-title">更新公告</h4><p id="update-notes-version" class="hint"></p><pre id="update-notes" class="update-notes"></pre></section><div class="button-row"><button id="update-check" type="button" class="secondary-button">检查更新</button><button id="update-download" type="button" hidden>下载更新</button><button id="update-cancel" type="button" class="secondary-button" hidden>取消下载</button><button id="update-install" type="button" hidden>重启并更新</button></div><label class="toggle-label"><span>自动检查更新<small>启动后自动检查，之后每 6 小时检查；下载和重启由你决定。</small></span><input id="auto-check-updates" name="autoCheckUpdates" type="checkbox"></label><div id="update-dirty-dialog" class="update-dirty-dialog" hidden><p>有未保存的设置，请先保存，或选择放弃草稿后重启更新。</p><div class="button-row"><button id="update-save-first" type="button">保存设置</button><button id="update-discard" class="secondary-button" type="button">放弃草稿并更新</button><button id="update-keep-editing" class="text-button" type="button">继续编辑</button></div></div></section>`);
-  makePage('guide', '使用说明', '<div class="guide-list"><article><h3>轻点一下，看看近况</h3><p>点击桌宠翻阅余额、额度与陪伴短句；点击气泡关闭按钮收起。</p></article><article><h3>拖到喜欢的位置</h3><p>按住桌宠拖动，可在桌面行为中启用贴边吸附。靠近屏幕上方时，小伙伴会倒挂陪着你。</p></article><article><h3>连接你的账户</h3><p>DeepSeek 使用 API Key 查询余额；Codex 读取本机登录状态与官方返回的额度。没有返回的窗口显示“未提供”。</p></article><article><h3>保存你的小习惯</h3><p>切换页面会保留草稿。完成后点击底部“保存设置”。角色与账户操作即时生效。</p></article></div>');
-  makePage('licenses', '素材与许可证', '<div class="guide-list"><article><h3>代码与开源来源</h3><p>代码采用 MIT 许可证。部分代码参考 MeteorNOX / DeepSeek-Balance-Whale-Widget，并保留上游署名与许可证。</p></article><article><h3>小鲸鱼与音效</h3><p>源自上游项目，维护者确认获得独立分发授权。美术与声音素材不随代码转为 MIT 授权。</p></article><article><h3>GPT 与白龙</h3><p>根据用户参考生成的非官方二创形象，不代表 OpenAI 的官方吉祥物、合作或认可。第三方商标权归原权利人。</p></article><article><h3>完整声明</h3><p>随应用分发的 LICENSE 与 THIRD_PARTY_NOTICES.md 包含完整许可证、素材来源与授权边界。</p></article></div>');
+  makePage('guide', '使用说明', '<div class="guide-list"><article><h3>轻点一下，看看近况</h3><p>点击桌宠翻阅余额、额度与陪伴短句；点击气泡关闭按钮收起。</p></article><article><h3>拖到喜欢的位置</h3><p>按住桌宠拖动，可在桌面行为中启用贴边吸附。靠近屏幕上方时，小伙伴会倒挂陪着你。</p></article><article><h3>连接你的账户</h3><p>DeepSeek 使用 API Key 查询余额；Codex 与 Gemini 读取本机登录状态与官方返回的额度。没有返回的窗口显示“未提供”。</p></article><article><h3>保存你的小习惯</h3><p>切换页面会保留草稿。完成后点击底部“保存设置”。角色与账户操作即时生效。</p></article></div>');
+  makePage('licenses', '素材与许可证', '<div class="guide-list"><article><h3>代码与开源来源</h3><p>代码采用 MIT 许可证。部分代码参考 MeteorNOX / DeepSeek-Balance-Whale-Widget，并保留上游署名与许可证。</p></article><article><h3>小鲸鱼与音效</h3><p>源自上游项目，维护者确认获得独立分发授权。美术与声音素材不随代码转为 MIT 授权。</p></article><article><h3>GPT、白龙与 Gemini</h3><p>根据用户参考与提供素材制作的非官方形象，不代表 OpenAI 或 Google 的官方吉祥物、合作或认可。第三方商标权归原权利人。</p></article><article><h3>完整声明</h3><p>随应用分发的 LICENSE 与 THIRD_PARTY_NOTICES.md 包含完整许可证、素材来源与授权边界。</p></article></div>');
   makePage('uninstall', '卸载 DesktopPet', '<p class="page-description">移除程序，并按你的选择清理本机数据。</p><dl class="uninstall-paths"><dt>运行模式</dt><dd id="uninstall-kind">正在检查…</dd><dt>程序位置</dt><dd id="uninstall-program">正在检查…</dd><dt>用户数据位置</dt><dd id="uninstall-data">正在检查…</dd></dl><label class="toggle-label uninstall-delete-label" for="uninstall-remove-data"><span>同时删除本机用户数据<small>默认开启，可关闭以保留设置与素材。</small></span><input id="uninstall-remove-data" type="checkbox" checked></label><p class="hint">清理范围：API Key、设置、余额与消费记录、自定义图片、自定义音频和缓存。同一用户运行的安装版与免安装版可能共用这些数据，清理会同时影响它们。</p><p id="uninstall-reason" class="sound-warning" role="status"></p><button id="uninstall-start" class="uninstall-button" type="button" disabled>卸载 DesktopPet</button><p class="hint">点击后会显示系统确认对话框，取消即可返回。</p>');
   const saveBar = root.querySelector<HTMLElement>('.save-bar')!;
   const setSaveHint = (message: string) => { saveBar.dataset.dirty = String(dirty); element('save-hint').textContent = message; };
@@ -388,11 +389,15 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     renderSounds(); bubbleEditor.update(next);
     root.classList.toggle('gpt-theme', state.activePet === 'gpt');
     root.classList.toggle('dragon-theme', state.activePet === 'gpt' && state.gptAppearance === 'dragon');
+    root.classList.toggle('gemini-theme', state.activePet === 'gemini');
     for (const id of ['deepseek', 'gpt', 'gemini'] as const) element(`select-${id}`).setAttribute('aria-pressed', String(state.activePet === id));
     element('gemini-appearance-options').hidden = state.activePet !== 'gemini';
     element('choose-pet').hidden = state.activePet === 'gemini';
     for (const id of ['classic', 'sketch'] as const) element('gemini-' + id).setAttribute('aria-pressed', String(state.geminiAppearance === id));
-    renderGeminiQuota(element('gemini-quotas'), state.geminiQuota);
+    renderGeminiQuota(element('gemini-quotas'), state.geminiQuota, false, false);
+    const geminiChip = geminiStatusChip(state.geminiQuota, demo);
+    element('gemini-status-chip').textContent = geminiChip.text;
+    element('gemini-status-chip').dataset.status = geminiChip.status;
     element('gemini-status').textContent = geminiStatus(state.geminiQuota, demo);
     element<HTMLButtonElement>('refresh-gemini').disabled = state.geminiQuota.status === 'loading';
     element('gemini-integration-status').textContent = state.geminiIntegration;
@@ -515,6 +520,6 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const periodTimer = setInterval(refreshTime, 60000);
   update(initial); fill(initial.settings);
   const geminiTimer = setInterval(() => { if (!element('gemini').hidden && state.activePet !== 'gemini') void api.refreshGeminiQuota().catch(() => {}); }, 60000);
-  const countdown = setInterval(() => { renderQuota(element('codex-quotas'), state.codex, false, demo); element('codex-status').textContent = quotaStatus(state.codex, demo); }, 30000);
+  const countdown = setInterval(() => { renderQuota(element('codex-quotas'), state.codex, false, demo); element('codex-status').textContent = quotaStatus(state.codex, demo); renderGeminiQuota(element('gemini-quotas'), state.geminiQuota, false, false); }, 30000);
   return { update, dispose: () => { disposed = true; clearInterval(periodTimer); document.removeEventListener('visibilitychange', refreshTime); window.removeEventListener('focus', refreshTime); stopSettingsPage(); preview.dispose(); bubbleEditor.dispose(); clearInterval(geminiTimer); clearInterval(countdown); } };
 }
