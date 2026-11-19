@@ -10,7 +10,7 @@ export class InstalledUpdateBackend implements UpdateBackend {
   constructor(updater?: NsisUpdater) {
     this.updater = updater ?? new NsisUpdater({ provider: 'github', owner: 'Forest-Wood', repo: 'DesktopPlay', private: false });
     this.updater.autoDownload = false; this.updater.autoInstallOnAppQuit = false;
-    this.updater.allowPrerelease = false; this.updater.allowDowngrade = false; this.updater.disableDifferentialDownload = true;
+    this.updater.allowPrerelease = false; this.updater.allowDowngrade = false; this.updater.disableDifferentialDownload = false;
     this.updater.logger = null;
     // The service translates operation failures; an EventEmitter error must not crash Electron.
     this.updater.on('error', () => {});

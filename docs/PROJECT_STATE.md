@@ -4,6 +4,8 @@
 
 ## 当前任务
 
+- [T032／R039](tasks/T032-incremental-update.md)（分支 `feat/T032-incremental-update`，基于 `origin/main` `8930e89`）：已实现 NSIS（`electron-updater` `.blockmap`）与 Portable（流式 Rabin CDC + `64 KiB` Range 合并 + 本地 `programPath` 扫描 + 完整 SHA-256 校验）增量／差分更新、自动回退整包、增量进度与回退 ETA 重置及 6 项 Release 资产校验；并按用户要求在 `AGENTS.md` 补充前序未提交任务先原分支本地提交再切新分支的隔离规则。等待后续推送／PR 授权。
+- 并行分支说明：`chore/T031-prune-overdefensive-tests` 上已本地提交 T031（`dcd4ecb`，精简过度防御性测试并补充测试规范），未合入 `main`。
 - [T030／R037](tasks/T030-release-v202.md) 已发布 [v2.0.2](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.2)。[PR #34](https://github.com/Forest-Wood/DesktopPlay/pull/34) 合入主线，标签 `v2.0.2` 指向 `b36bbc6`。[发布工作流 44531740265](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44531740265) 通过单测、Windows x64 打包、更新运行时与五项附件摘要及公告校验。
 - [T029／R036](tasks/T029-update-eta-gemini-completion.md) 已通过 [PR #33](https://github.com/Forest-Wood/DesktopPlay/pull/33) 合入主线 `d7c32c2`，随 v2.0.2 分发。应用内软件更新下载新增平滑速率与预计剩余时间估计；修复 Gemini 任务完成提示气泡在 VS Code 与桌面 App 均未展示的问题；在协作文档新增完成 `T(N)` 清理 `T(N-2)` 临时测试文件的滚动规范。真实 VS Code／App 端完成弹泡待实机验收。
 - [T028／R035](tasks/T028-release-v201.md) 已发布 [v2.0.1](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.1)。[PR #31](https://github.com/Forest-Wood/DesktopPlay/pull/31) 合入主线，标签 `v2.0.1` 指向 `9679547`。[发布工作流 44507457122](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44507457122) 通过打包、更新运行时与五项附件摘要及公告校验。
@@ -19,7 +21,7 @@
 
 ## 有效限制与后续
 
-- 清理记录和既有视觉测试证据见 T022／T023 交接。自 T029 起执行临时测试文件滚动清理规则：完成任务 `T(N)` 时删除 `T(N-2)` 的非跟踪临时测试目录／产物（例如完成 T099 时删除 T097），保留最新两轮产物与所有跟踪文件／正式文档；本次完成 T030 已清理 T028 临时产物。
+- 清理记录和既有视觉测试证据见 T022／T023 交接。自 T029 起执行临时测试文件滚动清理规则：完成任务 `T(N)` 时删除 `T(N-2)` 的非跟踪临时测试目录／产物（例如完成 T099 时删除 T097），保留最新两轮产物与所有跟踪文件／正式文档；本次完成 T032 已清理 T030 临时草稿。
 
 - 2026-11-12 GPT 额度只读排查（工作区 HEAD `cc318be`，保留全部既有 T022 未提交修改）：运行中安装版为 `D:\DesktopPet` v1.1.0，进程启动于 11-09，现存 VS Code Codex 扩展目录创建于 11-11。通过当前 `codex-quota.ts` 的发现及只读请求函数实测额度读取、解析成功，未记录账户身份或凭据。安装包代码与源代码均只在初始化发现程序，刷新失败不重新发现；旧扩展路径失效为高概率原因，未直接读取运行中缓存路径。建议完全退出并重开桌宠验证；尚未重启、未确认 UI 恢复、未修改业务代码或真实配置。诊断临时构建已在后续目录复核时确认不存在。若后续修复自动重新发现，另建任务分支；本次仅新增此排查记录，不归入 T022 实现结果。
 
@@ -28,4 +30,4 @@
 - 原生鼠标间歇偏移仍无根因结论，见 T010／T014／T022；T022 当前实现及基准对照均复现按住时位置偏移，不能用早期单次通过认定已解决。
 - 受限 Electron 存在启动超时／AppContainer 环境限制；隔离测试可在沙箱外运行，保持应用 Electron 沙箱启用。测试不得使用真实账户、账本或修改真实客户端设置。
 - appId、`%APPDATA%\DesktopPlay` 及安装／portable 共用数据保持兼容。等待与完成提示默认点击前常驻，可按场景设置定时关闭，隐藏／退出清空，不补历史。
-- 下一独立任务编号 T031／R038。
+- 下一独立任务编号 T033／R040（`T031／R038` 已由本地分支 `chore/T031-prune-overdefensive-tests` 使用，`T032／R039` 已由 `feat/T032-incremental-update` 使用）。

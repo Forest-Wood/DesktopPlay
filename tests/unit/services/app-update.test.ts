@@ -2,9 +2,10 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { mkdtemp, rm, writeFile, readFile, symlink } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { AppUpdateService, stableVersion, type UpdateBackend } from '../../../src/main/services/app-update';
 import { formatUpdateDownloadDetail, formatUpdateEta, formatUpdateSpeed } from '../../../src/shared/app-update';
+import { buildPortableBlockMap, encodePortableBlockMap, planPortablePatch } from '../../../src/shared/portable-blockmap.mjs';
 import { portableRelease, portableChecksum, PortableUpdateBackend } from '../../../src/main/services/portable-update';
 import { GithubUpdateTransport } from '../../../src/main/services/update-http';
 import { plainPath } from '../../../src/main/services/update-files';
@@ -158,4 +159,112 @@ it('formats update speed, ETA and download detail text cleanly', () => {
   expect(formatUpdateDownloadDetail({ status: 'available', transferred: 0, total: 100, bytesPerSecond: 10, estimatedRemainingSeconds: 10 })).toBe('');
   expect(formatUpdateDownloadDetail({ status: 'downloading', transferred: 0, total: 0, bytesPerSecond: null, estimatedRemainingSeconds: null })).toBe('正在连接下载源…');
   expect(formatUpdateDownloadDetail({ status: 'downloading', transferred: 2 * 1048576, total: 10 * 1048576, bytesPerSecond: 2 * 1048576, estimatedRemainingSeconds: 4 })).toBe('2.0 / 10.0 MiB · 2.0 MiB/s · 预计剩余约 4 秒');
+});
+it('assembles a portable update differentially via HTTP Range, reports delta bytes, and falls back to full download on failure', async () => {
+  const work = await dir(), oldExe = path.join(work, 'old.exe'), newExe = path.join(work, 'new.exe'), cacheDir = path.join(work, 'cache');
+  // Create deterministic 256 KiB binary where only a 4 KiB window in the middle changes.
+  const base = Buffer.alloc(256 * 1024);
+  for (let i = 0; i < base.length; i++) base[i] = (i * 31 + (i >>> 8) * 17) & 0xff;
+  const updated = Buffer.from(base);
+  randomBytes(4096).copy(updated, 128 * 1024);
+  await writeFile(oldExe, base);
+  await writeFile(newExe, updated);
+  const newBlockMap = await buildPortableBlockMap(newExe, { name });
+  const encodedBlockMap = encodePortableBlockMap(newBlockMap);
+  const updatedSha = createHash('sha256').update(updated).digest('hex');
+
+  const releasePayload = {
+    tag_name: 'v0.5.4', draft: false, prerelease: false, body: 'notes',
+    assets: [
+      { name, state: 'uploaded', size: updated.length, browser_download_url: `https://github.com/Forest-Wood/DesktopPlay/releases/download/v0.5.4/${name}` },
+      { name: `${name}.blockmap`, state: 'uploaded', size: encodedBlockMap.length, browser_download_url: `https://github.com/Forest-Wood/DesktopPlay/releases/download/v0.5.4/${name}.blockmap` },
+      { name: 'SHA256SUMS.txt', state: 'uploaded', size: 120, browser_download_url: 'https://github.com/Forest-Wood/DesktopPlay/releases/download/v0.5.4/SHA256SUMS.txt' },
+    ],
+  };
+
+  let failRange = false;
+  let rangeBytesSent = 0;
+  let fullDownloads = 0;
+  const mockFetch: typeof fetch = vi.fn(async (input, init) => {
+    const url = String(input);
+    if (url.endsWith('/releases/latest')) return new Response(JSON.stringify(releasePayload), { status: 200 });
+    if (url.endsWith('/SHA256SUMS.txt')) return new Response(`${updatedSha}  ${name}\n`, { status: 200 });
+    if (url.endsWith('.blockmap')) return new Response(new Uint8Array(encodedBlockMap), { status: 200 });
+    const range = (init?.headers as Record<string, string> | undefined)?.Range;
+    if (range) {
+      if (failRange) return new Response(new Uint8Array(updated), { status: 200 });
+      const m = /^bytes=(\d+)-(\d+)$/.exec(range)!;
+      const start = Number(m[1]), end = Number(m[2]);
+      const slice = updated.subarray(start, end + 1);
+      rangeBytesSent += slice.length;
+      return new Response(new Uint8Array(slice), { status: 206, headers: { 'content-range': `bytes ${start}-${end}/${updated.length}` } });
+    }
+    fullDownloads += 1;
+    return new Response(new Uint8Array(updated), { status: 200 });
+  }) as typeof fetch;
+
+  const progressEvents: Array<{ transferred: number; total: number }> = [];
+  const backend = new PortableUpdateBackend({ cacheDir, programPath: oldExe, prepare: vi.fn(), transport: new GithubUpdateTransport(mockFetch) });
+  const signal = new AbortController().signal;
+  await backend.check(signal);
+  await backend.download(p => progressEvents.push({ transferred: p.transferred, total: p.total }), signal);
+
+  expect(fullDownloads).toBe(0);
+  expect(rangeBytesSent).toBeGreaterThan(0);
+  expect(rangeBytesSent).toBeLessThan(updated.length * 0.4);
+  expect(progressEvents.at(-1)).toEqual({ transferred: rangeBytesSent, total: rangeBytesSent });
+  expect(await readFile(path.join(cacheDir, name))).toEqual(updated);
+
+  // When server stops honoring Range (returns 200), backend transparently falls back to full download.
+  await rm(cacheDir, { recursive: true, force: true });
+  failRange = true;
+  const fallbackEvents: Array<{ transferred: number; total: number }> = [];
+  await backend.download(p => fallbackEvents.push({ transferred: p.transferred, total: p.total }), signal);
+  expect(fullDownloads).toBe(1);
+  expect(fallbackEvents.at(-1)).toEqual({ transferred: updated.length, total: updated.length });
+  expect(await readFile(path.join(cacheDir, name))).toEqual(updated);
+  await expect(readFile(path.join(cacheDir, `${name}.partial`))).rejects.toThrow();
+
+  // Abort during differential download must not fall back to full download.
+  await rm(cacheDir, { recursive: true, force: true });
+  failRange = false;
+  const abortController = new AbortController();
+  const abortFetch: typeof fetch = vi.fn(async (input, init) => {
+    const url = String(input);
+    if (url.endsWith('.blockmap')) { abortController.abort(); throw new DOMException('aborted', 'AbortError'); }
+    return mockFetch(input, init);
+  }) as typeof fetch;
+  const abortBackend = new PortableUpdateBackend({ cacheDir, programPath: oldExe, prepare: vi.fn(), transport: new GithubUpdateTransport(abortFetch) });
+  await abortBackend.check(new AbortController().signal);
+  await expect(abortBackend.download(() => {}, abortController.signal)).rejects.toThrow();
+  expect(fullDownloads).toBe(1);
+});
+it('coalesces small copy gaps in portable patch plans and resets ETA on differential-to-full fallback', async () => {
+  const oldFile = { name, offset: 0, size: 100_000, checksums: ['a', 'b', 'c', 'd'], sizes: [20_000, 10_000, 20_000, 50_000] };
+  const newFile = { name, offset: 0, size: 100_000, checksums: ['x', 'b', 'y', 'd'], sizes: [20_000, 10_000, 20_000, 50_000] };
+  const plan = planPortablePatch(oldFile, newFile, { coalesceGapBytes: 16_384 });
+  expect(plan).toMatchObject({ downloadRequests: 1, downloadBytes: 50_000, copyBytes: 50_000 });
+  expect(planPortablePatch(oldFile, { ...newFile, checksums: ['x', 'y', 'z', 'w'] })).toBeNull();
+
+  // Verify AppUpdateService resets speed/ETA cleanly when total jumps (differential -> full fallback).
+  let clock = 10_000;
+  let emitProgress!: (p: { transferred: number; total: number }) => void;
+  let finish!: () => void;
+  const adapter: UpdateBackend = {
+    check: vi.fn(async () => candidate),
+    download: vi.fn(progress => new Promise<void>(resolve => { emitProgress = progress; finish = resolve; })),
+    prepareInstall: vi.fn(async () => ({ commit: vi.fn(async () => {}), cancel: vi.fn(async () => {}) })),
+  };
+  const service = new AppUpdateService({ version: '0.5.3', kind: 'portable', dataDir: await dir(), backend: adapter, now: () => clock });
+  services.push(service); await service.init(); await service.check();
+  const job = service.download();
+  clock = 10_000; emitProgress({ transferred: 0, total: 5 * 1048576 });
+  clock = 11_000; emitProgress({ transferred: 2 * 1048576, total: 5 * 1048576 });
+  expect(service.getState()).toMatchObject({ total: 5 * 1048576, bytesPerSecond: 2 * 1048576, estimatedRemainingSeconds: 2 });
+  // Fallback switches to full 100 MiB download starting at 0 transferred.
+  clock = 11_500; emitProgress({ transferred: 0, total: 100 * 1048576 });
+  expect(service.getState()).toMatchObject({ total: 100 * 1048576, transferred: 0, bytesPerSecond: null, estimatedRemainingSeconds: null });
+  clock = 12_500; emitProgress({ transferred: 10 * 1048576, total: 100 * 1048576 });
+  expect(service.getState()).toMatchObject({ bytesPerSecond: 10 * 1048576, estimatedRemainingSeconds: 9 });
+  finish(); await job;
 });

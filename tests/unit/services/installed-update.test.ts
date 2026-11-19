@@ -14,9 +14,9 @@ async function fixture() {
   const token = { cancel: vi.fn() }, updater = Object.assign(new EventEmitter(), { checkForUpdates: vi.fn(async () => ({ updateInfo: { version: '0.5.4', releaseNotes: 'Notes', files: [{ url: 'setup.exe', sha512: createHash('sha512').update('fixture').digest('base64') }] }, cancellationToken: token })), downloadUpdate: vi.fn(async () => [file]), quitAndInstall: vi.fn() });
   const backend = new InstalledUpdateBackend(updater as any); return { backend, updater, file, token };
 }
-it('requires explicit download and installation, disables prerelease/downgrade/differential/exit installation', async () => {
+it('requires explicit download and installation, enables differential download, and disables prerelease/downgrade/exit installation', async () => {
   const f = await fixture(), signal = new AbortController().signal;
-  expect(f.updater).toMatchObject({ autoDownload: false, autoInstallOnAppQuit: false, allowPrerelease: false, allowDowngrade: false, disableDifferentialDownload: true });
+  expect(f.updater).toMatchObject({ autoDownload: false, autoInstallOnAppQuit: false, allowPrerelease: false, allowDowngrade: false, disableDifferentialDownload: false });
   await f.backend.check(signal); expect(f.updater.downloadUpdate).not.toHaveBeenCalled(); await f.backend.download(() => {}, signal);
   const prepared = await f.backend.prepareInstall(); expect(f.updater.quitAndInstall).not.toHaveBeenCalled(); await prepared.commit(); expect(f.updater.quitAndInstall).toHaveBeenCalledWith(true, true);
 });

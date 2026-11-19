@@ -128,7 +128,7 @@ async function start(): Promise<void> {
   codexAttention = new CodexAttentionService({ dataDir, helperPath: path.join(__dirname, 'conversation-hook.ps1'), onState: publish, onNotice: sendConversationNotice, isSupported: () => noCodex && process.env.DESKTOPPLAY_TEST_CODEX_HOOK_SUPPORTED === '1' ? Promise.resolve(true) : supportsCodexHooks(codex.getExecutablePath()) });
   const updateKind = app.isPackaged && process.platform === 'win32' && process.arch === 'x64' ? process.env.PORTABLE_EXECUTABLE_FILE ? 'portable' : 'installed' : 'unsupported';
   if (updateKind === 'portable') portableUpdates = new PortableUpdateManager({ programPath: process.env.PORTABLE_EXECUTABLE_FILE!, exePath: process.execPath, dataDir, helperPath: path.join(__dirname, 'update-helper.ps1') });
-  const backend = updateKind === 'installed' ? new InstalledUpdateBackend() : updateKind === 'portable' ? new PortableUpdateBackend({ cacheDir: path.join(dataDir, 'updates', 'downloads'), prepare: (file, hash, version) => portableUpdates!.prepare(file, hash, version) }) : undefined;
+  const backend = updateKind === 'installed' ? new InstalledUpdateBackend() : updateKind === 'portable' ? new PortableUpdateBackend({ cacheDir: path.join(dataDir, 'updates', 'downloads'), programPath: process.env.PORTABLE_EXECUTABLE_FILE!, prepare: (file, hash, version) => portableUpdates!.prepare(file, hash, version) }) : undefined;
   updates = new AppUpdateService({ version: APP_VERSION, kind: updateKind, dataDir, backend,
     onState: () => { publish(); updateTray(); },
     onAvailable: version => { if (!shuttingDown && !quitting && petWindow?.isVisible() && !petWindow.webContents.isLoadingMainFrame()) petWindow.webContents.send('desktopplay:update-available', { version }); },
