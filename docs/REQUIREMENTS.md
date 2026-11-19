@@ -295,3 +295,9 @@ DeepSeek 展示和每日统计跟随电脑时区。旧账本保留日期及金�
 - 协作流程补充（2026-11-19 用户追加）：在 `AGENTS.md`、`.github/pull_request_template.md` 与 `docs/PROJECT_STATE.md` 中新增临时测试文件滚动清理要求——每完成任务 `T(N)` 时，清理之前第二次修改 `T(N-2)` 的非跟踪临时测试产物（例如完成 `T099` 时删除 `T097` 的临时测试文件），保留跟踪文件、正式文档与最新两轮临时产物。
 
 验收：构建与类型检查通过；单测覆盖速率与 ETA 平滑估算、停滞恢复、文案格式化，以及数据库只读完成检测（基线跳过、运行转空闲、快速短轮次、等待优先、取消／子任务过滤、隐藏丢弃）与 `NO_TOOL_CALL` 省略 `executionNum` 转发和双源去重；隔离 Electron 冒烟测试验证下载进度显示 ETA、取消清零、默认未开 hook 时的 Gemini 完成气泡及 `NO_TOOL_CALL` hook 转发。真实 VS Code 与桌面 App 端完成弹出仍待实机验收。见 [T029](tasks/T029-update-eta-gemini-completion.md)。
+
+## R037：发布 DesktopPet v2.0.2（T030）
+
+2026-11-19 用户明确授权将已合并的 T029（软件更新下载预计剩余时间估计、Gemini 任务完成气泡修复与临时测试文件滚动清理规范）作为新版本正式发布。按项目版本规则，两项已有功能完善／缺陷修复均为 `patch`，以最新正式版 `v2.0.1` 为基准一次递增至 `v2.0.2`；同步修复 `tests/unit/services/gemini.test.ts` 在较慢 Windows CI 下的轮询时序竞态。同步版本字段、发布计划、简短中文公告与交接文档，验证并通过 CI 后整合到 `main`，创建 `v2.0.2` 标签并触发 Release 工作流完成草稿上传、校验与转正。
+
+验收：三个版本字段、标签、`release-plan.json` 与 `docs/releases/v2.0.2.md` 一致；`release:check`、构建、全量单测与 CI 通过；GitHub 正式 latest Release 为 `v2.0.2`，正文与软件更新公告一致，五项 Windows x64 更新资源（安装版、免安装版、`SHA256SUMS.txt`、`latest.yml`、NSIS blockmap）完整上传且校验通过。见 [T030](tasks/T030-release-v202.md)。

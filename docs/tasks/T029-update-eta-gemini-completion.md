@@ -6,9 +6,9 @@
 - 分支：`fix/T029-update-eta-gemini-completion`；目标合并分支：`main`。
 - 工作目录：`D:\desktop1\DesktopPlay`。
 - 基准提交：`a9ab688`（远程 `origin/main`）。
-- 结果提交：实现提交 `fa71a1d`、交接提交 `5670d02`（含本次 PR 链接回填），已推送并创建 [PR #33](https://github.com/Forest-Wood/DesktopPlay/pull/33)。
+- 结果提交：实现提交 `fa71a1d`、交接提交 `5670d02`／`18279ab`，已通过 [PR #33](https://github.com/Forest-Wood/DesktopPlay/pull/33) 合入 `main`（合并提交 `d7c32c2`）。
 - 已有未提交修改：开始任务前工作区干净；本任务共 19 个文件（含需求／任务／状态文档及 `AGENTS.md`、PR 模板流程补充）。
-- 状态：待审查（已通过隔离构建、单测与 Electron 冒烟测试；PR #33 待审查与合并）。
+- 状态：已合并（随 T030 发布 `v2.0.2`；PR #33 CI 中 `gemini.test.ts` 的 Windows 轮询时序竞态已在 T030 同步修复）。
 
 ## 目标与范围
 

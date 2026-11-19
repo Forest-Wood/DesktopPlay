@@ -146,17 +146,21 @@ it('relays Antigravity NO_TOOL_CALL with omitted executionNum, deduplicates with
       child.on('error', reject); child.on('close', code => code === 0 ? resolve() : reject(new Error('hook failed')));
       child.stdin.end(JSON.stringify(payload));
     });
-    const now = new Date(Date.now() + 50).toISOString();
-    // Normal Antigravity 2.0 Stop payload: NO_TOOL_CALL and omitted executionNum (protojson default 0), plus matching DB row.
-    upsert.run('conv-ok', 4, now, 'CASCADE_RUN_STATUS_IDLE', '', 0, 0, 0, now, -1, null);
+    const started = new Date(Date.now() + 50).toISOString();
+    // Both conversations are RUNNING while Antigravity synchronously executes Stop hooks.
+    upsert.run('conv-ok', 3, started, 'CASCADE_RUN_STATUS_RUNNING', '', 0, 1, 0, started, -1, null);
+    upsert.run('conv-cancel', 3, started, 'CASCADE_RUN_STATUS_RUNNING', '', 0, 1, 0, started, -1, null);
+    // Normal Antigravity 2.0 Stop payload: NO_TOOL_CALL and omitted executionNum (protojson default 0).
     await relay({ conversationId: 'conv-ok', terminationReason: 'NO_TOOL_CALL', fullyIdle: true, error: '' });
-    // Cancelled turn with matching DB IDLE row must be suppressed.
-    upsert.run('conv-cancel', 4, now, 'CASCADE_RUN_STATUS_IDLE', '', 0, 0, 0, now, -1, null);
+    // Cancelled turn must suppress DB completion when the conversation transitions to IDLE.
     await relay({ conversationId: 'conv-cancel', terminationReason: 'USER_CANCELED', fullyIdle: true, error: '' });
+    const finished = new Date(Date.now() + 100).toISOString();
+    upsert.run('conv-ok', 4, finished, 'CASCADE_RUN_STATUS_IDLE', '', 0, 0, 0, started, -1, null);
+    upsert.run('conv-cancel', 4, finished, 'CASCADE_RUN_STATUS_IDLE', '', 0, 0, 0, started, -1, null);
     // Wait for next poll tick (2s) to process inbox + DB in the same tick.
     await new Promise(r => setTimeout(r, 2400));
     expect(notices.map(n => n.kind)).toEqual(['completion']);
   } finally {
     svc.pause(); await svc.drain(); db.close();
   }
-});
+}, 15000);
