@@ -302,17 +302,6 @@ DeepSeek 展示和每日统计跟随电脑时区。旧账本保留日期及金�
 
 验收：三个版本字段、标签、`release-plan.json` 与 `docs/releases/v2.0.2.md` 一致；`release:check`、构建、全量单测与 CI 通过；GitHub 正式 latest Release 为 `v2.0.2`，正文与软件更新公告一致，五项 Windows x64 更新资源（安装版、免安装版、`SHA256SUMS.txt`、`latest.yml`、NSIS blockmap）完整上传且校验通过。见 [T030](tasks/T030-release-v202.md)。
 
-## R039：应用内增量／差分更新（T032）
-
-2026-11-19 用户提出为 DesktopPet 安装版（NSIS）与免安装版（Portable）设计与实现增量／差分更新能力，避免每次版本升级都下载完整约 115 MiB 安装包；并在确认方案时补充约定：开始新任务若当前任务分支存在前序已完成但未提交的本地改动，默认先在原分支本地提交前序任务，再从目标合并分支切出新任务分支（写入 `AGENTS.md`）。
-
-行为：
-1. **NSIS 安装版（`InstalledUpdateBackend`）**：启用 `electron-updater` 的 `.blockmap` 块级差分下载（`disableDifferentialDownload = false`），复用本地 `%LOCALAPPDATA%\desktopplay-updater\installer.exe`，保留关闭自动下载、关闭退出安装、禁用预发布与降级及全量 SHA-512 校验；差分失败、缓存缺失或校验失败自动回退整包下载并校验 SHA-512。
-2. **Portable 免安装版（`PortableUpdateBackend`）**：在构建与发布流水线为 `DesktopPet-<版本>-Portable-x64.exe` 生成基于流式 Rabin CDC 的 `DesktopPet-<版本>-Portable-x64.exe.blockmap` 并作为第 6 项受校验 Release 资产；客户端升级时直接流式扫描当前运行的 `programPath` 生成旧块表（兼容从无 Portable blockmap 的旧版首次增量升级），按 `64 KiB` 间隔合并相邻 HTTP Range（`206 Partial Content`）拉取差异块在缓存目录合成新版 EXE；合成后仍强制执行 `SHA256SUMS.txt` 完整 SHA-256 校验，沿用 `GithubUpdateTransport` 固定公开 HTTPS 白名单域名与无凭据请求约束以及 `PortableUpdateManager` 的进程链校验、原子替换、健康回执与失败回滚机制；任一步骤异常（块索引缺失、服务端不支持 `206`、本地旧文件不可读、长度或哈希不匹配等）清理临时分片并无感降级为整包下载；取消下载立即中止且不触发整包回退。
-3. **进度、速率与预计剩余时间**：`AppUpdateService` 与界面展示准确反映本次实际网络下载的增量字节数与总大小；发生差分回退整包导致总字节变化或已传字节重置时重置速率滑动窗口，取消或重试时正确清理临时分片。
-4. **发布流水线校验**：`scripts/package.mjs`、`scripts/verify-release.mjs` 与 `.github/workflows/release.yml` 同步纳入 `DesktopPet-<版本>-Portable-x64.exe.blockmap` 的生成、结构与尺寸校验、草稿上传／替换及转正前摘要门禁。
-
-验收：构建、类型检查与全部单测通过；`scripts/verify-release.mjs` 与 `scripts/verify-update-runtime.mjs` 校验全部 6 项发布资产与打包运行依赖通过；隔离构建包测试 `node tests/update-packaged.mjs` 验证 NSIS 与 Portable 的真实差分升级（下载字节较整包显著缩减、界面总字节反映实际增量）、缓存复用、差分失败自动回退整包及免安装启动失败回滚；`git diff --check` 通过。见 [T032](tasks/T032-incremental-update.md)。（注：`R038` 已由并行分支 `chore/T031-prune-overdefensive-tests` 的 T031 使用。）
 ## R038：精简过度防御性测试并补充测试编写规范（T031）
 
 2026-11-19 用户要求排查 `tests/` 目录下所有测试用例的必要性，精简不必要的过度防御与重复测试，并将“避免使用过度防御性测试用例”的原则写入项目协作文档。
@@ -323,3 +312,21 @@ DeepSeek 展示和每日统计跟随电脑时区。旧账本保留日期及金�
 - 在 `AGENTS.md` 与 `.github/pull_request_template.md` 中正式写入“避免过度防御性测试”原则与 PR 核对项。
 
 验收：`npm.cmd run build`、全量单元测试、`tests/update-helper-fixtures.ps1` 及全量 Electron 冒烟测试（`npm.cmd run test:smoke`）均通过；`git diff --check` 无异常；保持现有软件版本 `2.0.2` 不变。见 [T031](tasks/T031-prune-overdefensive-tests.md)。
+
+## R039：应用内增量／差分更新（T032）
+
+2026-11-19 用户提出为 DesktopPet 安装版（NSIS）与免安装版（Portable）设计与实现增量／差分更新能力，避免每次版本升级都下载完整约 115 MiB 安装包；并在确认方案时补充约定：开始新任务若当前任务分支存在前序已完成但未提交的本地改动，默认先在原分支本地提交前序任务，再从目标合并分支切出新任务分支（写入 `AGENTS.md`）。
+
+行为：
+1. **NSIS 安装版（`InstalledUpdateBackend`）**：启用 `electron-updater` 的 `.blockmap` 块级差分下载（`disableDifferentialDownload = false`），复用本地 `%LOCALAPPDATA%\desktopplay-updater\installer.exe`，保留关闭自动下载、关闭退出安装、禁用预发布与降级及全量 SHA-512 校验；差分失败、缓存缺失或校验失败自动回退整包下载并校验 SHA-512。
+2. **Portable 免安装版（`PortableUpdateBackend`）**：在构建与发布流水线为 `DesktopPet-<版本>-Portable-x64.exe` 生成基于流式 Rabin CDC 的 `DesktopPet-<版本>-Portable-x64.exe.blockmap` 并作为第 6 项受校验 Release 资产；客户端升级时直接流式扫描当前运行的 `programPath` 生成旧块表（兼容从无 Portable blockmap 的旧版首次增量升级），按 `64 KiB` 间隔合并相邻 HTTP Range（`206 Partial Content`）拉取差异块在缓存目录合成新版 EXE；合成后仍强制执行 `SHA256SUMS.txt` 完整 SHA-256 校验，沿用 `GithubUpdateTransport` 固定公开 HTTPS 白名单域名与无凭据请求约束以及 `PortableUpdateManager` 的进程链校验、原子替换、健康回执与失败回滚机制；任一步骤异常（块索引缺失、服务端不支持 `206`、本地旧文件不可读、长度或哈希不匹配等）清理临时分片并无感降级为整包下载；取消下载立即中止且不触发整包回退。
+3. **进度、速率与预计剩余时间**：`AppUpdateService` 与界面展示准确反映本次实际网络下载的增量字节数与总大小；发生差分回退整包导致总字节变化或已传字节重置时重置速率滑动窗口，取消或重试时正确清理临时分片。
+4. **发布流水线校验**：`scripts/package.mjs`、`scripts/verify-release.mjs` 与 `.github/workflows/release.yml` 同步纳入 `DesktopPet-<版本>-Portable-x64.exe.blockmap` 的生成、结构与尺寸校验、草稿上传／替换及转正前摘要门禁。
+
+验收：构建、类型检查与全部单测通过；`scripts/verify-release.mjs` 与 `scripts/verify-update-runtime.mjs` 校验全部 6 项发布资产与打包运行依赖通过；隔离构建包测试 `node tests/update-packaged.mjs` 验证 NSIS 与 Portable 的真实差分升级（下载字节较整包显著缩减、界面总字节反映实际增量）、缓存复用、差分失败自动回退整包及免安装启动失败回滚；`git diff --check` 通过。见 [T032](tasks/T032-incremental-update.md)。
+
+## R040：发布 DesktopPet v2.1.0（T033）
+
+2026-11-19 用户明确授权将已合并的 T031（测试精简与测试编写规范）与 T032（NSIS + Portable 应用内增量／差分更新、6 项发布资产校验与前序分支隔离规范）发布为新版本 Release。按项目版本规则，T032 新增增量／差分更新功能为 `minor`（T031 为内部维护），以最新正式版 `v2.0.2` 为基准一次递增并清零修订位至 `v2.1.0`。同步版本字段、`release-plan.json`、简短中文公告 `docs/releases/v2.1.0.md` 与文档合并收尾，验证并通过 CI 后合入 `main`，创建并推送 `v2.1.0` 标签触发 Release 工作流完成 6 项资产草稿上传、摘要门禁校验与转正。
+
+验收：三个版本字段、标签、`release-plan.json` 与 `docs/releases/v2.1.0.md` 一致；`release:check`、构建、全量单测与 CI 通过；GitHub 正式 latest Release 为 `v2.1.0`，正文与软件更新公告一致，全部六项 Windows x64 更新资源（安装版、免安装版、`SHA256SUMS.txt`、`latest.yml`、NSIS blockmap、Portable blockmap）完整上传且校验通过。见 [T033](tasks/T033-release-v210.md)。

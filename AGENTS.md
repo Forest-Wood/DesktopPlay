@@ -93,8 +93,6 @@ README 与 CI 使用 Windows x64、Node.js 24 和 npm；具体依赖与版本以
 | `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tests/helper-fixtures.ps1` | 卸载辅助脚本的隔离文件测试；不包含在 `npm test` 中 |
 | `npm.cmd run dist` | 构建 Windows x64 NSIS 与 portable 包到 `release/`，配置为 `--publish never` |
 | `node scripts/verify-release.mjs`、`node scripts/verify-update-runtime.mjs` | 校验六个更新资源（含 NSIS 与免安装版 `.blockmap`）、生成校验文件，并核实打包运行依赖／固定发布源 |
-| `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tests/update-helper-fixtures.ps1` | 更新助手七场景，含约两分钟来源进程等待超时；不触碰真实程序 |
-| `node scripts/verify-release.mjs`、`node scripts/verify-update-runtime.mjs` | 校验五个更新资源、生成校验文件，并核实打包运行依赖／固定发布源 |
 | `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tests/update-helper-fixtures.ps1` | 更新助手六项快速安全场景（加 `-IncludeSlowTimeout` 可额外运行约两分钟的来源进程等待超时验证）；不触碰真实程序 |
 | `node tests/update-packaged.mjs` | 构建独立 ID 的 0.0.1／0.0.2 测试程序，实际覆盖升级／回滚；需 Windows、打包工具和安装权限 |
 | `git diff --check` | 检查工作区差异中的空白问题；不能代替功能验证 |
