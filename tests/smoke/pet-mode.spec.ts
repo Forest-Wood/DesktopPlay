@@ -145,7 +145,7 @@ test('settings exposes the saved global mode and local peak information', async 
     const settings = app.windows().find(w => w !== pet) ?? await app.waitForEvent('window');
     await expect(settings.locator('.sidebar nav [data-category]')).toHaveCount(5);
     expect(await settings.locator('.sidebar nav [data-category]').evaluateAll(buttons => buttons.map(button => (button as HTMLElement).dataset.category))).toEqual(['pet', 'account', 'reminders', 'bubbles', 'about']);
-    await expect(settings.locator('.page-tabs [role="tab"]')).toHaveText(['DeepSeek', 'Codex', '消费记录']);
+    await expect(settings.locator('.page-tabs [role="tab"]')).toHaveText(['DeepSeek', 'Codex', 'Gemini', '消费记录']);
     await expect(settings.locator('#deepseek-period')).toContainText(/当前/);
     await expect(settings.locator('#deepseek-period-rule')).toContainText('已换算为电脑时间');
     await settings.screenshot({ path: 'test-results/T019-deepseek-time.png' });
@@ -160,8 +160,8 @@ test('settings exposes the saved global mode and local peak information', async 
     await expect(settings.locator('#save-hint')).toHaveText('有尚未保存的调整');
     await settings.locator('[data-category="reminders"]').click();
     await expect(settings.locator('.page-tabs [role="tab"]')).toHaveText(['对话提醒', '余额提醒', '声音']);
-    await expect(settings.locator('.integration-card')).toHaveCount(3);
-    for (const source of ['codex', 'chatgpt-work', 'deepseek-harness']) {
+    await expect(settings.locator('.integration-card')).toHaveCount(4);
+    for (const source of ['codex', 'chatgpt-work', 'deepseek-harness', 'antigravity']) {
       const card = settings.locator(`.integration-card[data-source="${source}"]`);
       await expect(card.locator('.integration-toggles input')).toHaveCount(2);
       await expect(card.locator('.integration-toggles')).toBeVisible();
