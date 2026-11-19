@@ -245,5 +245,7 @@ export interface AppUpdateState {
   progress: number;
   transferred: number;
   total: number;
+  bytesPerSecond: number | null;
+  estimatedRemainingSeconds: number | null;
   error: string | null;
 }

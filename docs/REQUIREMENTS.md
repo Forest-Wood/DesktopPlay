@@ -281,3 +281,17 @@ DeepSeek 展示和每日统计跟随电脑时区。旧账本保留日期及金�
 2026-11-19 用户明确授权将已合并的 T026（Gemini 界面排版、角色舞台与形象对称方向优化）与 T027（非首页气泡切换角色挽留文案修复）发布为新的 Release。按项目版本规则，两项已有功能完善／修复均为 `patch`，以最新正式版 `v2.0.0` 为基准一次递增至 `v2.0.1`。同步版本字段、发布计划、简短中文公告与交接文档，验证后整合到 `main`，创建 `v2.0.1` 标签并触发 Release 工作流完成草稿上传、校验与转正。
 
 验收：三个版本字段、标签、`release-plan.json` 与 `docs/releases/v2.0.1.md` 一致；`release:check`、构建、相关测试通过；GitHub 正式 latest Release 为 `v2.0.1`，正文与软件更新公告一致，五项 Windows x64 更新资源（安装版、免安装版、`SHA256SUMS.txt`、`latest.yml`、NSIS blockmap）完整上传且校验通过。见 [T028](tasks/T028-release-v201.md)。
+
+## R036：更新下载预计剩余时间估计与 Gemini 任务完成气泡修复（T029）
+
+2026-11-19 用户反馈两项优化需求：
+1. 应用内软件更新下载界面补充预计剩余下载时间估计；
+2. 修复 Gemini 任务完成提示气泡在 VS Code 与桌面 App 端均未展示的问题。
+
+行为：
+- 软件更新下载期间，主进程基于滑动窗口与平滑速率（兼容 NSIS `bytesPerSecond` 与免安装流式下载）实时估算下载速度与预计剩余时间；卡顿停滞时清除过期估计并显示“预计剩余时间计算中…”，下载完成、取消或失败后清零状态。设置页“关于 → 版本与更新”使用等宽数字展示已下载／总大小、实时速率与预计剩余时间（连接中／计算中／秒／分／小时／即将完成）。
+- Gemini 完成提醒改为默认通过只读扫描本机 `conversation_summaries.db`（覆盖桌面 App、VS Code `google.google-antigravity` 扩展与 IDE）自动识别主会话完成事件，无需用户先启用折叠项内的 `hooks.json` 接入即可生效；排除历史记录、子任务、已取消（`killed`）、等待回应中及仅写入用户消息尚未产出回复的轮次，并在桌宠隐藏后重新显示时丢弃隐藏期间历史。
+- 修复 `build/gemini-hook.ps1`：匹配 Antigravity 2.0 实际 `Stop` hook 载荷中的 `terminationReason: "NO_TOOL_CALL"`（同时兼容既有 `"model_stop"`），兼容 protojson 省略默认值 `0` 的 `executionNum`；对 `ERROR`／`USER_CANCELED` 显式写入失败标记以抑制对应轮次的摘要误报，并与数据库摘要按轮次共享去重，避免同时开启 hook 时重复弹泡。
+- 协作流程补充（2026-11-19 用户追加）：在 `AGENTS.md`、`.github/pull_request_template.md` 与 `docs/PROJECT_STATE.md` 中新增临时测试文件滚动清理要求——每完成任务 `T(N)` 时，清理之前第二次修改 `T(N-2)` 的非跟踪临时测试产物（例如完成 `T099` 时删除 `T097` 的临时测试文件），保留跟踪文件、正式文档与最新两轮临时产物。
+
+验收：构建与类型检查通过；单测覆盖速率与 ETA 平滑估算、停滞恢复、文案格式化，以及数据库只读完成检测（基线跳过、运行转空闲、快速短轮次、等待优先、取消／子任务过滤、隐藏丢弃）与 `NO_TOOL_CALL` 省略 `executionNum` 转发和双源去重；隔离 Electron 冒烟测试验证下载进度显示 ETA、取消清零、默认未开 hook 时的 Gemini 完成气泡及 `NO_TOOL_CALL` hook 转发。真实 VS Code 与桌面 App 端完成弹出仍待实机验收。见 [T029](tasks/T029-update-eta-gemini-completion.md)。

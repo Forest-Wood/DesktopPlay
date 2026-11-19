@@ -4,6 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { createHash } from 'node:crypto';
 import { AppUpdateService, stableVersion, type UpdateBackend } from '../../../src/main/services/app-update';
+import { formatUpdateDownloadDetail, formatUpdateEta, formatUpdateSpeed } from '../../../src/shared/app-update';
 import { portableRelease, portableChecksum, PortableUpdateBackend } from '../../../src/main/services/portable-update';
 import { GithubUpdateTransport } from '../../../src/main/services/update-http';
 import { plainPath } from '../../../src/main/services/update-files';
@@ -106,4 +107,55 @@ it('aborts a stalled metadata request after its timeout', async () => {
   const http = new GithubUpdateTransport(vi.fn((_url, init) => new Promise<Response>((_, reject) => init!.signal!.addEventListener('abort', () => reject(new Error('timeout'))))) as typeof fetch);
   const pending = expect(http.json('https://api.github.com/test', new AbortController().signal)).rejects.toThrow();
   expect(timeout).toHaveBeenCalledWith(30000); await vi.advanceTimersByTimeAsync(30000); await pending;
+});
+it('estimates smoothed download speed and remaining time, handles stalls and resets after completion or cancellation', async () => {
+  let clock = 10_000;
+  const snapshots: ReturnType<AppUpdateService['getState']>[] = [];
+  let releaseDownload!: () => void;
+  let emitProgress!: (p: { transferred: number; total: number; bytesPerSecond?: number }) => void;
+  const adapter: UpdateBackend = {
+    check: vi.fn(async () => candidate),
+    download: vi.fn((progress, signal) => new Promise<void>((resolve, reject) => {
+      emitProgress = progress;
+      releaseDownload = resolve;
+      signal.addEventListener('abort', () => reject(new Error('cancel')));
+    })),
+    prepareInstall: vi.fn(async () => ({ commit: vi.fn(async () => {}), cancel: vi.fn(async () => {}) })),
+  };
+  const service = new AppUpdateService({ version: '0.5.3', kind: 'portable', dataDir: await dir(), backend: adapter, now: () => clock, onState: () => snapshots.push(service.getState()) });
+  services.push(service); await service.init(); await service.check();
+  const job = service.download();
+  const total = 10 * 1048576;
+  clock = 10_200; emitProgress({ transferred: 262144, total });
+  expect(service.getState()).toMatchObject({ bytesPerSecond: null, estimatedRemainingSeconds: null });
+  clock = 11_000; emitProgress({ transferred: 2 * 1048576, total });
+  expect(service.getState().bytesPerSecond).toBe(2 * 1048576);
+  expect(service.getState().estimatedRemainingSeconds).toBe(4);
+  clock = 12_000; emitProgress({ transferred: 4 * 1048576, total });
+  expect(service.getState().estimatedRemainingSeconds).toBe(3);
+  clock = 18_000; emitProgress({ transferred: 4 * 1048576, total });
+  expect(service.getState()).toMatchObject({ bytesPerSecond: null, estimatedRemainingSeconds: null });
+  clock = 18_100; emitProgress({ transferred: 5 * 1048576, total, bytesPerSecond: 1048576 });
+  expect(service.getState()).toMatchObject({ bytesPerSecond: 1048576, estimatedRemainingSeconds: 5 });
+  clock = 19_000; emitProgress({ transferred: total, total });
+  expect(service.getState().estimatedRemainingSeconds).toBe(0);
+  releaseDownload(); await job;
+  expect(service.getState()).toMatchObject({ status: 'ready', progress: 100, bytesPerSecond: null, estimatedRemainingSeconds: null });
+});
+it('formats update speed, ETA and download detail text cleanly', () => {
+  expect(formatUpdateSpeed(null)).toBe('');
+  expect(formatUpdateSpeed(512)).toBe('512 B/s');
+  expect(formatUpdateSpeed(256 * 1024)).toBe('256 KiB/s');
+  expect(formatUpdateSpeed(2.5 * 1048576)).toBe('2.5 MiB/s');
+  expect(formatUpdateEta(null)).toBe('预计剩余时间计算中…');
+  expect(formatUpdateEta(0)).toBe('即将完成');
+  expect(formatUpdateEta(24)).toBe('预计剩余约 24 秒');
+  expect(formatUpdateEta(120)).toBe('预计剩余约 2 分钟');
+  expect(formatUpdateEta(212)).toBe('预计剩余约 3 分 32 秒');
+  expect(formatUpdateEta(750)).toBe('预计剩余约 12 分钟');
+  expect(formatUpdateEta(3600)).toBe('预计剩余约 1 小时');
+  expect(formatUpdateEta(4500)).toBe('预计剩余约 1 小时 15 分钟');
+  expect(formatUpdateDownloadDetail({ status: 'available', transferred: 0, total: 100, bytesPerSecond: 10, estimatedRemainingSeconds: 10 })).toBe('');
+  expect(formatUpdateDownloadDetail({ status: 'downloading', transferred: 0, total: 0, bytesPerSecond: null, estimatedRemainingSeconds: null })).toBe('正在连接下载源…');
+  expect(formatUpdateDownloadDetail({ status: 'downloading', transferred: 2 * 1048576, total: 10 * 1048576, bytesPerSecond: 2 * 1048576, estimatedRemainingSeconds: 4 })).toBe('2.0 / 10.0 MiB · 2.0 MiB/s · 预计剩余约 4 秒');
 });

@@ -3,7 +3,7 @@ import electronPath from 'electron';
 import { mkdir, mkdtemp, writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { waitingSummary, SUMMARY_TABLE } from '../fixtures/gemini-summary';
+import { waitingSummary } from '../fixtures/gemini-summary';
 import { spawn } from 'node:child_process';
 import { electronArgs } from './electron-args';
 
@@ -50,33 +50,46 @@ test('Gemini skins, quota rows, Stop relay and saved profile', async () => {
     await expect(rows.locator('strong')).toHaveText(['0%', '62%', '37%']);
     expect(await rows.last().evaluate(el => el.getBoundingClientRect().bottom <= el.closest('.bubble-content')!.getBoundingClientRect().bottom + 1)).toBe(true);
     await pet.screenshot({ path: path.join(profile, 'gemini-simple.png') });
-    await pet.evaluate(() => window.desktopPlay.updateSettings({geminiHookEnabled:true}));
-    const script = path.join(profile, 'integrations/gemini/stop.ps1');
     await pet.evaluate(() => { window.desktopPlay.onConversationNotice(n => { if (n.source === 'antigravity') document.body.dataset.geminiNotices = String(Number(document.body.dataset.geminiNotices ?? 0) + 1); }); });
-    const relay = (client: string, reason = 'model_stop', extra: Record<string, unknown> = {}) => new Promise<void>((resolve, reject) => {
-      const child = spawn('powershell.exe', ['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',script], { windowsHide:true, stdio:['pipe','ignore','ignore'] });
-      child.on('error',reject); child.on('close',code => code === 0 ? resolve() : reject(Error('relay failed')));
-      child.stdin.end(JSON.stringify({conversationId:'test-' + client, transcriptPath: path.join(home,client,'brain','test-' + client,'.system_generated/logs/transcript.jsonl'), executionNum:1, fullyIdle:true, terminationReason:reason, ...extra}));
-    });
-    await pet.evaluate(() => window.desktopPlay.selectPet('deepseek'));
-    for (const client of ['antigravity','antigravity-ide','antigravity-cli']) {
-      await relay(client, 'error', {executionNum:2}); await relay(client, 'cancelled', {executionNum:3});
-      await relay(client, 'model_stop', { parentConversationId:'parent', executionNum:4 });
-      await relay(client, 'model_stop', { fullyIdle:false, executionNum:5 });
-      await relay(client); await relay(client);
-    }
-    await expect(pet.locator('body')).toHaveAttribute('data-gemini-notices','3');
-    await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario','completion-antigravity');
     const summaryDir = path.join(home, 'antigravity');
-    await mkdir(summaryDir, {recursive:true});
+    await mkdir(summaryDir, { recursive: true });
     const db = new DatabaseSync(path.join(summaryDir, 'conversation_summaries.db'));
     try {
-      db.exec(SUMMARY_TABLE);
-      const insert = db.prepare('INSERT OR REPLACE INTO conversation_summaries VALUES (?,1,NULL,?,NULL,0,?)');
-      insert.run('pending', new Date().toISOString(), waitingSummary(22,1));
+      db.exec(`CREATE TABLE conversation_summaries (conversation_id TEXT PRIMARY KEY,
+        step_count INTEGER NOT NULL DEFAULT 0, last_modified_time TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT '', parent_conversation_id TEXT NOT NULL DEFAULT '',
+        nesting_depth INTEGER NOT NULL DEFAULT 0, not_fully_idle NUMERIC NOT NULL DEFAULT 0,
+        killed NUMERIC NOT NULL DEFAULT 0, last_user_input_time TEXT NOT NULL DEFAULT '',
+        last_user_input_step_index INTEGER NOT NULL DEFAULT -1, raw_summary BLOB)`);
+      const upsert = db.prepare('INSERT OR REPLACE INTO conversation_summaries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+      const now = new Date(Date.now() + 200).toISOString();
+      // Default config (geminiHookEnabled=false): App/VS Code completion via conversation_summaries.db shows bubble.
+      upsert.run('db-complete', 4, now, 'CASCADE_RUN_STATUS_IDLE', '', 0, 0, 0, now, -1, null);
+      await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'completion-antigravity');
+      await expect(pet.locator('body')).toHaveAttribute('data-gemini-notices', '1');
+      await pet.locator('.bubble-message').dispatchEvent('click');
+      await pet.evaluate(() => window.desktopPlay.updateSettings({ geminiHookEnabled: true }));
+      const script = path.join(profile, 'integrations/gemini/stop.ps1');
+      const relay = (client: string, reason = 'NO_TOOL_CALL', extra: Record<string, unknown> = {}) => new Promise<void>((resolve, reject) => {
+        const child = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script], { windowsHide: true, stdio: ['pipe', 'ignore', 'ignore'] });
+        child.on('error', reject); child.on('close', code => code === 0 ? resolve() : reject(Error('relay failed')));
+        const payload: Record<string, unknown> = { conversationId: 'test-' + client, transcriptPath: path.join(home, client, 'brain', 'test-' + client, '.system_generated/logs/transcript.jsonl'), fullyIdle: true, terminationReason: reason, ...extra };
+        child.stdin.end(JSON.stringify(payload));
+      });
+      await pet.evaluate(() => window.desktopPlay.selectPet('deepseek'));
+      for (const client of ['antigravity', 'antigravity-ide', 'antigravity-cli']) {
+        await relay(client, 'ERROR', { executionNum: 2 }); await relay(client, 'USER_CANCELED', { executionNum: 3 });
+        await relay(client, 'NO_TOOL_CALL', { parentConversationId: 'parent', executionNum: 4 });
+        await relay(client, 'NO_TOOL_CALL', { fullyIdle: false, executionNum: 5 });
+        await relay(client); await relay(client);
+      }
+      await expect(pet.locator('body')).toHaveAttribute('data-gemini-notices', '4');
+      await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'completion-antigravity');
+      const waitTime = new Date(Date.now() + 200).toISOString();
+      upsert.run('pending', 3, waitTime, 'CASCADE_RUN_STATUS_IDLE', '', 0, 1, 0, waitTime, 1, waitingSummary(22, 1));
       await expect(pet.locator('.bubble-message')).toContainText('Gemini 有问题等你回答');
       await pet.locator('.bubble-message').dispatchEvent('click');
-      insert.run('pending', new Date().toISOString(), waitingSummary(21,2));
+      upsert.run('pending', 4, new Date(Date.now() + 400).toISOString(), 'CASCADE_RUN_STATUS_IDLE', '', 0, 1, 0, waitTime, 1, waitingSummary(21, 2));
       await expect(pet.locator('.bubble-message')).toContainText('Gemini 有操作等你批准');
     } finally { db.close(); }
     await pet.evaluate(() => window.desktopPlay.selectPet('gemini'));

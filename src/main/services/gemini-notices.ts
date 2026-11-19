@@ -13,6 +13,7 @@ export class GeminiNotices {
   private key = '';
   private since = Date.now();
   private seen = new Set<string>();
+  private seenTurns = new Set<string>();
   private waiting?: GeminiWaiting;
   private inbox: string;
   private polling?: Promise<void>;
@@ -21,6 +22,14 @@ export class GeminiNotices {
     this.inbox = path.join(dataDir, 'integrations', 'gemini', 'inbox');
   }
   private report(text: string) { if (this.status !== text) { this.status = text; this.publish(); } }
+  discardHiddenHistory(since = Date.now()) {
+    this.since = Math.max(this.since, since);
+    this.waiting?.discardHiddenHistory(this.since);
+  }
+  private rememberTurn(key: string) {
+    this.seenTurns.add(key);
+    while (this.seenTurns.size > 5000) this.seenTurns.delete(this.seenTurns.values().next().value!);
+  }
   configure(hook: boolean, completion: boolean, attention: boolean): Promise<void> {
     const key = [hook, completion, attention].join('/');
     const generation = this.generation;
@@ -28,22 +37,23 @@ export class GeminiNotices {
       if (generation !== this.generation) return;
       if (this.key === key) return;
       const old = this.key; this.key = ''; clearInterval(this.timer); await this.polling;
-      this.since = Date.now(); this.seen.clear();
+      this.since = Date.now(); this.seen.clear(); this.seenTurns.clear();
       try {
         if (hook || old.startsWith('true') || existsSync(path.join(path.dirname(this.inbox), 'stop.ps1'))) await this.install(hook);
         if (this.generation !== generation) return;
         this.key = key;
-        this.waiting = attention ? new GeminiWaiting(this.home, this.since) : undefined;
+        this.waiting = (completion || attention) ? new GeminiWaiting(this.home, this.since, { completion, attention, seenTurns: this.seenTurns }) : undefined;
         const poll = async () => {
           if (this.key !== key) return;
           try {
             if (hook) await this.scan(completion, key);
             if (this.key !== key) return;
             const status = this.waiting?.scan(this.notice);
-            this.report([hook ? '完成 hook 已接入' : '完成 hook 未接入', status ?? '等待提醒已关闭'].join(' · '));
+            const completionPrefix = hook ? '完成 hook 已接入' : completion ? '完成监听：本机摘要' : '完成提醒已关闭';
+            this.report([completionPrefix, status ?? '摘要监听已关闭'].join(' · '));
           } catch { if (this.key === key) this.report('无法读取 Gemini 事件，将自动重试。'); }
         };
-        if (hook || attention) {
+        if (hook || completion || attention) {
           await poll();
           if (generation !== this.generation) return;
           this.timer = setInterval(() => {
@@ -96,9 +106,15 @@ export class GeminiNotices {
         if (!Number.isFinite(time) || time < this.since || time > Date.now() + 5000 || !Number.isSafeInteger(ev.execution) || typeof ev.conversation !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(ev.conversation)) continue;
         const meta = conversationTurn(this.home, ev.conversation);
         if (meta?.child) continue;
+        const turnKey = meta && meta.turn && meta.turn !== '-1' ? `${ev.conversation}/${meta.turn}` : null;
+        if (ev.ok === false) {
+          if (turnKey) this.rememberTurn(turnKey);
+          continue;
+        }
         const id = createHash('sha256').update([ev.conversation, meta?.turn ?? '', ev.execution].join('/')).digest('hex');
-        if (this.key !== key || this.seen.has(id)) continue;
+        if (this.key !== key || this.seen.has(id) || (turnKey && this.seenTurns.has(turnKey))) continue;
         this.seen.add(id); if (this.seen.size > 5000) this.seen.delete(this.seen.values().next().value!);
+        if (turnKey) this.rememberTurn(turnKey);
         this.notice({ source: 'antigravity', id, kind: 'completion', occurredAt: new Date(time).toISOString() });
       } finally { await rm(file, { force: true }); }
     }
