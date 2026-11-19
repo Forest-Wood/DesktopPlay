@@ -4,17 +4,13 @@
 
 ## 当前任务
 
-- [T025／R032](tasks/T025-release-v200.md) 在 `release/T025-v200` 准备 v2.0.0。基准 `6697f95` 已合并 T024，版本计划校验通过，待 CI 与发布工作流。
-
-- [T024／R031](tasks/T024-gemini-pet.md) 新增 Gemini 两款造型、三个额度窗口和 Antigravity 完成、提问及审批提醒。实现提交 `eae4eb4` 已推送至 `feat/T024-gemini-pet`，[PR #26](https://github.com/Forest-Wood/DesktopPlay/pull/26) 目标为 `main`，待审阅。2026-11-19 已核实远程主线仍为 `90a67b3`。
-- 构建、324 项单测及 6 项定向隔离 Electron 测试通过。真实 App 与 agy 的额度已按三项对照；真实三端任务提醒和共享池账户仍待验收。当前版本 1.1.0。
+- [T025／R032](tasks/T025-release-v200.md) 已发布 v2.0.0。[PR #27](https://github.com/Forest-Wood/DesktopPlay/pull/27) 合入主线，标签指向 `163a87a`。构建、324 项单测、27 项 Electron 测试及两套文件助手验证通过。
+- [T024／R031](tasks/T024-gemini-pet.md) 已经 [PR #26](https://github.com/Forest-Wood/DesktopPlay/pull/26) 合并，随 v2.0.0 提供 Gemini 的两款造型、三项额度与对话提醒。真实 App 与 agy 的额度已按三项对照，真实三端任务提醒和共享池账户仍待验收。
 
 ## 主线与发布
 
-- 2026-11-18 fetch 得到 main `90a67b3`。T022／T023 已随 [PR #25](https://github.com/Forest-Wood/DesktopPlay/pull/25) 合并。其既有验收限制见 [T022](tasks/T022-companion-ui.md) 和 [T023](tasks/T023-notice-dismiss.md)。
-- [v1.1.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v1.1.0) 已于 **2026-10-27 00:35:55（Asia/Shanghai）**正式发布；`gh release view` 确认非草稿、非预发布，标签对象 `9530c9d36dc394c5450b7d8ca23ef84970d95744`。本次保留版本 1.1.0，没有新发布。
-- [T020](tasks/T020-release-v110.md) 准备提交 `f0abbbc`，经 PR #23 合并为 `18b3879`。[T019](tasks/T019-pet-mode-local-time.md) 的全局模式、账本本地时间和设置页峰谷已合并并随 v1.1.0 发布。
-- T021 清理后本地 `release/` 保留 v1.1.0 的安装版、免安装版、blockmap、latest.yml 和 SHA256SUMS.txt，并核实摘要、更新清单与公告一致。T022 未改动或重新核验这些文件；它们不包含后续 T021／T022 修改。
+- [v2.0.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.0) 于 2026-11-19 16:58:27（Asia/Shanghai）成为最新正式版。[发布工作流](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44491940594) 校验了五个附件和更新公告。
+- T021 至 T024 均随 v2.0.0 分发。此前 v1.1.0 的发布记录见 [T020](tasks/T020-release-v110.md)，本地 `release/` 仍保留该历史版本。
 
 ## 有效限制与后续
 
@@ -27,4 +23,4 @@
 - 原生鼠标间歇偏移仍无根因结论，见 T010／T014／T022；T022 当前实现及基准对照均复现按住时位置偏移，不能用早期单次通过认定已解决。
 - 受限 Electron 存在启动超时／AppContainer 环境限制；隔离测试可在沙箱外运行，保持应用 Electron 沙箱启用。测试不得使用真实账户、账本或修改真实客户端设置。
 - appId、`%APPDATA%\DesktopPlay` 及安装／portable 共用数据保持兼容。等待与完成提示默认点击前常驻，可按场景设置定时关闭，隐藏／退出清空，不补历史。
-- 下一独立任务编号 T025／R032。
+- 下一独立任务编号 T026／R033。
