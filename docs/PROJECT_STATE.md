@@ -4,8 +4,8 @@
 
 ## 当前任务
 
-- [T030／R037](tasks/T030-release-v202.md) 进行中（分支 `release/T030-v202`，基准 `origin/main` `d7c32c2`）：准备发布 DesktopPet `v2.0.2`（`patch`，以 `v2.0.1` 为基准，包含 T029 更新下载预计剩余时间与 Gemini 任务完成气泡修复），同步修复 `gemini.test.ts` 在 Windows CI 下的轮询时序竞态，并按 `T(N-2)` 规则清理 T028 临时文件。`release:check`、构建与 329 项单测已通过。
-- [T029／R036](tasks/T029-update-eta-gemini-completion.md) 已通过 [PR #33](https://github.com/Forest-Wood/DesktopPlay/pull/33) 合入主线 `d7c32c2`，将随 v2.0.2 分发。应用内软件更新下载新增平滑速率与预计剩余时间估计；修复 Gemini 任务完成提示气泡在 VS Code 与桌面 App 均未展示的问题；在协作文档新增完成 `T(N)` 清理 `T(N-2)` 临时测试文件的滚动规范。真实 VS Code／App 端完成弹泡待实机验收。
+- [T030／R037](tasks/T030-release-v202.md) 已发布 [v2.0.2](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.2)。[PR #34](https://github.com/Forest-Wood/DesktopPlay/pull/34) 合入主线，标签 `v2.0.2` 指向 `b36bbc6`。[发布工作流 44531740265](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44531740265) 通过单测、Windows x64 打包、更新运行时与五项附件摘要及公告校验。
+- [T029／R036](tasks/T029-update-eta-gemini-completion.md) 已通过 [PR #33](https://github.com/Forest-Wood/DesktopPlay/pull/33) 合入主线 `d7c32c2`，随 v2.0.2 分发。应用内软件更新下载新增平滑速率与预计剩余时间估计；修复 Gemini 任务完成提示气泡在 VS Code 与桌面 App 均未展示的问题；在协作文档新增完成 `T(N)` 清理 `T(N-2)` 临时测试文件的滚动规范。真实 VS Code／App 端完成弹泡待实机验收。
 - [T028／R035](tasks/T028-release-v201.md) 已发布 [v2.0.1](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.1)。[PR #31](https://github.com/Forest-Wood/DesktopPlay/pull/31) 合入主线，标签 `v2.0.1` 指向 `9679547`。[发布工作流 44507457122](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44507457122) 通过打包、更新运行时与五项附件摘要及公告校验。
 - [T027／R034](tasks/T027-retention-bubble.md) 已通过 [PR #30](https://github.com/Forest-Wood/DesktopPlay/pull/30) 合入主线 `903dd9e`，随 v2.0.1 修复在“用量小报告”或“陪伴短句”气泡页点击“换角色”时挽留提示词拼接在原页面文案后面的问题。
 - [T026／R033](tasks/T026-gemini-ui.md) 已通过 [PR #29](https://github.com/Forest-Wood/DesktopPlay/pull/29) 合入主线 `c101c7e`，随 v2.0.1 提供 Gemini 气泡双列排版、设置页三栏额度卡与状态胶囊、星光紫角色舞台（`gemini-theme`）、三角色并排选择器与左右对称翻转后的经典／手绘两款造型。
@@ -14,8 +14,8 @@
 
 ## 主线与发布
 
-- [v2.0.1](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.1) 于 2026-11-19 18:39:51（Asia/Shanghai）成为最新正式版。[发布工作流](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44507457122) 校验了五个附件和更新公告。
-- T026 与 T027 随 v2.0.1 分发；T021 至 T024 随 [v2.0.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.0) 分发。此前 v1.1.0 的发布记录见 [T020](tasks/T020-release-v110.md)，本地 `release/` 仍保留该历史版本。
+- [v2.0.2](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.2) 于 2026-11-19 21:18:18（Asia/Shanghai）成为最新正式版。[发布工作流](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44531740265) 校验了五个附件和更新公告。
+- T029 随 v2.0.2 分发；T026 与 T027 随 [v2.0.1](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.1) 分发；T021 至 T024 随 [v2.0.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.0) 分发。此前 v1.1.0 的发布记录见 [T020](tasks/T020-release-v110.md)，本地 `release/` 仍保留该历史版本。
 
 ## 有效限制与后续
 

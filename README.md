@@ -2,7 +2,7 @@
 
 DesktopPet 是 Windows 桌宠。小鲸鱼显示 DeepSeek 余额，GPT 小伙伴显示 Codex 编程额度，Gemini 显示 Antigravity 剩余额度。GPT 角色可在原版与白龙两种内置造型间切换，也可继续使用自定义图片。面向 Windows 10/11 x64，提供 NSIS 安装版和 portable 免安装版。桌宠本身不需要 Node.js 或 DeepSeek Harness（DSH）；实时 Codex 额度需要本机已有原生 Codex 程序，并已使用 ChatGPT 账户登录。
 
-最新正式版 v2.0.1 加入并优化了 Gemini 桌宠界面、星光紫角色舞台与对称形象方向，可查看 Argon 周额度、Gemini 周额度和 Gemini 5 小时额度，并接收 Antigravity 任务提醒。[Windows x64 下载与更新说明](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.1)
+最新正式版 v2.0.2 为应用内更新下载补充实时速率与预计剩余时间估计，并修复 Gemini 任务完成提示气泡在 VS Code 与桌面 App 端均未展示的问题（默认通过只读监听本机会话摘要自动提醒，无需额外配置 hook）。[Windows x64 下载与更新说明](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.2)
 
 ## v1.0.0 新功能
 
@@ -24,7 +24,7 @@ DesktopPet 是 Windows 桌宠。小鲸鱼显示 DeepSeek 余额，GPT 小伙伴�
 - 设置或右键菜单切换 DeepSeek、GPT、Gemini 角色并记住选择；GPT 的原版、白龙和自定义图片作为独立造型保存，切换造型不影响 Codex 额度。
 - GPT 小伙伴显示 Codex 剩余百分比、额度窗口、重置时间及倒计时，支持自动和手动刷新。
 - Gemini 的经典和手绘造型共用台词、声音和气泡。简洁模式同时显示 Argon 周额度、Gemini 周额度和 Gemini 5 小时额度。完整模式及「账户与用量 → Gemini」还显示重置时间；关闭客户端后可通过已登录的 `agy` 1.1.11 或更新版本刷新。
-- 在「提醒 → 对话提醒 → Gemini」启用完成 hook 并保存，重新加载 Antigravity 会话后可接收本轮完成提醒。提问与审批使用客户端的本地等待记录，各端的可用状态见同一页面。
+- 在「提醒与声音 → 对话提醒 → Gemini」中默认开启本机摘要只读监听，桌面 App、VS Code 与 IDE 无需配置 hook 即可接收任务完成与等待回应提醒；如需补充 `agy CLI` 完成提醒或区分错误／取消中止，可按需展开启用 Antigravity 完成 hook。各端状态见同一页面。
 - 小鲸鱼、原版 GPT、白龙和 Gemini 分别设置按下／松开音效；支持导入音频、试听和恢复内置音效。
 - 在“关于 → 卸载与数据”卸载当前安装版或当前运行的免安装版，并选择是否清理共享的本地数据。
 
