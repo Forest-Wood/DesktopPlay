@@ -4,6 +4,8 @@
 
 ## 当前任务
 
+- [T025／R032](tasks/T025-release-v200.md) 在 `release/T025-v200` 准备 v2.0.0。基准 `6697f95` 已合并 T024，版本计划校验通过，待 CI 与发布工作流。
+
 - [T024／R031](tasks/T024-gemini-pet.md) 新增 Gemini 两款造型、三个额度窗口和 Antigravity 完成、提问及审批提醒。实现提交 `eae4eb4` 已推送至 `feat/T024-gemini-pet`，[PR #26](https://github.com/Forest-Wood/DesktopPlay/pull/26) 目标为 `main`，待审阅。2026-11-19 已核实远程主线仍为 `90a67b3`。
 - 构建、324 项单测及 6 项定向隔离 Electron 测试通过。真实 App 与 agy 的额度已按三项对照；真实三端任务提醒和共享池账户仍待验收。当前版本 1.1.0。
 
