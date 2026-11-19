@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PhrasePlayback, phraseDisplays, validatePhraseDisplays } from '../../src/shared/phrases';
-const library = { whale: ['a', 'b', 'c', 'd'], gpt: ['x'], dragon: ['y'] };
+const library = { whale: ['a', 'b', 'c', 'd'], gpt: ['x'], dragon: ['y'], gemini: ['z'] };
 describe('phrase selection and playback', () => {
   it('migrates all candidates and rejects invalid counts, selections and insufficient pools', () => {
     const defaults = phraseDisplays(library); expect(defaults.whale).toEqual({ count: 4, mode: 'sequential', selectedIndices: [0, 1, 2, 3] });

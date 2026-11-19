@@ -24,3 +24,12 @@
 .quota-compact .quota-percentage { font-size: 30px; line-height: 1.15; color: inherit; }
 .quota-compact .quota-countdown { font-size: 8.5px; line-height: 1.35; margin: 0; color: inherit; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .quota-compact .quota-plan-badge { float: left; font-size: 9px; line-height: 12px; padding: 1px 6px; margin: 0 6px 1px 0; color: var(--bubble-ink, inherit); background: color-mix(in srgb, var(--bubble-ink, #378a76) 10%, transparent); }
+.gemini-quota-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 8px; padding: 8px 0; border-bottom: 1px solid currentColor; }
+.gemini-quota-row:last-child { border-bottom: none; }
+.gemini-quota-row strong { font-variant-numeric: tabular-nums; }
+.gemini-quota-row small { grid-column: 1 / -1; opacity: .8; }
+.bubble-quota .gemini-quota-row { font-size: 11px; line-height: 1.25; padding: 2px 0; border: 0; }
+.bubble-quota .gemini-quota-row small { font-size: 9px; }
+.simple-mode .bubble-quota .gemini-quota-row { padding: 5px 0; font-size: 12px; }
+.simple-mode .gemini-quota-row + .gemini-quota-row { border-top: 1px solid color-mix(in srgb, var(--bubble-ink) 15%, transparent); }
+.simple-mode .gemini-quota-row strong { font-size: 15px; }

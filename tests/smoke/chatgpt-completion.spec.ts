@@ -23,7 +23,7 @@ test('ChatGPT Work native ends use role text without focus/role changes, dedupli
     const pet = await application.firstWindow();
     await expect.poll(() => pet.evaluate(async () => (await window.desktopPlay.getState()).chatgptCompletion.status)).toBe('watching');
     await expect(pet.locator('.pet-bubble')).toBeHidden();
-    const custom = { whale: '小鲸鱼等到 Work 结束啦', gpt: '<b>Work 本轮已经结束</b>', dragon: '白龙已收到 Work 的结束通知。' };
+    const custom = { gemini: 'Work 本轮结束啦。', whale: '小鲸鱼等到 Work 结束啦', gpt: '<b>Work 本轮已经结束</b>', dragon: '白龙已收到 Work 的结束通知。' };
     await pet.evaluate(async messages => {
       window.desktopPlay.onCodexCompletion(event => { document.body.dataset.workCount = String(Number(document.body.dataset.workCount ?? 0) + 1); document.body.dataset.lastWorkEvent = JSON.stringify(event); });
       await window.desktopPlay.updateSettings({ completionMessagesByPersona: messages, bubbleDurationSeconds: 1, bubbleHoverDelaySeconds: 0 });

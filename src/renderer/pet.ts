@@ -5,6 +5,7 @@ import type { AppState, DesktopApi, BubbleScenario, CompletionSource, AlertNotic
 import { getPetLayout } from '../shared/pet-layout';
 import { money } from './format';
 import { deepseekBubblePeriod } from '../shared/deepseek-time';
+import { geminiStatus, renderGeminiQuota } from './gemini-quota';
 import { localTime, quotaStatus, renderQuota } from './quota';
 import { pageCount, nextPage, summaryText, usageStatus } from './bubble-pages';
 import { PersonaSoundPlayer } from './sounds';
@@ -58,7 +59,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     else if (!(hovered && rule().timing.hoverDelaySeconds > 0)) timer = setTimeout(close, duration);
   };
   const render = () => {
-    const isGpt = state.activePet === 'gpt', total = simple() ? 1 : pageCount(phrases());
+    const isGemini = state.activePet === 'gemini', isGpt = state.activePet === 'gpt', usesQuota = isGpt || isGemini, total = simple() ? 1 : pageCount(phrases());
     if (page >= total) page = 0;
     const usage = page === 0 && !retention && !notice;
     const config = rule(); applyBubbleStyle(bubble, config.style); bubble.dataset.scenario = scenario();
@@ -68,7 +69,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     bubble.classList.toggle('simple-mode', simple());
     query('.pet-spent-group').hidden = simple();
     const periodElement = query('.pet-period');
-    periodElement.hidden = simple() || !usage || isGpt;
+    periodElement.hidden = simple() || !usage || usesQuota;
     if (!periodElement.hidden) {
       const period = deepseekBubblePeriod();
       query('.pet-period-status').textContent = period.status;
@@ -76,11 +77,12 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
       periodElement.title = period.title;
     }
     query('.bubble-page').textContent = simple() || retention || notice ? '' : `${page + 1}/${total}`;
-    query('.bubble-balances').hidden = !usage || isGpt; quota.hidden = !usage || !isGpt;
-    const fixed = notice ? noticeKind === 'completion' ? '' : noticeKind === 'attention' ? activeConversation?.kind === 'approval' ? '有操作需要你审批。' : '有问题需要你回答。' : notice : page === 1 ? summaryText(state) : page >= 2 ? phrases()[page - 2] ?? '' : '';
+    query('.bubble-balances').hidden = !usage || usesQuota; quota.hidden = !usage || !usesQuota;
+    const fixed = notice ? noticeKind === 'completion' ? '' : noticeKind === 'attention' ? completionSource === 'antigravity' ? activeConversation?.kind === 'approval' ? 'Gemini 有操作等你批准' : 'Gemini 有问题等你回答' : activeConversation?.kind === 'approval' ? '有操作需要你审批。' : '有问题需要你回答。' : notice : page === 1 ? summaryText(state) : page >= 2 ? phrases()[page - 2] ?? '' : '';
     message.hidden = usage && (simple() || !config.message);
     message.textContent = [fixed, config.message].filter(Boolean).join('\n');
     message.classList.toggle('bubble-caption', usage);
+    if (usage && isGemini) renderGeminiQuota(quota, state.geminiQuota, simple());
     if (usage && isGpt) renderQuota(quota, state.codex, true, demo, simple());
     query('.pet-balance').textContent = money(state.balance?.total, state.balance?.currency);
     query('.pet-spent').textContent = money(state.ledger.today?.spent, state.ledger.today?.currency);
@@ -88,19 +90,19 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
       number.style.fontSize = '';
       if (number.clientWidth > 0 && number.scrollWidth > number.clientWidth) { const size = parseFloat(getComputedStyle(number).fontSize); number.style.fontSize = `${size * number.clientWidth / number.scrollWidth}px`; }
     }
-    status.textContent = isGpt ? `${quotaStatus(state.codex, demo)} · ${localTime(state.codex.updatedAt)} 更新` : usageStatus(state, demo);
-    if (simple() && !isGpt && state.status === 'ready' && !demo) status.textContent = state.balance ? '余额已更新' : '余额未知';
+    status.textContent = isGemini ? geminiStatus(state.geminiQuota, demo) : isGpt ? `${quotaStatus(state.codex, demo)} · ${localTime(state.codex.updatedAt)} 更新` : usageStatus(state, demo);
+    if (simple() && !usesQuota && state.status === 'ready' && !demo) status.textContent = state.balance ? '余额已更新' : '余额未知';
     if (persistent()) status.textContent = noticeKind === 'completion' ? '点击气泡收起 · 前往原客户端查看' : '点击气泡收起 · 请在原客户端回应';
     if (soundWarning) status.textContent = soundWarning;
-    status.title = soundWarning || (isGpt ? state.codex.error : state.error) || status.textContent;
+    status.title = soundWarning || (isGemini ? state.geminiQuota.error : isGpt ? state.codex.error : state.error) || status.textContent;
     query('.bubble-footer').hidden = retention; query('.bubble-retention-actions').hidden = !retention;
     bubble.tabIndex = persistent() ? 0 : -1;
     bubble.classList.toggle('bubble-persistent', persistent());
     const updateNotice = Boolean(notice && noticeKind === 'update');
-    query('.bubble-appearance').hidden = simple() || !isGpt || updateNotice;
+    query('.bubble-appearance').hidden = simple() || !usesQuota || updateNotice;
     query('.bubble-refresh').hidden = updateNotice; query('.bubble-switch').hidden = simple() || updateNotice;
     query('.bubble-update').hidden = !updateNotice;
-    refresh.disabled = refreshing || (isGpt ? state.codex.status === 'loading' : state.status === 'loading');
+    refresh.disabled = refreshing || (isGemini ? state.geminiQuota.status === 'loading' : isGpt ? state.codex.status === 'loading' : state.status === 'loading');
     refresh.textContent = refresh.disabled ? '刷新中' : '刷新'; confirm.disabled = switching;
     query<HTMLButtonElement>('.bubble-cancel').disabled = switching;
     query<HTMLButtonElement>('.bubble-appearance').disabled = switching;
@@ -179,9 +181,9 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const run = async (action: () => Promise<AppState>, kind: 'refresh' | 'switch' | 'appearance' | 'mode') => {
     const ticket = ++operation, started = revision;
     if (kind === 'refresh') refreshing = true; else switching = true; render();
-    try { const next = await action(); if (!disposed && ticket === operation && revision === started) update(next); if (!disposed && ticket === operation && kind === 'switch') { retention = false; page = 0; if (!completionActive) notice = ''; show(); } }
+    try { const next = await action(); if (!disposed && ticket === operation && revision === started) update(next); if (!disposed && ticket === operation && !hidden && (kind === 'switch' || (kind === 'appearance' && !visible))) { retention = false; page = 0; if (!completionActive) notice = ''; show(); } }
     catch (error) { if (!disposed && ticket === operation) { status.textContent = error instanceof Error ? error.message : '操作失败，请重试。'; status.title = status.textContent; } }
-    finally { if (!disposed && ticket === operation) { refreshing = false; switching = false; refresh.disabled = state.activePet === 'gpt' ? state.codex.status === 'loading' : state.status === 'loading'; refresh.textContent = refresh.disabled ? '刷新中' : '刷新'; confirm.disabled = false; query<HTMLButtonElement>('.bubble-cancel').disabled = false; query<HTMLButtonElement>('.bubble-appearance').disabled = false; query<HTMLButtonElement>('.bubble-switch').disabled = false; flushNotices(); } }
+    finally { if (!disposed && ticket === operation) { refreshing = false; switching = false; refresh.disabled = state.activePet === 'gemini' ? state.geminiQuota.status === 'loading' : state.activePet === 'gpt' ? state.codex.status === 'loading' : state.status === 'loading'; refresh.textContent = refresh.disabled ? '刷新中' : '刷新'; confirm.disabled = false; query<HTMLButtonElement>('.bubble-cancel').disabled = false; query<HTMLButtonElement>('.bubble-appearance').disabled = false; query<HTMLButtonElement>('.bubble-switch').disabled = false; flushNotices(); } }
   };
   const clicked = () => { if (retention || persistent()) return; endCompletion(); if (!visible) { page = 0; beginRound(); } else { page = simple() ? 0 : nextPage(page, phrases()); if (page === 0) beginRound(); } notice = ''; show(); if (page >= 2) phrasePlayer.viewed(page - 2); };
   character.addEventListener('pointerdown', event => { if (event.button !== 0) return; event.preventDefault(); drag = { id: event.pointerId, x: event.screenX, y: event.screenY, moved: false }; character.setPointerCapture(event.pointerId); character.classList.add('pressed'); setInteractive(true); play('press'); api.startDrag(); });
@@ -195,11 +197,11 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   query('.bubble-close').addEventListener('click', close);
   bubble.addEventListener('click', event => { if (persistent() && !(event.target instanceof Element && event.target.closest('button, a, input, select, textarea'))) close(); });
   bubble.addEventListener('keydown', event => { if (persistent() && event.target === bubble && ['Enter', ' '].includes(event.key)) { event.preventDefault(); close(); } });
-  refresh.addEventListener('click', () => { void run(() => state.activePet === 'gpt' ? api.refreshCodexQuota() : api.refreshBalance(), 'refresh'); });
+  refresh.addEventListener('click', () => { void run(() => state.activePet === 'gemini' ? api.refreshGeminiQuota() : state.activePet === 'gpt' ? api.refreshCodexQuota() : api.refreshBalance(), 'refresh'); });
   query('.bubble-switch').addEventListener('click', () => { retention = true; clearTimeout(timer); render(); });
-  confirm.addEventListener('click', () => { const target = state.activePet === 'gpt' ? 'deepseek' : 'gpt'; void run(() => api.selectPet(target), 'switch'); });
+  confirm.addEventListener('click', () => { const target = state.activePet === 'gpt' ? 'gemini' : state.activePet === 'gemini' ? 'deepseek' : 'gpt'; void run(() => api.selectPet(target), 'switch'); });
   query('.bubble-cancel').addEventListener('click', () => { retention = false; render(); schedule(); flushNotices(); });
-  query('.bubble-appearance').addEventListener('click', () => { void run(() => api.selectGptAppearance(state.gptAppearance === 'dragon' ? 'classic' : 'dragon'), 'appearance'); });
+  query('.bubble-appearance').addEventListener('click', () => { void run(() => state.activePet === 'gemini' ? api.selectGeminiAppearance(state.geminiAppearance === 'classic' ? 'sketch' : 'classic') : api.selectGptAppearance(state.gptAppearance === 'dragon' ? 'classic' : 'dragon'), 'appearance'); });
   query('.bubble-settings').addEventListener('click', () => { void api.openSettings().catch(() => { status.textContent = '无法打开设置，请重试。'; }); });
   const updateButton = document.createElement('button'); updateButton.type = 'button'; updateButton.className = 'bubble-update'; updateButton.textContent = '查看更新'; updateButton.hidden = true;
   query('.bubble-footer').prepend(updateButton);
@@ -218,7 +220,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     if (!COMPLETION_SOURCES.includes(source) || !['completion', 'question', 'approval'].includes(event.kind) || !conversationEnabled(state.settings, event) || completionSeen.has(key)) return;
     completionSeen.add(key);
     if (completionSeen.size > 500) completionSeen.delete(completionSeen.values().next().value!);
-    if (event.kind !== 'completion' || !completionQueue.some(pending => pending.kind === 'completion' && pending.source === source)) completionQueue.push(event);
+    if (event.source === 'antigravity' || event.kind !== 'completion' || !completionQueue.some(pending => pending.kind === 'completion' && pending.source === source)) completionQueue.push(event);
     clearTimeout(completionTimer); completionTimer = setTimeout(flushCompletion, 150);
   });
   const stopUpdate = api.onUpdateAvailable(event => {

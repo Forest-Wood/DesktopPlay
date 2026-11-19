@@ -246,22 +246,23 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
     }
     await application.evaluate(({ BrowserWindow }, state) => { for (const win of BrowserWindow.getAllWindows()) win.webContents.send('desktopplay:state', state); }, quotaState);
     await settingsPage(settings, 'pet', 'companionship');
-    for (const persona of ['whale', 'gpt', 'dragon']) {
+    for (const persona of ['whale', 'gpt', 'dragon', 'gemini']) {
       await settings.locator(`[data-persona="${persona}"]`).click();
       await settings.locator('#phrases').fill(`smoke-${persona}`);
       await settings.locator('#phrase-count').fill('1');
     }
     await settingsPage(settings, 'about', 'guide');
     await settingsPage(settings, 'pet', 'companionship');
-    await expect(settings.locator('#phrases')).toHaveValue('smoke-dragon');
+    await expect(settings.locator('#phrases')).toHaveValue('smoke-gemini');
     await settings.getByRole('button', { name: '保存设置', exact: true }).click();
-    await expect.poll(async () => (await settings.evaluate(() => window.desktopPlay.getState())).settings.phrasesByPersona).toEqual({ whale: ['smoke-whale'], gpt: ['smoke-gpt'], dragon: ['smoke-dragon'] });
+    await expect.poll(async () => (await settings.evaluate(() => window.desktopPlay.getState())).settings.phrasesByPersona).toEqual({ whale: ['smoke-whale'], gpt: ['smoke-gpt'], dragon: ['smoke-dragon'], gemini: ['smoke-gemini'] });
     for (const appearance of ['classic', 'dragon'] as const) {
       await settings.evaluate(value => window.desktopPlay.selectGptAppearance(value), appearance);
-      for (let click = 0; click < 2; click++) await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
+      if (await pet.locator('.bubble-close').isVisible()) await pet.locator('.bubble-close').dispatchEvent('click');
+      for (let click = 0; click < 3; click++) await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
       await expect(pet.locator('.bubble-message')).toHaveText(`smoke-${appearance === 'dragon' ? 'dragon' : 'gpt'}`);
     }
-    for (const [category, tabs] of Object.entries({ pet: ['appearance', 'behavior', 'companionship'], account: ['overview', 'codex', 'records'], reminders: ['completion', 'reminders', 'sound'], bubbles: ['bubbles'], about: ['version', 'guide', 'licenses', 'uninstall'] })) {
+    for (const [category, tabs] of Object.entries({ pet: ['appearance', 'behavior', 'companionship'], account: ['overview', 'codex', 'gemini', 'records'], reminders: ['completion', 'reminders', 'sound'], bubbles: ['bubbles'], about: ['version', 'guide', 'licenses', 'uninstall'] })) {
       for (const tab of tabs) {
         await settingsPage(settings, category, tab);
         await expect(settings.locator(`#${tab}`)).toBeVisible();

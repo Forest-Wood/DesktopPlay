@@ -1,8 +1,8 @@
 import { readFile, mkdir, writeFile, rename, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { BuiltinPetId, GptAppearance, PetAsset } from '../shared/types';
-import { BUILTIN_PETS, GPT_DRAGON_PET } from '../shared/defaults';
+import type { BuiltinPetId, GeminiAppearance, GptAppearance, PetAsset } from '../shared/types';
+import { BUILTIN_PETS, GEMINI_PETS, GPT_DRAGON_PET } from '../shared/defaults';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 export function inspectImage(bytes: Buffer): { mime: string; width: number; height: number } {
@@ -34,6 +34,7 @@ export function inspectImage(bytes: Buffer): { mime: string; width: number; heig
 
 export class PetAssets {
   private selected: BuiltinPetId = 'deepseek';
+  private geminiAppearance: GeminiAppearance = 'classic';
   private gptAppearance: GptAppearance = 'classic';
   private pets: Record<BuiltinPetId, PetAsset> = structuredClone(BUILTIN_PETS);
   private mutations: Promise<void> = Promise.resolve();
@@ -43,7 +44,8 @@ export class PetAssets {
     let appearance: unknown;
     try {
       const choice = JSON.parse(await readFile(path.join(this.dataDir, 'pet-selection.json'), 'utf8'));
-      if (choice.activePet === 'gpt' || choice.activePet === 'deepseek') this.selected = choice.activePet;
+      if (choice.geminiAppearance === 'sketch') this.geminiAppearance = 'sketch';
+      if (choice.activePet === 'gemini' || choice.activePet === 'gpt' || choice.activePet === 'deepseek') this.selected = choice.activePet;
       appearance = choice.gptAppearance;
     } catch { /* Existing installations keep their original character. */ }
     await Promise.all((['deepseek', 'gpt'] as const).map(async id => {
@@ -61,6 +63,7 @@ export class PetAssets {
       (appearance === 'custom' || appearance === undefined) && this.hasCustomGpt() ? 'custom' : 'classic';
   }
   get(): PetAsset {
+    if (this.selected === 'gemini') return { ...GEMINI_PETS[this.geminiAppearance] };
     if (this.selected === 'gpt') {
       if (this.gptAppearance === 'dragon') return { ...GPT_DRAGON_PET };
       if (this.gptAppearance === 'classic') return { ...BUILTIN_PETS.gpt };
@@ -68,6 +71,7 @@ export class PetAssets {
     return { ...this.pets[this.selected] };
   }
   getSelected(): BuiltinPetId { return this.selected; }
+  getGeminiAppearance(): GeminiAppearance { return this.geminiAppearance; }
   getGptAppearance(): GptAppearance { return this.gptAppearance; }
   hasCustomGpt(): boolean { return this.pets.gpt.isCustom; }
   async drain(): Promise<void> { await this.mutations.catch(() => {}); }
@@ -81,11 +85,15 @@ export class PetAssets {
     finally { await unlink(temporary).catch(() => {}); }
   }
   select(id: unknown): Promise<void> {
-    if (id !== 'deepseek' && id !== 'gpt') return Promise.reject(new Error('未知的桌宠角色。'));
+    if (id !== 'gemini' && id !== 'deepseek' && id !== 'gpt') return Promise.reject(new Error('未知的桌宠角色。'));
     return this.mutate(async () => { await this.saveSelection(id, this.gptAppearance); this.selected = id; });
   }
-  private saveSelection(activePet: BuiltinPetId, gptAppearance: GptAppearance): Promise<void> {
-    return this.save(path.join(this.dataDir, 'pet-selection.json'), { activePet, gptAppearance });
+  private saveSelection(activePet: BuiltinPetId, gptAppearance: GptAppearance, geminiAppearance = this.geminiAppearance): Promise<void> {
+    return this.save(path.join(this.dataDir, 'pet-selection.json'), { activePet, gptAppearance, geminiAppearance });
+  }
+  selectGeminiAppearance(id: unknown): Promise<void> {
+    if (id !== 'classic' && id !== 'sketch') return Promise.reject(new Error('未知的 Gemini 造型。'));
+    return this.mutate(async () => { await this.saveSelection(this.selected, this.gptAppearance, id); this.geminiAppearance = id; });
   }
   selectGptAppearance(id: unknown): Promise<void> {
     if (id !== 'classic' && id !== 'dragon' && id !== 'custom') return Promise.reject(new Error('未知的 GPT 造型。'));
@@ -96,6 +104,7 @@ export class PetAssets {
     });
   }
   import(filename: string): Promise<void> {
+    if (this.selected === 'gemini') return Promise.reject(new Error('请在 Gemini 造型中选择图片。'));
     const id = this.selected;
     return this.mutate(async () => {
       const bytes = await readFile(filename);
@@ -109,6 +118,7 @@ export class PetAssets {
     });
   }
   reset(): Promise<void> {
+    if (this.selected === 'gemini') return this.selectGeminiAppearance('classic');
     const id = this.selected;
     return this.mutate(async () => {
       await unlink(this.filename(id)).catch((error: NodeJS.ErrnoException) => { if (error.code !== 'ENOENT') throw error; });

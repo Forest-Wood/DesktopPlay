@@ -1,5 +1,5 @@
-export type PetPersona = 'whale' | 'gpt' | 'dragon';
-export type CompletionSource = 'codex' | 'chatgpt-work' | 'deepseek-harness';
+export type PetPersona = 'whale' | 'gpt' | 'dragon' | 'gemini';
+export type CompletionSource = 'codex' | 'chatgpt-work' | 'deepseek-harness' | 'antigravity';
 export type SoundSlot = 'press' | 'release' | `completion-${CompletionSource}`;
 export type BubbleScenario = 'usage' | 'summary' | 'phrases' | 'retention' | 'low-balance' | 'daily-budget' | 'update' | `completion-${CompletionSource}` | `attention-${CompletionSource}`;
 export interface ConversationNotice { id: string; source: CompletionSource; occurredAt: string; kind: 'completion' | 'question' | 'approval' }
@@ -42,6 +42,8 @@ export interface AppSettings {
   chatgptCompletionEnabled: boolean;
   deepseekCompletionEnabled: boolean;
   attentionEnabledBySource: Record<CompletionSource, boolean>;
+  geminiHookEnabled: boolean;
+  geminiCompletionEnabled: boolean;
   codexHookEnabled: boolean;
   deepseekCompletionDirectory: string | null;
   bubbleProfilesByPersona: BubbleProfiles;
@@ -104,7 +106,15 @@ export interface PetAsset {
   contentBounds?: { x: number; y: number; width: number; height: number; imageWidth: number; imageHeight: number };
 }
 
-export type BuiltinPetId = 'deepseek' | 'gpt';
+export type BuiltinPetId = 'deepseek' | 'gpt' | 'gemini';
+export type GeminiAppearance = 'classic' | 'sketch';
+export type GeminiBucket = 'gemini-argon-wtu-weekly' | 'gemini-weekly' | 'gemini-5h';
+export interface GeminiQuotaState {
+  windows: Partial<Record<GeminiBucket, { remainingPercent: number | null; resetsAt: string | null; shared: boolean }>>;
+  status: 'idle' | 'loading' | 'ready' | 'error';
+  updatedAt: string | null;
+  error: string | null;
+}
 export type GptAppearance = 'classic' | 'dragon' | 'custom';
 export type BubblePlacement = 'above' | 'below';
 
@@ -159,6 +169,9 @@ export interface AppState extends ServiceState {
   pet: PetAsset;
   activePet: BuiltinPetId;
   gptAppearance: GptAppearance;
+  geminiAppearance: GeminiAppearance;
+  geminiQuota: GeminiQuotaState;
+  geminiIntegration: string;
   hasCustomGpt: boolean;
   codex: CodexQuotaState;
   flipped: boolean;
@@ -192,6 +205,8 @@ export interface DesktopApi {
   getUninstallInfo(): Promise<UninstallInfo>;
   requestUninstall(removeData: boolean): Promise<{ started: boolean }>;
   selectPet(id: BuiltinPetId): Promise<AppState>;
+  selectGeminiAppearance(id: GeminiAppearance): Promise<AppState>;
+  refreshGeminiQuota(): Promise<AppState>;
   selectGptAppearance(id: GptAppearance): Promise<AppState>;
   refreshCodexQuota(): Promise<AppState>;
   chooseCodexExecutable(): Promise<AppState>;

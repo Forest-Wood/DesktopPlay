@@ -55,7 +55,7 @@ describe('two independent pet profiles', () => {
       await expect(pets.selectGptAppearance('__proto__')).rejects.toThrow();
       await expect(pets.selectGptAppearance('custom')).rejects.toThrow();
       await Promise.all([pets.selectGptAppearance('dragon'), pets.select('gpt'), pets.selectGptAppearance('classic')]);
-      expect(JSON.parse(await readFile(path.join(directory, 'pet-selection.json'), 'utf8'))).toEqual({ activePet: 'gpt', gptAppearance: 'classic' });
+      expect(JSON.parse(await readFile(path.join(directory, 'pet-selection.json'), 'utf8'))).toEqual({ activePet: 'gpt', gptAppearance: 'classic', geminiAppearance: 'classic' });
       await pets.selectGptAppearance('dragon');
       await pets.select('deepseek');
       expect(pets.get().url).toBe('./assets/whale.png');
