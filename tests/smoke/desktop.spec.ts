@@ -21,11 +21,9 @@ function soundFixture(seed: number): Buffer {
   return bytes;
 }
 
-test('v0.5.0 independent audio slots, stopped previews, uninstall safeguards and weekly-only quota', async () => {
-  test.setTimeout(120000);
+test('custom audio import/preview/reset and uninstall safeguards', async () => {
   await mkdir('.tmp', { recursive: true });
   const profile = await mkdtemp(path.resolve('.tmp/smoke-v050-'));
-  const screenshots = path.resolve('test-results/v050-regression'); await mkdir(screenshots, { recursive: true });
   const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1' };
   delete env.ELECTRON_RUN_AS_NODE;
   const application = await electron.launch({ executablePath: electronPath as unknown as string, args: electronArgs, cwd: process.cwd(), env });
@@ -34,26 +32,14 @@ test('v0.5.0 independent audio slots, stopped previews, uninstall safeguards and
     const settings = application.windows().find(page => page.url().includes('view=settings'))!;
     const pet = application.windows().find(page => page.url().includes('view=pet'))!;
     const errors: string[] = []; for (const page of [settings, pet]) page.on('pageerror', error => errors.push(error.message));
-    await settings.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
     await settingsPage(settings, 'reminders', 'sound');
     await settings.locator('input[name="soundEnabled"]').uncheck();
     await settings.locator('#volume').fill('0.45');
-    let state = await settings.evaluate(() => window.desktopPlay.getState());
-    let seed = 0;
-    for (const persona of ['whale', 'gpt', 'dragon'] as const) {
-      await settings.locator(`[data-sound-persona="${persona}"]`).click();
-      for (const slot of ['press', 'release'] as const) {
-        const filename = path.join(profile, `${persona}-${slot}.wav`); await writeFile(filename, soundFixture(++seed));
-        await application.evaluate(({ dialog }, filename) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filename] }); }, filename);
-        await settings.locator(`#sound-choose-${slot}`).click();
-        await expect.poll(async () => (await settings.evaluate(() => window.desktopPlay.getState())).sounds[persona][slot].isCustom).toBe(true);
-        await expect(settings.locator(`#sound-name-${slot}`)).toHaveText(path.basename(filename));
-        const next = await settings.evaluate(() => window.desktopPlay.getState());
-        for (const otherPersona of ['whale', 'gpt', 'dragon'] as const) for (const otherSlot of ['press', 'release'] as const) if (otherPersona !== persona || otherSlot !== slot) expect(next.sounds[otherPersona][otherSlot]).toEqual(state.sounds[otherPersona][otherSlot]);
-        state = next;
-      }
-    }
-    // Recording native HTMLMediaElement activity lets us verify real stop behavior, without muting the preview contract.
+    const filename = path.join(profile, 'whale-press.wav'); await writeFile(filename, soundFixture(1));
+    await application.evaluate(({ dialog }, filename) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filename] }); }, filename);
+    await settings.locator('#sound-choose-press').click();
+    await expect.poll(async () => (await settings.evaluate(() => window.desktopPlay.getState())).sounds.whale.press.isCustom).toBe(true);
+    await expect(settings.locator('#sound-name-press')).toHaveText('whale-press.wav');
     await settings.evaluate(() => {
       const media: { played: HTMLMediaElement[]; pauses: number } = { played: [], pauses: 0 };
       (window as unknown as { smokeMedia: typeof media }).smokeMedia = media;
@@ -63,7 +49,7 @@ test('v0.5.0 independent audio slots, stopped previews, uninstall safeguards and
     });
     const audioSnapshot = () => settings.evaluate(() => {
       const media = (window as unknown as { smokeMedia: { played: HTMLMediaElement[]; pauses: number } }).smokeMedia;
-      return { plays: media.played.length, pauses: media.pauses, volume: media.played.at(-1)?.volume, allStopped: media.played.every(audio => audio.paused) };
+      return { plays: media.played.length, volume: media.played.at(-1)?.volume, allStopped: media.played.every(audio => audio.paused) };
     });
     await settings.locator('#volume').fill('0'); await settings.locator('#sound-preview-press').click();
     await expect(settings.locator('#sound-warning-press')).toContainText('音量为零');
@@ -71,73 +57,17 @@ test('v0.5.0 independent audio slots, stopped previews, uninstall safeguards and
     await settings.locator('#volume').fill('0.45'); await settings.locator('#sound-preview-press').click();
     await expect.poll(async () => (await audioSnapshot()).plays).toBe(1);
     expect((await audioSnapshot()).volume).toBe(.45);
-    await expect.poll(async () => (await audioSnapshot()).allStopped).toBe(false);
-    await settingsPage(settings, 'pet', 'behavior');
+    await settings.locator('#sound-stop-press').click();
     await expect.poll(async () => (await audioSnapshot()).allStopped).toBe(true);
-    await settingsPage(settings, 'reminders', 'sound');
-    await settings.locator('#sound-preview-press').click();
-    await expect.poll(async () => (await audioSnapshot()).plays).toBe(2);
-    await settings.locator('[data-sound-persona="gpt"]').click();
-    await expect.poll(async () => (await audioSnapshot()).allStopped).toBe(true);
-    await settings.locator('#sound-preview-release').click();
-    await expect.poll(async () => (await audioSnapshot()).plays).toBe(3);
-    await settings.locator('#sound-stop-release').click();
-    await expect.poll(async () => (await audioSnapshot()).allStopped).toBe(true);
-    await expect(settings.locator('input[name="soundEnabled"]')).not.toBeChecked();
-    // Imported sound metadata updates immediately; draft volume and master switch remain unsaved.
-    expect((await settings.evaluate(() => window.desktopPlay.getState())).settings.soundEnabled).toBe(true);
-    await settings.locator('.settings-content').evaluate(element => { element.scrollTop = 0; });
-    await expect(settings.locator('#volume')).toBeInViewport();
-    await expect(settings.locator('#sound-reset-release')).toBeInViewport();
-    await settings.screenshot({ path: path.join(screenshots, 'sounds-light.png') });
     await settings.locator('#sound-reset-press').click();
-    await expect.poll(async () => (await settings.evaluate(() => window.desktopPlay.getState())).sounds.gpt.press.isCustom).toBe(false);
-    expect((await settings.evaluate(() => window.desktopPlay.getState())).sounds.gpt.release.isCustom).toBe(true);
-    expect((await settings.evaluate(() => window.desktopPlay.getState())).sounds.dragon.press.isCustom).toBe(true);
-    // Cancellation from the file picker does not replace the current metadata.
-    const beforeCancel = (await settings.evaluate(() => window.desktopPlay.getState())).sounds.gpt.release;
-    await application.evaluate(({ dialog }) => { dialog.showOpenDialog = async () => ({ canceled: true, filePaths: [] }); });
-    await settings.locator('#sound-choose-release').click();
-    await expect(settings.locator('#operation-status')).toHaveText('音效设置未更改。');
-    expect((await settings.evaluate(() => window.desktopPlay.getState())).sounds.gpt.release).toEqual(beforeCancel);
+    await expect.poll(async () => (await settings.evaluate(() => window.desktopPlay.getState())).sounds.whale.press.isCustom).toBe(false);
     expect(await pet.evaluate(async () => { try { await window.desktopPlay.requestUninstall(false); return false; } catch { return true; } })).toBe(true);
-    expect(await pet.evaluate(async () => { try { await window.desktopPlay.getUninstallInfo(); return false; } catch { return true; } })).toBe(true);
     await application.evaluate(({ dialog }) => {
-      const confirmations: { cancelId: number | undefined; defaultId: number | undefined }[] = [];
-      (globalThis as unknown as { smokeUninstallConfirmations: typeof confirmations }).smokeUninstallConfirmations = confirmations;
-      dialog.showMessageBox = async (...args: unknown[]) => {
-        const options = args.find(value => value && typeof value === 'object' && 'message' in value) as { cancelId?: number; defaultId?: number };
-        confirmations.push({ cancelId: options.cancelId, defaultId: options.defaultId });
-        return { response: options.cancelId ?? 0, checkboxChecked: false };
-      };
+      dialog.showMessageBox = async () => ({ response: 0, checkboxChecked: false });
     });
-    for (const removeData of [false, true]) expect(await settings.evaluate(value => window.desktopPlay.requestUninstall(value), removeData)).toEqual({ started: false });
-    const confirmations = await application.evaluate(() => (globalThis as unknown as { smokeUninstallConfirmations: { cancelId: number; defaultId: number }[] }).smokeUninstallConfirmations);
-    expect(confirmations).toEqual([{ cancelId: 0, defaultId: 0 }, { cancelId: 0, defaultId: 0 }]);
-    expect(application.windows()).toHaveLength(2); await expect(settings.getByRole('heading', { name: '桌宠的栖息地' })).toBeVisible();
+    expect(await settings.evaluate(() => window.desktopPlay.requestUninstall(false))).toEqual({ started: false });
     await settingsPage(settings, 'about', 'uninstall');
-    await expect(settings.locator('#uninstall-remove-data')).toBeChecked();
-    await settings.locator('#uninstall-remove-data').uncheck();
-    await settingsPage(settings, 'about', 'version'); await settingsPage(settings, 'about', 'uninstall');
-    await expect(settings.locator('#uninstall-remove-data')).not.toBeChecked();
     await expect(settings.locator('#uninstall-data')).toHaveText(profile);
-    await settings.locator('#uninstall-remove-data').check();
-    await settings.locator('.settings-content').evaluate(element => { element.scrollTop = 0; });
-    await settings.screenshot({ path: path.join(screenshots, 'uninstall-light.png') });
-    await settingsPage(settings, 'pet', 'appearance'); await settings.locator('#select-gpt').click();
-    await settingsPage(settings, 'account', 'codex');
-    const fixture = await settings.evaluate(() => window.desktopPlay.getState());
-    fixture.codex = { ...fixture.codex, status: 'ready', planType: 'plus', updatedAt: new Date().toISOString(), error: null, buckets: [{ id: 'codex', name: 'Codex · 演示数据', planType: 'plus', primary: { usedPercent: 23.4, remainingPercent: 76.6, windowMinutes: 10080, resetsAt: new Date(Date.now() + 345600000).toISOString() }, secondary: null, creditsRemaining: null, unlimitedCredits: false }] };
-    await application.evaluate(({ BrowserWindow }, state) => { for (const win of BrowserWindow.getAllWindows()) win.webContents.send('desktopplay:state', state); }, fixture);
-    await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
-    for (const page of [settings, pet]) {
-      await expect(page.locator('.quota-window')).toHaveCount(1);
-      await expect(page.locator('.quota-window-title')).toHaveText('每周剩余');
-      await expect(page.locator('.quota-percentage')).toHaveText('76.6%');
-      await expect(page.getByText('5H', { exact: true })).toHaveCount(0);
-    }
-    await settings.screenshot({ path: path.join(screenshots, 'quota-weekly-light.png') });
-    await pet.screenshot({ path: path.join(screenshots, 'pet-weekly.png'), omitBackground: true });
     expect(errors).toEqual([]);
   } finally { await application.close(); }
 });
@@ -224,24 +154,18 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
     await pet.locator('.bubble-close').click();
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
     const quotaState = await settings.evaluate(() => window.desktopPlay.getState());
-    for (const planType of ['plus', 'pro', null, 'team']) {
+    for (const planType of ['plus', null]) {
       const fixture = structuredClone(quotaState);
       fixture.codex = { ...fixture.codex, status: 'ready', planType, updatedAt: new Date().toISOString(), buckets: [{ id: 'codex', name: 'Codex', planType, primary: { usedPercent: 0.1, remainingPercent: 99.9, windowMinutes: 10080, resetsAt: new Date(Date.now() + 3600000).toISOString() }, secondary: planType === null ? null : { usedPercent: 0, remainingPercent: 100, windowMinutes: 300, resetsAt: new Date(Date.now() + 3600000).toISOString() }, creditsRemaining: null, unlimitedCredits: false }] };
       await application.evaluate(({ BrowserWindow }, state) => { for (const win of BrowserWindow.getAllWindows()) win.webContents.send('desktopplay:state', state); }, fixture);
-      const label = planType === null ? '套餐未知' : planType === 'team' ? 'team' : planType === 'plus' ? 'Plus' : 'Pro';
+      const label = planType === null ? '套餐未知' : 'Plus';
       for (const page of [settings, pet]) {
         await expect(page.locator('.quota-plan-badge')).toHaveText(label);
         await expect(page.locator('.quota-window').nth(0).locator('.quota-percentage')).toHaveText('99.9%');
-        await expect(page.locator('.quota-window-title').first()).toHaveText('每周剩余');
         await expect(page.locator('.quota-window')).toHaveCount(planType === null ? 1 : 2);
-        if (planType !== null) await expect(page.locator('.quota-window').nth(1).locator('.quota-percentage')).toHaveText('100%');
-        else await expect(page.getByText('5H', { exact: true })).toHaveCount(0);
-        const title = page.locator('.quota-window-title').first();
-        expect(await title.evaluate(el => getComputedStyle(el).gap)).toBe('4px');
       }
       fixture.codex.status = 'error'; fixture.codex.error = 'smoke-refresh-failed';
       await application.evaluate(({ BrowserWindow }, state) => { for (const win of BrowserWindow.getAllWindows()) win.webContents.send('desktopplay:state', state); }, fixture);
-      await expect(settings.locator('.quota-percentage').first()).toHaveText('99.9%');
       await expect(settings.locator('.quota-stale')).toBeVisible();
     }
     await application.evaluate(({ BrowserWindow }, state) => { for (const win of BrowserWindow.getAllWindows()) win.webContents.send('desktopplay:state', state); }, quotaState);
@@ -386,82 +310,5 @@ test('native layout follows the character anchor and keeps upside-down text upri
     // All tooltip/buttons remain in the native hit rectangle after an orientation change.
     await pet.locator('.bubble-switch').click();
     await expect(pet.locator('.bubble-confirm')).toBeVisible();
-  } finally { await application.close(); }
-});
-
-test('real held pointer presses preserve all mirror poses and cancel without paging', async () => {
-  await mkdir('.tmp', { recursive: true });
-  const profile = await mkdtemp(path.resolve('.tmp/smoke-pointer-'));
-  const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1', DESKTOPPLAY_TEST_NO_ONBOARDING: '1' };
-  delete env.ELECTRON_RUN_AS_NODE;
-  const application = await electron.launch({ executablePath: electronPath as unknown as string, args: electronArgs, cwd: process.cwd(), env });
-  try {
-    const pet = await application.firstWindow();
-    await pet.locator('.pet-character').waitFor();
-    await pet.evaluate(() => window.desktopPlay.updateSettings({ snapToEdges: false, soundEnabled: false, scale: 1 }));
-    const area = await application.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea);
-    const snapshot = async () => {
-      const native = await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getBounds());
-      const renderer = await pet.evaluate(() => {
-        const character = document.querySelector('.pet-character')!.getBoundingClientRect();
-        const mirror = new DOMMatrixReadOnly(getComputedStyle(document.querySelector('.pet-mirror')!).transform);
-        const image = new DOMMatrixReadOnly(getComputedStyle(document.querySelector('.pet-image')!).transform);
-        return { x: character.x, y: character.y, mirrorX: mirror.a, mirrorY: mirror.d, imageX: image.a, imageY: image.d };
-      });
-      const state = await pet.evaluate(() => window.desktopPlay.getState());
-      return { ...renderer, screenX: native.x + renderer.x, screenY: native.y + renderer.y, flipped: state.flipped, verticalFlipped: state.verticalFlipped };
-    };
-    for (const flipped of [false, true]) for (const verticalFlipped of [false, true]) {
-      await application.evaluate(({ BrowserWindow, screen }, input) => {
-        const win = BrowserWindow.getAllWindows()[0];
-        const character = input.character;
-        const x = input.flipped ? input.area.x + 40 : input.area.x + input.area.width - 260;
-        const y = input.verticalFlipped ? input.area.y + 10 : input.area.y + input.area.height - 250;
-        win.setPosition(Math.round(x - character.x), Math.round(y - character.y));
-        screen.emit('display-metrics-changed');
-      }, { flipped, verticalFlipped, area, character: await pet.locator('.pet-character').evaluate(el => ({ x: el.getBoundingClientRect().x, y: el.getBoundingClientRect().y })) });
-      await expect.poll(async () => pet.evaluate(() => window.desktopPlay.getState())).toMatchObject({ flipped, verticalFlipped });
-      await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
-      const before = await snapshot();
-      expect(before.mirrorX).toBe(flipped ? -1 : 1);
-      expect(before.mirrorY).toBe(verticalFlipped ? -1 : 1);
-      const rect = await pet.locator('.pet-character').boundingBox();
-      await pet.mouse.move(rect!.x + rect!.width / 2, rect!.y + rect!.height / 2);
-      await pet.mouse.down();
-      await expect(pet.locator('.pet-character')).toHaveClass(/pressed/);
-      await pet.waitForTimeout(350);
-      const held = await snapshot();
-      expect(held.imageX).toBeGreaterThan(0);
-      expect(held.imageY).toBeGreaterThan(0);
-      expect(held.mirrorX).toBe(before.mirrorX);
-      expect(held.mirrorY).toBe(before.mirrorY);
-      expect(Math.abs(held.screenX - before.screenX)).toBeLessThanOrEqual(1);
-      expect(Math.abs(held.screenY - before.screenY)).toBeLessThanOrEqual(1);
-      const pageBefore = await pet.locator('.bubble-page').textContent();
-      await pet.mouse.up();
-      await expect(pet.locator('.pet-character')).not.toHaveClass(/pressed/);
-      await expect(pet.locator('.bubble-page')).not.toHaveText(pageBefore!);
-      const after = await snapshot();
-      expect(after.flipped).toBe(flipped);
-      expect(after.verticalFlipped).toBe(verticalFlipped);
-      expect(Math.abs(after.screenX - before.screenX)).toBeLessThanOrEqual(1);
-      expect(Math.abs(after.screenY - before.screenY)).toBeLessThanOrEqual(1);
-      for (const event of ['pointercancel', 'lostpointercapture']) {
-        const currentPage = await pet.locator('.bubble-page').textContent();
-        const box = await pet.locator('.pet-character').boundingBox();
-        await pet.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
-        await pet.evaluate(() => document.querySelector('.pet-character')!.addEventListener('pointerdown', event => { (window as unknown as { testPointerId: number }).testPointerId = (event as PointerEvent).pointerId; }, { once: true }));
-        await pet.mouse.down();
-        await pet.waitForTimeout(350);
-        await pet.evaluate(eventName => {
-          const character = document.querySelector('.pet-character')!;
-          const pointerId = (window as unknown as { testPointerId: number }).testPointerId;
-          character.dispatchEvent(new PointerEvent(eventName, { pointerId }));
-        }, event);
-        await expect(pet.locator('.pet-character')).not.toHaveClass(/pressed/);
-        await pet.mouse.up();
-        await expect(pet.locator('.bubble-page')).toHaveText(currentPage!);
-      }
-    }
   } finally { await application.close(); }
 });

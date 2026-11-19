@@ -94,6 +94,8 @@ README 与 CI 使用 Windows x64、Node.js 24 和 npm；具体依赖与版本以
 | `npm.cmd run dist` | 构建 Windows x64 NSIS 与 portable 包到 `release/`，配置为 `--publish never` |
 | `node scripts/verify-release.mjs`、`node scripts/verify-update-runtime.mjs` | 校验六个更新资源（含 NSIS 与免安装版 `.blockmap`）、生成校验文件，并核实打包运行依赖／固定发布源 |
 | `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tests/update-helper-fixtures.ps1` | 更新助手七场景，含约两分钟来源进程等待超时；不触碰真实程序 |
+| `node scripts/verify-release.mjs`、`node scripts/verify-update-runtime.mjs` | 校验五个更新资源、生成校验文件，并核实打包运行依赖／固定发布源 |
+| `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tests/update-helper-fixtures.ps1` | 更新助手六项快速安全场景（加 `-IncludeSlowTimeout` 可额外运行约两分钟的来源进程等待超时验证）；不触碰真实程序 |
 | `node tests/update-packaged.mjs` | 构建独立 ID 的 0.0.1／0.0.2 测试程序，实际覆盖升级／回滚；需 Windows、打包工具和安装权限 |
 | `git diff --check` | 检查工作区差异中的空白问题；不能代替功能验证 |
 
@@ -106,6 +108,11 @@ ChatGPT Work 通知日志同样隔离：上述测试开关开启时只使用测�
 Codex 等待 hook 测试也使用上述隔离主目录，不能修改真实 hooks.json 或信任配置。独立运行时测试入口为 `tests/hook-runtime.mjs`，通过 `DESKTOPPLAY_HOOK_TEST_CODEX` 显式指定待验证原生程序；使用 .tmp 内 CODEX_HOME、回环合成模型和可审查的测试 hook。隔离信任绕过只用于该 fixture，禁止加入生产配置。CLI TUI 测试不得安装／修改系统沙箱或执行真实审批操作。
 
 按改动选择必要检查：纯文档检查链接、内容、差异和范围；共享类型与行为改动运行类型检查及相关单测；界面改动在 build 后运行相关 smoke 并检查渲染结果；卸载、安装和真实账户验证与隔离测试分别记录。一次通过后，只有新改动、失败或未解决疑点才需要扩大或重复验证。
+
+**避免过度防御性测试**：
+- 测试聚焦真实用户行为、公共接口契约、持久化兼容性与核心安全边界（校验和、路径防越界／防符号链接、凭据与正文脱敏、并发写入防损坏），不编写只针对极端或几乎不可能出现的合成场景的过度防御用例（例如：单测中构造 5000+ 行缓存淘汰压力、手工拼装 5 MiB 二进制分片、强制 `utimes` 同时间戳等长覆写、mock `realpath` 伪造 8.3 短路径、脱离真实行为的 CSS 属性／DOMMatrix 微观断言）。
+- 解析、状态机、边界校验与计时逻辑优先在快速单元测试中覆盖，不把已由单测充分验证的组合矩阵（如全部角色 × 全部来源的笛卡尔积、毫秒级 `2999ms`/`1ms` 假时钟微调）重复搬进慢速 Electron 冒烟测试。
+- 控制冒烟测试与辅助脚本耗时：同一功能优先保留少量代表性端到端路径，避免在冒烟中堆叠多段 `setTimeout(2200)` 实墙等待；耗时分钟级的慢速容错用例（如更新助手 2 分钟等待超时）保持为显式开关，不放进普通 PR 的默认 CI。
 
 更新测试必须使用独立 appId、安装目录、用户数据和专用 `DesktopPet-T008-*` 开机启动项。`tests/fixtures/update-app.ts` 只用于测试包，其本机 HTTP 注入、控制文件与隔离路径不得导入生产入口。不得增加打包版任意 URL／数据目录环境覆盖，或拿当前真实桌宠试升降级。测试失败时只让该 fixture 退出，不按文件名终止 Electron。更新助手只操作经校验的目标、暂存和备份文件，不复用卸载清理流程。
 
@@ -128,6 +135,7 @@ Codex 等待 hook 测试也使用上述隔离主目录，不能修改真实 hook
 - PR 描述基于最终差异填写，不直接复制计划或聊天记录。
 - 提交前检查实际差异和暂存内容，只包含本任务相关文件。
 - 完成实现后核对验收条件，运行与改动相称的验证；无法运行的检查记录原因和影响。
+- 新增或维护测试时遵守“避免过度防御性测试”原则，不为极端合成场景、实现细节或跨层重复矩阵堆砌脆弱用例。
 - 完成 `T(N)` 修改后，按滚动清理规则删除 `T(N-2)` 对应的非跟踪临时测试文件与临时草稿（如完成 `T099` 时清理 `T097`），不触碰跟踪文件、正式文档及最新两轮产物。
 - 同步主线或解决冲突后，重新运行受影响的验证。
 - 未经验证、审查或合并的任务，不标记为相应阶段已完成。

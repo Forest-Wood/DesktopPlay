@@ -313,3 +313,13 @@ DeepSeek 展示和每日统计跟随电脑时区。旧账本保留日期及金�
 4. **发布流水线校验**：`scripts/package.mjs`、`scripts/verify-release.mjs` 与 `.github/workflows/release.yml` 同步纳入 `DesktopPet-<版本>-Portable-x64.exe.blockmap` 的生成、结构与尺寸校验、草稿上传／替换及转正前摘要门禁。
 
 验收：构建、类型检查与全部单测通过；`scripts/verify-release.mjs` 与 `scripts/verify-update-runtime.mjs` 校验全部 6 项发布资产与打包运行依赖通过；隔离构建包测试 `node tests/update-packaged.mjs` 验证 NSIS 与 Portable 的真实差分升级（下载字节较整包显著缩减、界面总字节反映实际增量）、缓存复用、差分失败自动回退整包及免安装启动失败回滚；`git diff --check` 通过。见 [T032](tasks/T032-incremental-update.md)。（注：`R038` 已由并行分支 `chore/T031-prune-overdefensive-tests` 的 T031 使用。）
+## R038：精简过度防御性测试并补充测试编写规范（T031）
+
+2026-11-19 用户要求排查 `tests/` 目录下所有测试用例的必要性，精简不必要的过度防御与重复测试，并将“避免使用过度防御性测试用例”的原则写入项目协作文档。
+
+行为：
+- 审查 `tests/unit/`、`tests/smoke/` 与 PowerShell 助手测试，在保留核心功能、持久化兼容、跨角色行为及关键安全边界（校验和、路径防符号链接、脱敏、回滚与卸载保护）覆盖的前提下，移除冗余／过度防御的合成边界测试（包括重复的 Electron 冒烟测试文件、全角色 × 全来源笛卡尔积循环、毫秒级假时钟微调与 DOMMatrix 细节检查、5000+ 行缓存淘汰压测、5 MiB 伪造 OGG 分片及 mock `realpath` 伪造 8.3 短路径等）。
+- 将 `tests/update-helper-fixtures.ps1` 中耗时约 2 分钟的进程等待超时用例改为显式 `-IncludeSlowTimeout` 开关，默认执行 6 项快速安全场景，大幅缩短常规 CI 耗时。
+- 在 `AGENTS.md` 与 `.github/pull_request_template.md` 中正式写入“避免过度防御性测试”原则与 PR 核对项。
+
+验收：`npm.cmd run build`、全量单元测试、`tests/update-helper-fixtures.ps1` 及全量 Electron 冒烟测试（`npm.cmd run test:smoke`）均通过；`git diff --check` 无异常；保持现有软件版本 `2.0.2` 不变。见 [T031](tasks/T031-prune-overdefensive-tests.md)。
