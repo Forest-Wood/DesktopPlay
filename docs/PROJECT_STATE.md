@@ -4,7 +4,7 @@
 
 ## 当前任务
 
-- [T029／R036](tasks/T029-update-eta-gemini-completion.md) 待审查（分支 `fix/T029-update-eta-gemini-completion`，基准 `origin/main` `a9ab688`，实现提交 `fa71a1d`）：应用内软件更新下载新增平滑速率与预计剩余时间估计（兼容 NSIS／免安装版）；修复 Gemini 任务完成提示气泡在 VS Code 与桌面 App 均未展示的问题（默认通过只读扫描 `conversation_summaries.db` 识别主会话完成，并修复 `build/gemini-hook.ps1` 对 `NO_TOOL_CALL` 与 protojson 省略 `executionNum` 的匹配及双源去重）；在协作文档新增完成 `T(N)` 清理 `T(N-2)` 临时测试文件的滚动规范。构建、329 项单测及 `app-update`／`gemini` 两项隔离 Electron 冒烟测试已通过；真实 VS Code／App 端完成弹泡待用户实机验收。
+- [T029／R036](tasks/T029-update-eta-gemini-completion.md) 待审查（分支 `fix/T029-update-eta-gemini-completion`，基准 `origin/main` `a9ab688`，实现提交 `fa71a1d`，[PR #33](https://github.com/Forest-Wood/DesktopPlay/pull/33)）：应用内软件更新下载新增平滑速率与预计剩余时间估计（兼容 NSIS／免安装版）；修复 Gemini 任务完成提示气泡在 VS Code 与桌面 App 均未展示的问题（默认通过只读扫描 `conversation_summaries.db` 识别主会话完成，并修复 `build/gemini-hook.ps1` 对 `NO_TOOL_CALL` 与 protojson 省略 `executionNum` 的匹配及双源去重）；在协作文档新增完成 `T(N)` 清理 `T(N-2)` 临时测试文件的滚动规范。构建、329 项单测及 `app-update`／`gemini` 两项隔离 Electron 冒烟测试已通过；真实 VS Code／App 端完成弹泡待用户实机验收。
 - [T028／R035](tasks/T028-release-v201.md) 已发布 [v2.0.1](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.1)。[PR #31](https://github.com/Forest-Wood/DesktopPlay/pull/31) 合入主线，标签 `v2.0.1` 指向 `9679547`。[发布工作流 44507457122](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44507457122) 通过打包、更新运行时与五项附件摘要及公告校验。
 - [T027／R034](tasks/T027-retention-bubble.md) 已通过 [PR #30](https://github.com/Forest-Wood/DesktopPlay/pull/30) 合入主线 `903dd9e`，随 v2.0.1 修复在“用量小报告”或“陪伴短句”气泡页点击“换角色”时挽留提示词拼接在原页面文案后面的问题。
 - [T026／R033](tasks/T026-gemini-ui.md) 已通过 [PR #29](https://github.com/Forest-Wood/DesktopPlay/pull/29) 合入主线 `c101c7e`，随 v2.0.1 提供 Gemini 气泡双列排版、设置页三栏额度卡与状态胶囊、星光紫角色舞台（`gemini-theme`）、三角色并排选择器与左右对称翻转后的经典／手绘两款造型。
