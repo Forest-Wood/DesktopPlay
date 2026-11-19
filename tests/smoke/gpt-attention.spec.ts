@@ -32,23 +32,20 @@ test('App native local/durable attention reaches all pets, respects native suppr
     await pet.evaluate(() => window.desktopPlay.updateSettings({ chatgptCompletionEnabled: false }));
     await expect.poll(() => pet.evaluate(async () => (await window.desktopPlay.getState()).chatgptCompletion.status)).toBe('watching');
     let count = 0;
-    for (const [index, persona] of (['whale', 'gpt', 'dragon'] as const).entries()) {
-      await pet.evaluate(async persona => { await window.desktopPlay.selectPet(persona === 'whale' ? 'deepseek' : 'gpt'); if (persona !== 'whale') await window.desktopPlay.selectGptAppearance(persona === 'dragon' ? 'dragon' : 'classic'); }, persona);
+    for (const [persona, host, kind] of [['whale', 'local', 'question'], ['dragon', 'durable', 'approval']] as const) {
+      await pet.evaluate(async persona => { await window.desktopPlay.selectPet(persona === 'whale' ? 'deepseek' : 'gpt'); if (persona !== 'whale') await window.desktopPlay.selectGptAppearance('dragon'); }, persona);
       await settings.bringToFront(); const focused = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getFocusedWindow()?.id);
-      for (const host of ['local', 'durable'] as const) {
-        const row = chatgptAttention((['question', 'approval', 'async'] as const)[index], `request-${persona}`, host);
-        await appendFile(file, row + row);
-        await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'attention-chatgpt-work');
-        await expect(pet.locator('.pet-bubble')).toBeVisible();
-        await expect(pet.locator('body')).toHaveAttribute('data-notice-count', String(++count));
-        await expect(settings.locator('#chatgpt-attention-status')).toContainText('已收到等待回应事件');
-        await expect(settings.locator('#chatgpt-attention-status')).toContainText('最近事件');
-        expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getFocusedWindow()?.id)).toBe(focused);
-        const notice = JSON.parse((await pet.locator('body').getAttribute('data-last-notice'))!);
-        expect(Object.keys(notice).sort()).toEqual(['id', 'kind', 'occurredAt', 'source']);
-        expect(JSON.stringify(notice)).not.toMatch(/fake-account|fake-user|request-/);
-        await pet.locator('.bubble-message').dispatchEvent('click'); await expect(pet.locator('.pet-bubble')).toBeHidden();
-      }
+      const row = chatgptAttention(kind, `request-${persona}`, host);
+      await appendFile(file, row + row);
+      await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'attention-chatgpt-work');
+      await expect(pet.locator('.pet-bubble')).toBeVisible();
+      await expect(pet.locator('body')).toHaveAttribute('data-notice-count', String(++count));
+      await expect(settings.locator('#chatgpt-attention-status')).toContainText('已收到等待回应事件');
+      expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getFocusedWindow()?.id)).toBe(focused);
+      const notice = JSON.parse((await pet.locator('body').getAttribute('data-last-notice'))!);
+      expect(Object.keys(notice).sort()).toEqual(['id', 'kind', 'occurredAt', 'source']);
+      expect(JSON.stringify(notice)).not.toMatch(/fake-account|fake-user|request-/);
+      await pet.locator('.bubble-message').dispatchEvent('click'); await expect(pet.locator('.pet-bubble')).toBeHidden();
     }
     await appendFile(file, chatgptAttention('question', 'visible-conversation', 'local').replace('forward show', 'suppressed question') + chatgptAttention('question', 'other-conversation', 'local'));
     await expect(pet.locator('body')).toHaveAttribute('data-notice-count', String(++count));

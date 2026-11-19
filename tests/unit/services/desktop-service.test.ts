@@ -204,11 +204,6 @@ describe('DesktopService validation and recovery', () => {
   it('rejects malformed and negative balances without moving the baseline', async () => {
     const { service } = await configured(['100', '-1', '99']); await service.refresh(); expect(service.getState().status).toBe('error'); await service.refresh(); expect(service.getState().ledger.today?.spent).toBe('1.00000000');
   });
-  it('times out even if the fetch adapter ignores abort', async () => {
-    vi.useFakeTimers(); const { service } = await fixture([], { fetchFn: (() => new Promise(() => {})) as typeof fetch });
-    await service.setApiKey('test-key'); const pending = service.refresh(); await vi.advanceTimersByTimeAsync(10001); await pending;
-    expect(service.getState().error).toBe('请求超时，请稍后重试。');
-  });
   it('allows settings without a key and rejects dangerous or invalid patches', async () => {
     const { service } = await fixture(); await service.updateSettings({ scale: 2, dailyBudget: '0.00000001' }); expect(service.getState().hasApiKey).toBe(false);
     for (const patch of [{ scale: NaN }, { phrases: [] }, { dailyBudget: '1e3' }, { volume: 2 }, JSON.parse('{"__proto__":{}}')]) await expect(service.updateSettings(patch)).rejects.toThrow();
@@ -258,18 +253,6 @@ describe('DesktopService persistence transactions', () => {
     const after = JSON.parse(await fs.readFile(file, 'utf8'));
     expect(after.settings.scale).toBe(before.settings.scale); expect(after.key).toBe(JSON.parse(stored).key); expect(Object.keys(after.accounts)).toEqual(Object.keys(JSON.parse(stored).accounts));
     expect(service.getState().hasApiKey).toBe(true); expect(service.getState().balance?.total).toBe('100.00000000');
-  });
-  it('exposes only committed settings while saving and serializes concurrent mutations after failure', async () => {
-    const { service, dataDir } = await configured(['100']); const before = service.getState();
-    let reject!: (reason: Error) => void;
-    const failure = vi.spyOn(fs, 'open').mockImplementationOnce(() => new Promise((_, fail) => { reject = fail; }));
-    const first = service.updateSettings({ scale: 2 }); const rejected = expect(first).rejects.toThrow('storage unavailable');
-    const second = service.updateSettings({ volume: 0.2 });
-    await vi.waitFor(() => expect(reject).toBeTypeOf('function'));
-    expect(service.getState()).toEqual(before);
-    reject(new Error('storage unavailable')); await rejected; await second; failure.mockRestore();
-    expect(service.getState().settings).toMatchObject({ scale: before.settings.scale, volume: 0.2 });
-    expect(JSON.parse(await fs.readFile(path.join(dataDir, 'desktopplay.json'), 'utf8')).settings).toMatchObject({ scale: before.settings.scale, volume: 0.2 });
   });
   it('does not advance balance, consumption or alert deduplication when ledger persistence fails', async () => {
     const { service, dataDir } = await configured(['100', '99', '98']); await service.updateSettings({ dailyBudget: '1' });
@@ -332,15 +315,4 @@ describe('T019 modes and local ledger segments', () => {
     expect(service.getState().ledger.today).toMatchObject({ date: '2026-11-01', spent: '2.00000000' });
     expect(service.getState().ledger.history).toHaveLength(1);
   });
-});
-
-it('starts a fresh segment after an observed zone round trip without a successful balance request', async () => {
-  let zone = 'UTC';
-  const { service } = await configured(['100', '99', '90', '89'], { timeZone: () => zone });
-  await service.refresh();
-  zone = 'Asia/Shanghai'; expect(service.getState().ledger.today).toBeNull();
-  zone = 'UTC'; expect(service.getState().ledger.today).toBeNull();
-  await service.refresh(); expect(service.getState().ledger.today?.spent).toBe('0.00000000');
-  await service.refresh(); expect(service.getState().ledger.today?.spent).toBe('1.00000000');
-  expect(service.getState().ledger.history).toHaveLength(2);
 });

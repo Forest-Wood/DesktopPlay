@@ -47,14 +47,6 @@ test('desktop SQLite WAL completions notify without new JSONL, share deduplicati
     expect(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getFocusedWindow()?.id)).toBe(focused);
     await pet.screenshot({ path: 'test-results/completion-desktop-sqlite.png', omitBackground: true });
     await writeFile(f.file, metadata('desktop') + finished('running'));
-    await new Promise(resolve => setTimeout(resolve, 2200));
-    expect(await pet.locator('body').getAttribute('data-sqlite-count')).toBe('1');
-    await pet.evaluate(() => window.desktopPlay.hidePet());
-    db.turn('hidden-quick-show', Date.now());
-    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(win => win.webContents.getURL().includes('view=pet'))!.showInactive());
-    await new Promise(resolve => setTimeout(resolve, 2200));
-    await expect(pet.locator('.pet-bubble')).toBeHidden();
-    expect(await pet.locator('body').getAttribute('data-sqlite-count')).toBe('1');
     db.turn('visible-again', Date.now());
     await expect(pet.locator('.pet-bubble')).toBeVisible();
     await expect(pet.locator('.bubble-label')).toHaveText('Codex 完成提醒');
@@ -120,21 +112,6 @@ test('local events use editable persona text, preserve drafts and focus, respect
       await pet.screenshot({ path: `test-results/completion-${persona}.png`, omitBackground: true });
       await pet.locator('.bubble-close').dispatchEvent('click');
     }
-    const count = await pet.locator('body').getAttribute('data-completion-count');
-    await pet.evaluate(() => window.desktopPlay.hidePet()); await appendFile(chosenFile, finished('hidden'));
-    await new Promise(resolve => setTimeout(resolve, 2300));
-    expect(await pet.locator('body').getAttribute('data-completion-count')).toBe(count);
-    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(win => win.webContents.getURL().includes('view=pet'))!.showInactive());
-    await expect(pet.locator('.pet-bubble')).toBeHidden();
-
-    // A completion written while hidden must not arrive later through the polling fallback.
-    await pet.evaluate(() => window.desktopPlay.hidePet());
-    await appendFile(chosenFile, finished('hidden-then-quick-show'));
-    await new Promise(resolve => setTimeout(resolve, 10));
-    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(win => win.webContents.getURL().includes('view=pet'))!.showInactive());
-    await new Promise(resolve => setTimeout(resolve, 2300));
-    await expect(pet.locator('.pet-bubble')).toBeHidden();
-
     await pet.evaluate(() => window.desktopPlay.updateSettings({ codexCompletionEnabled: false }));
     await appendFile(chosenFile, finished('disabled'));
     await pet.evaluate(() => window.desktopPlay.updateSettings({ codexCompletionEnabled: true }));

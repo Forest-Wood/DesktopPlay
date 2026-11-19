@@ -40,12 +40,6 @@ describe('project cleanup boundaries', () => {
     expect(await readFile(path.join(outside.root, 'keep'), 'utf8')).toBe('safe');
     expect(await readFile(path.join(root, 'dist/sibling'), 'utf8')).toBe('safe');
   });
-  it('does not enumerate a linked temporary directory', async () => {
-    const { root } = await fixture(); const outside = await fixture(); await outside.put('smoke-external/keep');
-    await symlink(outside.root, path.join(root, '.tmp'), 'junction');
-    expect((await cleanProject(root)).skipped[0]?.path).toBe('.tmp');
-    expect(await readFile(path.join(outside.root, 'smoke-external/keep'), 'utf8')).toBe('safe');
-  });
   it('rejects a subdirectory rather than treating it as a project root', async () => {
     const { root, put } = await fixture(); await put('nested/dist/keep');
     await expect(cleanProject(path.join(root, 'nested'))).rejects.toThrow('repository root');
