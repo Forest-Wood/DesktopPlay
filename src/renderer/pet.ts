@@ -153,7 +153,13 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     const timingChanged = JSON.stringify(rule().dismissal) !== JSON.stringify(resolveBubble(next.settings.bubbleProfilesByPersona, persona(next), scenario()).dismissal) || (!persistent() && JSON.stringify(state.settings.bubbleProfilesByPersona) !== JSON.stringify(next.settings.bubbleProfilesByPersona));
     if (changedPet || state.sounds[persona(state)].press.revision !== next.sounds[persona(next)].press.revision || state.sounds[persona(state)].release.revision !== next.sounds[persona(next)].release.revision) soundWarning = '';
     state = next; hidden = !state.petVisible;
-    if (changedPet || hidden) { clearCompletionPending(); close(); } sounds.sync(persona(state), state.sounds); completionSounds.sync(persona(state), state.sounds);
+    if (hidden) {
+      clearCompletionPending();
+      close();
+    } else if (changedPet && (!persistent() || !rule().enabled)) {
+      close();
+    }
+    sounds.sync(persona(state), state.sounds); completionSounds.sync(persona(state), state.sounds);
     if (modeChanged) {
       page = 0; retention = false; pendingAlert = null; pendingUpdate = null;
       if (!completionActive) notice = '';

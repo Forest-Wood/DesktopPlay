@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { cleanProject } from '../../scripts/clean.mjs';
@@ -8,7 +8,7 @@ import { cleanProject } from '../../scripts/clean.mjs';
 const roots: string[] = [];
 afterEach(async () => { for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true }); });
 async function fixture() {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'desktopplay-clean-')); roots.push(root);
+  const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'desktopplay-clean-'))); roots.push(root);
   execFileSync('git', ['init', '--quiet'], { cwd: root, windowsHide: true });
   const put = async (name: string) => { await mkdir(path.dirname(path.join(root, name)), { recursive: true }); await writeFile(path.join(root, name), 'safe'); };
   return { root, put };

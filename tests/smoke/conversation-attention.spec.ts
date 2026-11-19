@@ -28,9 +28,11 @@ test('conversation bubbles stay until body click across personas, order waiting 
     }
     await send('active', 'completion', 'codex'); await pet.clock.runFor(200);
     await send('queued', 'completion', 'chatgpt-work'); await send('urgent', 'approval', 'deepseek-harness'); await pet.clock.runFor(200);
-    await pet.evaluate(() => window.desktopPlay.selectGptAppearance('classic')); await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'completion-codex');
-    await pet.locator('.bubble-message').dispatchEvent('click'); await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'attention-deepseek-harness');
+    await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'attention-deepseek-harness');
+    await pet.evaluate(() => window.desktopPlay.selectGptAppearance('classic'));
+    await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'attention-deepseek-harness');
     await pet.locator('.bubble-close').dispatchEvent('click'); await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'completion-chatgpt-work');
+    await pet.locator('.bubble-message').dispatchEvent('click'); await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'completion-codex');
     await pet.screenshot({ path: 'test-results/T013-persistent-bubble.png', omitBackground: true });
     await pet.evaluate(() => window.desktopPlay.hidePet());
     await send('hidden', 'question', 'codex');
