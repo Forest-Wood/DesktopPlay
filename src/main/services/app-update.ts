@@ -5,7 +5,7 @@ import { initialUpdateState } from '../../shared/app-update';
 import type { AppUpdateState } from '../../shared/types';
 
 export interface UpdateCandidate { version: string; notes: string; date: string | null }
-export interface UpdateProgress { transferred: number; total: number }
+export interface UpdateProgress { transferred: number; total: number; bytesPerSecond?: number }
 export interface PreparedUpdate { commit(): Promise<void>; cancel(): Promise<void> }
 export interface UpdateBackend {
   check(signal: AbortSignal): Promise<UpdateCandidate | null>;
@@ -93,12 +93,12 @@ export class AppUpdateService {
         const version = stableVersion(next?.version);
         this.candidate = next && version && semver.gt(version, this.options.version) ? { ...next, version } : null;
         this.set({ status: this.candidate ? 'available' : 'current', latestVersion: this.candidate?.version ?? null,
-          releaseNotes: this.candidate?.notes.slice(0, 20000) ?? '', releaseDate: this.candidate?.date ?? null, checkedAt: new Date(this.now()).toISOString(), progress: 0, transferred: 0, total: 0 });
+          releaseNotes: this.candidate?.notes.slice(0, 20000) ?? '', releaseDate: this.candidate?.date ?? null, checkedAt: new Date(this.now()).toISOString(), progress: 0, transferred: 0, total: 0, bytesPerSecond: null, estimatedRemainingSeconds: null });
         const notify = this.candidate && !this.notified.has(this.candidate.version);
         if (notify) this.notified.add(this.candidate!.version);
         await this.persist();
         if (notify && !manual && this.auto && !this.disposed) this.options.onAvailable?.(this.candidate!.version);
-      } catch (error) { this.candidate = null; if (!this.disposed) this.set({ status: 'error', latestVersion: null, releaseNotes: '', releaseDate: null, error: updateError(error) }); }
+      } catch (error) { this.candidate = null; if (!this.disposed) this.set({ status: 'error', latestVersion: null, releaseNotes: '', releaseDate: null, bytesPerSecond: null, estimatedRemainingSeconds: null, error: updateError(error) }); }
       return this.getState();
     })().finally(() => { if (this.checking === job) this.checking = null; if (this.controller === controller) this.controller = null; });
     this.checking = job; return job;
@@ -107,14 +107,47 @@ export class AppUpdateService {
     if (this.downloading) return this.downloading;
     if (this.disposed || !this.options.backend || !this.candidate || !['available', 'error'].includes(this.state.status)) return Promise.resolve(this.getState());
     const controller = new AbortController(); this.controller = controller;
-    this.set({ status: 'downloading', error: null, progress: 0, transferred: 0, total: 0 });
+    const samples: Array<{ at: number; transferred: number }> = [{ at: this.now(), transferred: 0 }];
+    let smoothedSpeed: number | null = null;
+    this.set({ status: 'downloading', error: null, progress: 0, transferred: 0, total: 0, bytesPerSecond: null, estimatedRemainingSeconds: null });
     const job = (async () => {
       try {
         await this.options.backend!.download(value => {
-          if (!this.disposed && !controller.signal.aborted) this.set({ ...value, progress: value.total > 0 ? Math.min(100, value.transferred / value.total * 100) : 0 });
+          if (this.disposed || controller.signal.aborted) return;
+          const now = this.now();
+          const transferred = Math.max(0, Number.isFinite(value.transferred) ? value.transferred : 0);
+          const total = Math.max(0, Number.isFinite(value.total) ? value.total : 0);
+          while (samples.length > 1 && now - samples[1].at > 5000) samples.shift();
+          const last = samples[samples.length - 1];
+          if (last && now <= last.at) last.transferred = transferred;
+          else { samples.push({ at: now, transferred }); if (samples.length > 40) samples.shift(); }
+          const anchor = samples[0];
+          const deltaSec = (now - anchor.at) / 1000;
+          const deltaBytes = transferred - anchor.transferred;
+          const backendSpeed = typeof value.bytesPerSecond === 'number' && Number.isFinite(value.bytesPerSecond) && value.bytesPerSecond > 0 ? value.bytesPerSecond : null;
+          let bytesPerSecond: number | null = null;
+          let estimatedRemainingSeconds: number | null = null;
+          if (total > 0 && transferred >= total) {
+            bytesPerSecond = smoothedSpeed != null ? Math.round(smoothedSpeed) : backendSpeed != null ? Math.round(backendSpeed) : null;
+            estimatedRemainingSeconds = 0;
+          } else {
+            let instantSpeed: number | null = null;
+            if (deltaSec >= 0.5 && deltaBytes > 0) instantSpeed = deltaBytes / deltaSec;
+            else if (backendSpeed != null && (deltaSec < 0.5 || deltaBytes > 0)) instantSpeed = backendSpeed;
+            else if (deltaSec >= 0.5 && deltaBytes <= 0) { smoothedSpeed = null; samples.splice(0, samples.length, { at: now, transferred }); }
+            if (instantSpeed != null) smoothedSpeed = smoothedSpeed == null ? instantSpeed : smoothedSpeed * 0.65 + instantSpeed * 0.35;
+            if (smoothedSpeed != null && smoothedSpeed > 0) {
+              bytesPerSecond = Math.round(smoothedSpeed);
+              if (total > 0) {
+                const eta = Math.ceil(Math.max(0, total - transferred) / smoothedSpeed);
+                if (eta <= 86400) estimatedRemainingSeconds = eta;
+              }
+            }
+          }
+          this.set({ transferred, total, progress: total > 0 ? Math.min(100, transferred / total * 100) : 0, bytesPerSecond, estimatedRemainingSeconds });
         }, controller.signal);
-        if (!this.disposed && !controller.signal.aborted) this.set({ status: 'ready', progress: 100 });
-      } catch (error) { if (!this.disposed) this.set(controller.signal.aborted ? { status: 'available', error: null, progress: 0 } : { status: 'error', error: updateError(error) }); }
+        if (!this.disposed && !controller.signal.aborted) this.set({ status: 'ready', progress: 100, bytesPerSecond: null, estimatedRemainingSeconds: null });
+      } catch (error) { if (!this.disposed) this.set(controller.signal.aborted ? { status: 'available', error: null, progress: 0, bytesPerSecond: null, estimatedRemainingSeconds: null } : { status: 'error', bytesPerSecond: null, estimatedRemainingSeconds: null, error: updateError(error) }); }
       return this.getState();
     })().finally(() => { if (this.downloading === job) this.downloading = null; if (this.controller === controller) this.controller = null; });
     this.downloading = job; return job;

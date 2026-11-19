@@ -4,7 +4,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import type { ConversationNotice } from '../../shared/types';
 
-export const CLIENTS = { antigravity: '桌面 App', 'antigravity-ide': 'IDE', 'antigravity-cli': 'agy CLI' } as const;
+export const CLIENTS = { antigravity: 'App／VS Code', 'antigravity-ide': 'IDE', 'antigravity-cli': 'agy CLI' } as const;
 
 // Read only the tagged waiting_steps and requested_interaction fields of CascadeTrajectorySummary.
 // Unknown fields (including conversation text, tool arguments and titles) are skipped.
@@ -54,41 +54,143 @@ export function waitingSteps(summary: Uint8Array) {
 }
 
 const hash = (s: string) => createHash('sha256').update(s).digest('hex');
+interface ConversationSnapshot {
+  idle: boolean;
+  stepCount: number;
+  turn: string;
+}
+export interface GeminiWaitingOptions {
+  completion?: boolean;
+  attention?: boolean;
+  seenTurns?: Set<string>;
+}
+export function turnSignature(stepIndex: unknown, userTime: unknown): string {
+  if (typeof stepIndex === 'number' && Number.isFinite(stepIndex) && stepIndex >= 0) return String(stepIndex);
+  if (typeof userTime === 'string' && userTime && !userTime.startsWith('0001-01-01')) return userTime;
+  return String(stepIndex ?? userTime ?? '');
+}
 export class GeminiWaiting {
   private seen = new Set<string>();
+  private seenTurns: Set<string>;
   private cursor = new Map<string, number>();
-  constructor(private home: string, private since: number) {}
+  private completionCursor = new Map<string, number>();
+  private snapshots = new Map<string, Map<string, ConversationSnapshot>>();
+  private baselined = new Set<string>();
+  private initialized = false;
+  private completion: boolean;
+  private attention: boolean;
+  constructor(private home: string, private since: number, options?: GeminiWaitingOptions) {
+    this.completion = options?.completion ?? false;
+    this.attention = options?.attention ?? true;
+    this.seenTurns = options?.seenTurns ?? new Set<string>();
+  }
+  discardHiddenHistory(since = Date.now()) {
+    this.since = Math.max(this.since, since);
+    this.cursor.clear();
+    this.completionCursor.clear();
+    this.snapshots.clear();
+    this.baselined.clear();
+    this.initialized = false;
+  }
+  private rememberTurn(key: string) {
+    this.seenTurns.add(key);
+    while (this.seenTurns.size > 5000) this.seenTurns.delete(this.seenTurns.values().next().value!);
+  }
   scan(onNotice: (event: ConversationNotice) => void): string {
     const status: string[] = [];
     for (const [folder, label] of Object.entries(CLIENTS)) {
       const file = path.join(this.home, folder, 'conversation_summaries.db');
-      if (!existsSync(file)) { status.push(label + ' 未发现等待记录'); continue; }
+      if (!existsSync(file)) { status.push(label + ' 未发现记录'); continue; }
       let db: DatabaseSync | undefined;
       try {
         db = new DatabaseSync(file, { readOnly: true, timeout: 50 });
-        const after = this.cursor.get(folder) ?? this.since;
-        // Only changed top-level conversations. Keep a small overlap for simultaneous commits.
-        const rows = db.prepare(`SELECT conversation_id, last_user_input_step_index AS turn, raw_summary,
-          (julianday(last_modified_time) - 2440587.5) * 86400000 AS modified
-          FROM conversation_summaries WHERE last_modified_time >= ? AND julianday(last_modified_time) >= julianday(?, 'unixepoch')
-          AND coalesce(parent_conversation_id, '') = '' AND coalesce(nesting_depth, 0) = 0
-          AND length(raw_summary) BETWEEN 1 AND 4194304 ORDER BY last_modified_time`).iterate(new Date(after - 86400000).toISOString().slice(0,10), after / 1000);
-        let latest = after;
-        for (const row of rows) {
-          if (!(row.raw_summary instanceof Uint8Array) || typeof row.modified !== 'number') continue;
-          latest = Math.max(latest, row.modified);
-          for (const step of waitingSteps(row.raw_summary)) {
-            const id = hash([row.conversation_id, row.turn, step.index, step.kind].join('/'));
-            if (this.seen.has(id)) continue;
-            this.seen.add(id);
-            onNotice({ source: 'antigravity', kind: step.kind, id, occurredAt: new Date(row.modified).toISOString() });
+        const cols = new Set((db.prepare('PRAGMA table_info(conversation_summaries)').all() as Array<{ name?: string }>).map(col => col.name).filter((name): name is string => typeof name === 'string'));
+        if (this.attention) {
+          const after = this.cursor.get(folder) ?? this.since;
+          // Only changed top-level conversations. Keep a small overlap for simultaneous commits.
+          const rows = db.prepare(`SELECT conversation_id, last_user_input_step_index AS turn, raw_summary,
+            (julianday(last_modified_time) - 2440587.5) * 86400000 AS modified
+            FROM conversation_summaries WHERE last_modified_time >= ? AND julianday(last_modified_time) >= julianday(?, 'unixepoch')
+            AND coalesce(parent_conversation_id, '') = '' AND coalesce(nesting_depth, 0) = 0
+            AND length(raw_summary) BETWEEN 1 AND 4194304 ORDER BY last_modified_time`).iterate(new Date(after - 86400000).toISOString().slice(0, 10), after / 1000);
+          let latest = after;
+          for (const row of rows) {
+            if (!(row.raw_summary instanceof Uint8Array) || typeof row.modified !== 'number') continue;
+            latest = Math.max(latest, row.modified);
+            for (const step of waitingSteps(row.raw_summary)) {
+              const id = hash([row.conversation_id, row.turn, step.index, step.kind].join('/'));
+              if (this.seen.has(id)) continue;
+              this.seen.add(id);
+              onNotice({ source: 'antigravity', kind: step.kind, id, occurredAt: new Date(row.modified).toISOString() });
+            }
+          }
+          this.cursor.set(folder, Math.max(this.since, latest - 2000));
+        }
+        const canTrackCompletion = this.completion && cols.has('status') && cols.has('not_fully_idle') && cols.has('killed') && cols.has('step_count');
+        if (canTrackCompletion) {
+          let folderSnapshots = this.snapshots.get(folder);
+          if (!folderSnapshots) { folderSnapshots = new Map(); this.snapshots.set(folder, folderSnapshots); }
+          if (!this.baselined.has(folder) && !this.initialized) {
+            const baselineRows = db.prepare(`SELECT conversation_id, status, step_count,
+              coalesce(not_fully_idle, 0) AS not_fully_idle, coalesce(killed, 0) AS killed,
+              last_user_input_step_index, last_user_input_time
+              FROM conversation_summaries
+              WHERE coalesce(parent_conversation_id, '') = '' AND coalesce(nesting_depth, 0) = 0`).iterate();
+            for (const row of baselineRows) {
+              if (typeof row.conversation_id !== 'string' || !row.conversation_id) continue;
+              folderSnapshots.set(row.conversation_id, {
+                idle: row.status === 'CASCADE_RUN_STATUS_IDLE' && !Number(row.not_fully_idle) && !Number(row.killed),
+                stepCount: Number(row.step_count) || 0,
+                turn: turnSignature(row.last_user_input_step_index, row.last_user_input_time),
+              });
+            }
+            this.baselined.add(folder);
+            this.completionCursor.set(folder, this.since);
+          } else {
+            this.baselined.add(folder);
+            const after = this.completionCursor.get(folder) ?? this.since;
+            const rows = db.prepare(`SELECT conversation_id, status, step_count,
+              coalesce(not_fully_idle, 0) AS not_fully_idle, coalesce(killed, 0) AS killed,
+              last_user_input_step_index, last_user_input_time,
+              (julianday(last_modified_time) - 2440587.5) * 86400000 AS modified,
+              raw_summary
+              FROM conversation_summaries
+              WHERE coalesce(parent_conversation_id, '') = '' AND coalesce(nesting_depth, 0) = 0
+              AND (status = 'CASCADE_RUN_STATUS_RUNNING' OR coalesce(not_fully_idle, 0) != 0
+                OR (last_modified_time >= ? AND julianday(last_modified_time) >= julianday(?, 'unixepoch')))
+              ORDER BY last_modified_time`).iterate(new Date(after - 86400000).toISOString().slice(0, 10), after / 1000);
+            let latest = after;
+            for (const row of rows) {
+              if (typeof row.conversation_id !== 'string' || !row.conversation_id) continue;
+              const modified = typeof row.modified === 'number' && Number.isFinite(row.modified) ? row.modified : null;
+              if (modified !== null) latest = Math.max(latest, modified);
+              const rawSummary = row.raw_summary instanceof Uint8Array && row.raw_summary.length > 0 && row.raw_summary.length <= 4194304 ? row.raw_summary : null;
+              const hasWaiting = rawSummary ? waitingSteps(rawSummary).length > 0 : false;
+              const isCompletedIdle = row.status === 'CASCADE_RUN_STATUS_IDLE' && !Number(row.not_fully_idle) && !Number(row.killed) && !hasWaiting;
+              const stepCount = Number(row.step_count) || 0;
+              const ustep = typeof row.last_user_input_step_index === 'number' && Number.isFinite(row.last_user_input_step_index) ? row.last_user_input_step_index : -1;
+              const turn = turnSignature(row.last_user_input_step_index, row.last_user_input_time);
+              const prev = folderSnapshots.get(row.conversation_id);
+              folderSnapshots.set(row.conversation_id, { idle: isCompletedIdle, stepCount, turn });
+              while (folderSnapshots.size > 5000) folderSnapshots.delete(folderSnapshots.keys().next().value!);
+              if (!isCompletedIdle || modified === null || modified < this.since) continue;
+              if (stepCount < 2 || (ustep >= 0 && stepCount <= ustep + 1)) continue;
+              const transitioned = !prev || !prev.idle || turn !== prev.turn || stepCount > prev.stepCount;
+              if (!transitioned) continue;
+              const dedupTurn = turn && turn !== '-1' ? turn : String(stepCount);
+              const turnKey = `${row.conversation_id}/${dedupTurn}`;
+              if (this.seenTurns.has(turnKey)) continue;
+              this.rememberTurn(turnKey);
+              onNotice({ source: 'antigravity', kind: 'completion', id: hash(['completion', row.conversation_id, dedupTurn].join('/')), occurredAt: new Date(Math.max(modified, this.since)).toISOString() });
+            }
+            this.completionCursor.set(folder, Math.max(this.since, latest - 2000));
           }
         }
-        this.cursor.set(folder, Math.max(this.since, latest - 2000));
-        status.push(label + ' 等待监听中');
-      } catch { status.push(label + ' 暂无法识别等待状态'); }
+        status.push(label + (canTrackCompletion && this.attention ? ' 监听中' : canTrackCompletion ? ' 完成监听中' : this.attention ? ' 等待监听中' : ' 需启用 hook 完成提醒'));
+      } catch { status.push(label + ' 暂无法识别会话状态'); }
       finally { db?.close(); }
     }
+    this.initialized = true;
     while (this.seen.size > 5000) this.seen.delete(this.seen.values().next().value!);
     return status.join(' · ');
   }
@@ -103,7 +205,7 @@ export function conversationTurn(home: string, conversation: string): { child: b
       db = new DatabaseSync(file, { readOnly: true, timeout: 50 });
       const row = db.prepare('SELECT parent_conversation_id, nesting_depth, last_user_input_step_index, last_user_input_time FROM conversation_summaries WHERE conversation_id = ?').get(conversation);
       if (row) return { child: Boolean(row.parent_conversation_id) || Number(row.nesting_depth) > 0,
-        turn: String(row.last_user_input_step_index ?? row.last_user_input_time ?? '') };
+        turn: turnSignature(row.last_user_input_step_index, row.last_user_input_time) };
     } catch (error) {
       // Another installed client may use an older schema. Continue with the other profiles.
       if (!(error instanceof Error) || !/no such (column|table)/i.test(error.message)) throw error;

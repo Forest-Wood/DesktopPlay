@@ -23,7 +23,7 @@ test('version routing, safe development mode, typed IPC, progress/cancel, drafts
       const f = (globalThis as any).updateFixture;
       const state = async (event: unknown) => ({ ...await f.original(event), appUpdate: { ...(await f.original(event)).appUpdate, ...f.patch } });
       const emit = async (event: unknown) => { const next = await state(event); page.webContents.send('desktopplay:state', next); return next.appUpdate; };
-      for (const [name, action] of Object.entries({ 'check-update': async (e: unknown) => emit(e), 'download-update': async (e: unknown) => { f.patch.status = 'downloading'; f.patch.progress = 50; f.patch.total = 2000000; f.patch.transferred = 1000000; return emit(e); }, 'cancel-update': async (e: unknown) => { f.patch.status = 'available'; return emit(e); }, 'install-update': async () => { f.installs++; return { started: true }; } })) { ipcMain.removeHandler(`desktopplay:${name}`); ipcMain.handle(`desktopplay:${name}`, action); }
+      for (const [name, action] of Object.entries({ 'check-update': async (e: unknown) => emit(e), 'download-update': async (e: unknown) => { f.patch.status = 'downloading'; f.patch.progress = 50; f.patch.total = 20 * 1048576; f.patch.transferred = 10 * 1048576; f.patch.bytesPerSecond = 2 * 1048576; f.patch.estimatedRemainingSeconds = 5; return emit(e); }, 'cancel-update': async (e: unknown) => { f.patch.status = 'available'; f.patch.bytesPerSecond = null; f.patch.estimatedRemainingSeconds = null; return emit(e); }, 'install-update': async () => { f.installs++; return { started: true }; } })) { ipcMain.removeHandler(`desktopplay:${name}`); ipcMain.handle(`desktopplay:${name}`, action); }
     });
     await settings.evaluate(() => window.desktopPlay.checkForUpdates()); await expect(settings.locator('#update-status')).toContainText('0.5.4');
     await expect(settings.locator('#update-notes')).toHaveText('<b>纯文本更新说明</b>'); expect(await settings.locator('#update-notes b').count()).toBe(0);
@@ -44,7 +44,7 @@ test('version routing, safe development mode, typed IPC, progress/cancel, drafts
     await expect(settings.locator('#update-announcement')).toBeHidden();
     await setAnnouncement({ status: 'available', latestVersion: '0.5.4', releaseNotes: '- 完善公告。\n- 修复显示。\n- 保留设置。', error: null });
     await settings.locator('#auto-check-updates').uncheck();
-    await settings.locator('#update-download').click(); await expect(settings.locator('#update-progress')).toHaveAttribute('value', '50'); await settings.locator('#update-cancel').click();
+    await settings.locator('#update-download').click(); await expect(settings.locator('#update-progress')).toHaveAttribute('value', '50'); await expect(settings.locator('#update-bytes')).toHaveText('10.0 / 20.0 MiB · 2.0 MiB/s · 预计剩余约 5 秒'); await settings.locator('#update-cancel').click(); await expect(settings.locator('#update-bytes')).toHaveText('');
     await application.evaluate(() => { (globalThis as any).updateFixture.patch.status = 'ready'; }); await settings.evaluate(() => window.desktopPlay.checkForUpdates());
     await settings.locator('#update-install').click(); await expect(settings.locator('#update-dirty-dialog')).toBeVisible();
     expect(await application.evaluate(() => (globalThis as any).updateFixture.installs)).toBe(0);

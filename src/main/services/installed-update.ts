@@ -25,7 +25,11 @@ export class InstalledUpdateBackend implements UpdateBackend {
   async download(progress: (p: UpdateProgress) => void, signal: AbortSignal): Promise<void> {
     if (!this.result) throw updateFailure('UPDATE_ASSETS');
     signal.throwIfAborted(); const cancel = () => this.result?.cancellationToken?.cancel();
-    const onProgress = (p: { transferred: number; total: number }) => progress({ transferred: p.transferred, total: p.total });
+    const onProgress = (p: { transferred: number; total: number; bytesPerSecond?: number }) => progress({
+      transferred: p.transferred,
+      total: p.total,
+      ...(typeof p.bytesPerSecond === 'number' && Number.isFinite(p.bytesPerSecond) && p.bytesPerSecond > 0 ? { bytesPerSecond: p.bytesPerSecond } : {}),
+    });
     signal.addEventListener('abort', cancel, { once: true }); this.updater.on('download-progress', onProgress);
     try {
       const files = await this.updater.downloadUpdate(this.result.cancellationToken); signal.throwIfAborted();

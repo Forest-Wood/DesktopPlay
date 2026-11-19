@@ -4,6 +4,7 @@
 
 ## 当前任务
 
+- [T029／R036](tasks/T029-update-eta-gemini-completion.md) 待审查（分支 `fix/T029-update-eta-gemini-completion`，基准 `origin/main` `a9ab688`，实现提交 `fa71a1d`，[PR #33](https://github.com/Forest-Wood/DesktopPlay/pull/33)）：应用内软件更新下载新增平滑速率与预计剩余时间估计（兼容 NSIS／免安装版）；修复 Gemini 任务完成提示气泡在 VS Code 与桌面 App 均未展示的问题（默认通过只读扫描 `conversation_summaries.db` 识别主会话完成，并修复 `build/gemini-hook.ps1` 对 `NO_TOOL_CALL` 与 protojson 省略 `executionNum` 的匹配及双源去重）；在协作文档新增完成 `T(N)` 清理 `T(N-2)` 临时测试文件的滚动规范。构建、329 项单测及 `app-update`／`gemini` 两项隔离 Electron 冒烟测试已通过；真实 VS Code／App 端完成弹泡待用户实机验收。
 - [T028／R035](tasks/T028-release-v201.md) 已发布 [v2.0.1](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.1)。[PR #31](https://github.com/Forest-Wood/DesktopPlay/pull/31) 合入主线，标签 `v2.0.1` 指向 `9679547`。[发布工作流 44507457122](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44507457122) 通过打包、更新运行时与五项附件摘要及公告校验。
 - [T027／R034](tasks/T027-retention-bubble.md) 已通过 [PR #30](https://github.com/Forest-Wood/DesktopPlay/pull/30) 合入主线 `903dd9e`，随 v2.0.1 修复在“用量小报告”或“陪伴短句”气泡页点击“换角色”时挽留提示词拼接在原页面文案后面的问题。
 - [T026／R033](tasks/T026-gemini-ui.md) 已通过 [PR #29](https://github.com/Forest-Wood/DesktopPlay/pull/29) 合入主线 `c101c7e`，随 v2.0.1 提供 Gemini 气泡双列排版、设置页三栏额度卡与状态胶囊、星光紫角色舞台（`gemini-theme`）、三角色并排选择器与左右对称翻转后的经典／手绘两款造型。
@@ -17,7 +18,7 @@
 
 ## 有效限制与后续
 
-- 清理记录和既有视觉测试证据见 T022／T023 交接。T024 隔离测试目录在 `.tmp/T024-*`。
+- 清理记录和既有视觉测试证据见 T022／T023 交接。自 T029 起执行临时测试文件滚动清理规则：完成任务 `T(N)` 时删除 `T(N-2)` 的非跟踪临时测试目录／产物（例如完成 T099 时删除 T097），保留最新两轮产物与所有跟踪文件／正式文档；本次完成 T029 已清理 T027 临时产物。
 
 - 2026-11-12 GPT 额度只读排查（工作区 HEAD `cc318be`，保留全部既有 T022 未提交修改）：运行中安装版为 `D:\DesktopPet` v1.1.0，进程启动于 11-09，现存 VS Code Codex 扩展目录创建于 11-11。通过当前 `codex-quota.ts` 的发现及只读请求函数实测额度读取、解析成功，未记录账户身份或凭据。安装包代码与源代码均只在初始化发现程序，刷新失败不重新发现；旧扩展路径失效为高概率原因，未直接读取运行中缓存路径。建议完全退出并重开桌宠验证；尚未重启、未确认 UI 恢复、未修改业务代码或真实配置。诊断临时构建已在后续目录复核时确认不存在。若后续修复自动重新发现，另建任务分支；本次仅新增此排查记录，不归入 T022 实现结果。
 
@@ -26,4 +27,4 @@
 - 原生鼠标间歇偏移仍无根因结论，见 T010／T014／T022；T022 当前实现及基准对照均复现按住时位置偏移，不能用早期单次通过认定已解决。
 - 受限 Electron 存在启动超时／AppContainer 环境限制；隔离测试可在沙箱外运行，保持应用 Electron 沙箱启用。测试不得使用真实账户、账本或修改真实客户端设置。
 - appId、`%APPDATA%\DesktopPlay` 及安装／portable 共用数据保持兼容。等待与完成提示默认点击前常驻，可按场景设置定时关闭，隐藏／退出清空，不补历史。
-- 下一独立任务编号 T029／R036。
+- 下一独立任务编号 T030／R037。

@@ -8,6 +8,7 @@ import { decimalSetting, money, updateMoney } from './format';
 import { localTime, quotaStatus, renderQuota } from './quota';
 import { geminiStatus, geminiStatusChip, renderGeminiQuota } from './gemini-quota';
 import { COMPLETION_SOURCES, petPersona } from '../shared/bubble-settings';
+import { formatUpdateDownloadDetail } from '../shared/app-update';
 import { APP_VERSION, GEMINI_PETS, GPT_DRAGON_PET, GPT_PET } from '../shared/defaults';
 import { PersonaSoundPlayer } from './sounds';
 
@@ -130,11 +131,11 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const geminiControls = document.createElement('div');
   geminiControls.innerHTML = `<label class="toggle-label"><span>需要回应时提醒</span><input name="attention-antigravity" type="checkbox"></label>
     <label class="toggle-label"><span>完成时提醒</span><input name="geminiCompletionEnabled" type="checkbox"></label>
-    <label class="toggle-label"><span>接入 Antigravity 完成 hook<small>保存后写入全局 hooks.json；关闭接入只移除 DesktopPet 的条目。</small></span><input name="geminiHookEnabled" type="checkbox"></label>
-    <p id="gemini-integration-status" class="hint" role="status"></p><p class="hint">等待回应只读扫描本机会话摘要；启用完成 hook 后请在 Antigravity 中重新加载会话。</p>
+    <label class="toggle-label"><span>接入 Antigravity 完成 hook<small>可选；用于补充 agy CLI 完成提醒并区分错误／取消中止。保存后写入全局 hooks.json，关闭只移除 DesktopPet 的条目。</small></span><input name="geminiHookEnabled" type="checkbox"></label>
+    <p id="gemini-integration-status" class="hint" role="status"></p><p class="hint">App、VS Code 与 IDE 的完成及等待回应均自动只读监听本机会话摘要，无需配置 hook；启用完成 hook 后请在 Antigravity 中重新加载会话。</p>
     <button type="button" class="text-button" data-edit-completion="antigravity">编辑提示</button>`;
   const integrations = [
-    { source: 'antigravity', title: 'Gemini · Antigravity', description: '桌面 App、IDE 和 agy CLI', nodes: [...geminiControls.children] },
+    { source: 'antigravity', title: 'Gemini · Antigravity', description: '桌面 App、VS Code／IDE 和 agy CLI', nodes: [...geminiControls.children] },
     { source: 'codex', title: 'Codex', description: 'CLI 与 VS Code 中的编程任务', nodes: [
       ...siblingsUntil(waitingLabel('codex'), waitingLabel('deepseek-harness')),
       ...siblingsUntil(completedLabel('codexCompletionEnabled'), completedLabel('chatgptCompletionEnabled')),
@@ -382,7 +383,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     element('update-notes-version').textContent = u.latestVersion ? `v${u.latestVersion}${releaseDate ? ` · ${releaseDate}` : ''}` : '';
     element('update-notes').textContent = u.releaseNotes.trim() || '本版本未提供更新公告。';
     element<HTMLProgressElement>('update-progress').value = u.progress; element('update-progress').hidden = u.status !== 'downloading';
-    element('update-bytes').textContent = u.status === 'downloading' && u.total > 0 ? `${(u.transferred / 1048576).toFixed(1)} / ${(u.total / 1048576).toFixed(1)} MiB` : '';
+    element('update-bytes').textContent = formatUpdateDownloadDetail(u);
     element<HTMLButtonElement>('update-check').disabled = ['unsupported', 'checking', 'downloading', 'installing'].includes(u.status);
     element('update-download').hidden = !u.latestVersion || !['available', 'error'].includes(u.status);
     element('update-cancel').hidden = u.status !== 'downloading'; element('update-install').hidden = u.status !== 'ready';

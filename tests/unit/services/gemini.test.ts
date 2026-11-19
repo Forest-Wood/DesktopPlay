@@ -3,9 +3,11 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
+import { spawn } from 'node:child_process';
 import { GeminiQuotaService, quotaWindows } from '../../../src/main/services/gemini-quota';
 import { waitingSummary as waiting, SUMMARY_TABLE } from '../../fixtures/gemini-summary';
 import { GeminiWaiting, conversationTurn, CLIENTS } from '../../../src/main/services/gemini-waiting';
+import { GeminiNotices } from '../../../src/main/services/gemini-notices';
 import type { ConversationNotice } from '../../../src/shared/types';
 
 const dirs: string[] = [];
@@ -63,4 +65,98 @@ it.each(Object.keys(CLIENTS))('reads explicit questions and approvals in %s once
     expect(conversationTurn(home,'child')?.child).toBe(true);
     expect(conversationTurn(home,'task')).toEqual({child:false,turn:'2'});
   } finally { db.close(); }
+});
+
+const FULL_SUMMARY_TABLE = `CREATE TABLE conversation_summaries (
+  conversation_id TEXT PRIMARY KEY,
+  step_count INTEGER NOT NULL DEFAULT 0,
+  last_modified_time TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT '',
+  parent_conversation_id TEXT NOT NULL DEFAULT '',
+  nesting_depth INTEGER NOT NULL DEFAULT 0,
+  not_fully_idle NUMERIC NOT NULL DEFAULT 0,
+  killed NUMERIC NOT NULL DEFAULT 0,
+  last_user_input_time TEXT NOT NULL DEFAULT '',
+  last_user_input_step_index INTEGER NOT NULL DEFAULT -1,
+  raw_summary BLOB
+)`;
+
+it('detects completions from conversation_summaries.db without hook, ignores history/children/killed/waiting and respects hidden discard', async () => {
+  const home = await mkdtemp(path.join(os.tmpdir(), 'DesktopPet-T029-')); dirs.push(home);
+  await mkdir(path.join(home, 'antigravity'));
+  const db = new DatabaseSync(path.join(home, 'antigravity', 'conversation_summaries.db'));
+  try {
+    db.exec(FULL_SUMMARY_TABLE);
+    const upsert = db.prepare('INSERT OR REPLACE INTO conversation_summaries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const now = Date.now(), iso = (delta: number) => new Date(now + delta).toISOString();
+    // Baseline rows: one already idle, one currently running.
+    upsert.run('old-idle', 6, iso(-5000), 'CASCADE_RUN_STATUS_IDLE', '', 0, 0, 0, iso(-6000), -1, null);
+    upsert.run('active-1', 4, iso(-1000), 'CASCADE_RUN_STATUS_RUNNING', '', 0, 1, 0, iso(-2000), -1, null);
+    const notices: ConversationNotice[] = [];
+    const watcher = new GeminiWaiting(home, now, { completion: true, attention: true });
+    watcher.scan(n => notices.push(n));
+    expect(notices).toEqual([]);
+    // Running conversation finishes -> emits completion once.
+    upsert.run('active-1', 8, iso(100), 'CASCADE_RUN_STATUS_IDLE', '', 0, 0, 0, iso(-2000), -1, null);
+    watcher.scan(n => notices.push(n));
+    watcher.scan(n => notices.push(n));
+    expect(notices.map(n => n.kind)).toEqual(['completion']);
+    // Metadata-only touch (same step_count & turn) must not re-emit.
+    upsert.run('active-1', 8, iso(200), 'CASCADE_RUN_STATUS_IDLE', '', 0, 0, 0, iso(-2000), -1, null);
+    watcher.scan(n => notices.push(n));
+    expect(notices.length).toBe(1);
+    // Fast new conversation starts and finishes between polls.
+    upsert.run('fast-1', 2, iso(300), 'CASCADE_RUN_STATUS_IDLE', '', 0, 0, 0, iso(250), -1, null);
+    // Subagent and killed conversations must be ignored.
+    upsert.run('sub-1', 4, iso(310), 'CASCADE_RUN_STATUS_IDLE', 'fast-1', 1, 0, 0, iso(250), -1, null);
+    upsert.run('killed-1', 4, iso(320), 'CASCADE_RUN_STATUS_IDLE', '', 0, 0, 1, iso(250), -1, null);
+    // User-only step (step_count === ustep + 1) must not emit yet.
+    upsert.run('active-1', 9, iso(330), 'CASCADE_RUN_STATUS_IDLE', '', 0, 0, 0, iso(325), 8, null);
+    watcher.scan(n => notices.push(n));
+    expect(notices.map(n => n.kind)).toEqual(['completion', 'completion']);
+    // Waiting step emits question, NOT completion; after answer & idle emits completion.
+    upsert.run('active-1', 11, iso(400), 'CASCADE_RUN_STATUS_IDLE', '', 0, 0, 0, iso(325), 8, waiting(22, 10));
+    watcher.scan(n => notices.push(n));
+    expect(notices.map(n => n.kind)).toEqual(['completion', 'completion', 'question']);
+    upsert.run('active-1', 12, iso(500), 'CASCADE_RUN_STATUS_IDLE', '', 0, 0, 0, iso(325), 8, null);
+    watcher.scan(n => notices.push(n));
+    expect(notices.map(n => n.kind)).toEqual(['completion', 'completion', 'question', 'completion']);
+    // Hidden discard skips completions that happened while hidden.
+    upsert.run('hidden-1', 2, iso(600), 'CASCADE_RUN_STATUS_IDLE', '', 0, 0, 0, iso(550), -1, null);
+    watcher.discardHiddenHistory(now + 700);
+    watcher.scan(n => notices.push(n));
+    expect(notices.length).toBe(4);
+  } finally { db.close(); }
+});
+
+it('relays Antigravity NO_TOOL_CALL with omitted executionNum, deduplicates with DB and suppresses ERROR/USER_CANCELED', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'DesktopPet-T029-hook-')); dirs.push(root);
+  const home = path.join(root, 'home'), dataDir = path.join(root, 'data');
+  await mkdir(path.join(home, 'antigravity'), { recursive: true });
+  const db = new DatabaseSync(path.join(home, 'antigravity', 'conversation_summaries.db'));
+  const notices: ConversationNotice[] = [];
+  const svc = new GeminiNotices(home, dataDir, path.resolve('build/gemini-hook.ps1'), n => notices.push(n), () => {});
+  try {
+    db.exec(FULL_SUMMARY_TABLE);
+    const upsert = db.prepare('INSERT OR REPLACE INTO conversation_summaries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    await svc.configure(true, true, true);
+    const script = path.join(dataDir, 'integrations', 'gemini', 'stop.ps1');
+    const relay = (payload: Record<string, unknown>) => new Promise<void>((resolve, reject) => {
+      const child = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script], { windowsHide: true, stdio: ['pipe', 'ignore', 'ignore'] });
+      child.on('error', reject); child.on('close', code => code === 0 ? resolve() : reject(new Error('hook failed')));
+      child.stdin.end(JSON.stringify(payload));
+    });
+    const now = new Date(Date.now() + 50).toISOString();
+    // Normal Antigravity 2.0 Stop payload: NO_TOOL_CALL and omitted executionNum (protojson default 0), plus matching DB row.
+    upsert.run('conv-ok', 4, now, 'CASCADE_RUN_STATUS_IDLE', '', 0, 0, 0, now, -1, null);
+    await relay({ conversationId: 'conv-ok', terminationReason: 'NO_TOOL_CALL', fullyIdle: true, error: '' });
+    // Cancelled turn with matching DB IDLE row must be suppressed.
+    upsert.run('conv-cancel', 4, now, 'CASCADE_RUN_STATUS_IDLE', '', 0, 0, 0, now, -1, null);
+    await relay({ conversationId: 'conv-cancel', terminationReason: 'USER_CANCELED', fullyIdle: true, error: '' });
+    // Wait for next poll tick (2s) to process inbox + DB in the same tick.
+    await new Promise(r => setTimeout(r, 2400));
+    expect(notices.map(n => n.kind)).toEqual(['completion']);
+  } finally {
+    svc.pause(); await svc.drain(); db.close();
+  }
 });
