@@ -4,6 +4,7 @@ import { appendFile, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promise
 import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { electronArgs } from './electron-args';
+import { settingsPage } from './settings-page';
 import { chatgptAttention } from '../fixtures/chatgpt-notification';
 
 async function launch(hooks = false) {
@@ -18,7 +19,7 @@ async function launch(hooks = false) {
   const pet = await app.firstWindow(); await expect(pet.locator('.pet-character')).toBeVisible();
   await pet.evaluate(() => { window.desktopPlay.onConversationNotice(notice => { document.body.dataset.noticeCount = String(Number(document.body.dataset.noticeCount ?? 0) + 1); document.body.dataset.lastNotice = JSON.stringify(notice); }); return window.desktopPlay.openSettings(); });
   const settings = app.windows().find(window => window !== pet) ?? await app.waitForEvent('window');
-  await settings.locator('[data-category="reminders"]').click(); await settings.locator('#tab-completion').click();
+  await settingsPage(settings, 'completion');
   return { app, pet, settings, profile, file };
 }
 
@@ -63,7 +64,13 @@ test('App native local/durable attention reaches all pets, respects native suppr
     await pet.evaluate(() => window.desktopPlay.hidePet());
     const hiddenAt = Date.now(); await appendFile(file, chatgptAttention('approval', 'hidden', 'local', hiddenAt));
     await expect.poll(() => pet.evaluate(async () => (await window.desktopPlay.getState()).chatgptCompletion.lastAttentionAt)).toBe(new Date(hiddenAt).toISOString());
-    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(window => window.webContents.getURL().includes('view=pet'))!.showInactive());
+    await app.evaluate(async ({ BrowserWindow }) => {
+      const window = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().includes('view=pet'))!;
+      await new Promise<void>(resolve => {
+        window.once('show', () => resolve());
+        window.showInactive();
+      });
+    });
     await appendFile(file, chatgptAttention('async', 'after-show', 'durable'));
     await expect(pet.locator('body')).toHaveAttribute('data-notice-count', String(++count));
     await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'attention-chatgpt-work');
@@ -128,7 +135,7 @@ test('T023 reminder dismissal and question priority', async () => {
     }, { id, kind, source: 'codex', occurredAt: new Date().toISOString() });
   };
   try {
-    await settings.locator('[data-category="bubbles"]').click();
+    await settingsPage(settings, 'bubbles');
     await settings.locator('[data-bubble-persona="whale"]').click();
     await settings.locator('#bubble-scenario').selectOption('attention-codex');
     await settings.locator('#bubble-dismiss-mode').selectOption('timed');

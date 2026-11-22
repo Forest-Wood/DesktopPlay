@@ -6,6 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { waitingSummary } from '../fixtures/gemini-summary';
 import { spawn } from 'node:child_process';
 import { electronArgs } from './electron-args';
+import { settingsPage } from './settings-page';
 
 test('Gemini skins, quota rows, Stop relay and saved profile', async () => {
   await mkdir('.tmp', { recursive: true });
@@ -26,7 +27,7 @@ test('Gemini skins, quota rows, Stop relay and saved profile', async () => {
     const pet = await app.firstWindow();
     await pet.evaluate(() => window.desktopPlay.openSettings());
     const settings = app.windows().find(w => w !== pet) ?? await app.waitForEvent('window');
-    await settings.locator('[data-category="pet"]').click();
+    await settingsPage(settings, 'appearance');
     await settings.locator('#select-gemini').click();
     await expect(settings.locator('#app')).toHaveClass(/gemini-theme/);
     await expect(pet.locator('.pet-canvas')).toHaveClass(/gemini-theme/);
@@ -36,7 +37,7 @@ test('Gemini skins, quota rows, Stop relay and saved profile', async () => {
     await settings.locator('#gemini-sketch').click();
     await expect(pet.locator('.pet-image')).toHaveAttribute('src', /gemini-sketch.png/);
     await settings.screenshot({ path: path.join(profile, 'gemini-appearance.png') });
-    await settings.locator('[data-category="account"]').click(); await settings.locator('#tab-gemini').click();
+    await settingsPage(settings, 'gemini');
     await expect(settings.locator('#gemini-status-chip')).toHaveText('已连接 Antigravity');
     await expect(settings.locator('#gemini-quotas strong')).toHaveText(['0%', '62%', '37%']);
     await expect(settings.locator('#gemini-quotas progress')).toHaveCount(3);

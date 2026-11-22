@@ -1,7 +1,7 @@
 # DesktopPet 前端重设计与超级调色盘规格（R041／R042）
 
 - 日期：2026-11-20（Asia/Shanghai）。规划任务：[T034](tasks/T034-ui-redesign-plan.md)。
-- 状态：**规划完成、待开发**。本文件是 T035–T041 的共同设计依据；实现以各任务记录与实际代码为准，若实现中改变本文约定，须同步修订本文并在对应任务记录说明原因。
+- 状态：分阶段实现。六项导航、视觉变量与草稿交互已在 [T035](tasks/T035-ui-foundation.md) 实现。本文件记录 T035–T041 的共同设计，具体实现和验收见各任务记录。
 - 交互原型（虚构数据、仅作视觉参考，不进入构建）：[docs/previews/T034/ui-mockup.html](previews/T034/ui-mockup.html)。
 - 现行界面规范仍以 [DESIGN.md](../DESIGN.md) 为准；各 PR 合并时把已落地的部分迁移进 DESIGN.md，并删除本文中对应的"规划"描述，避免两处长期重复。
 
@@ -13,8 +13,6 @@
 | D2 | 导航结构 | 采用 **6 项新导航**：首页总览、伙伴、账户、提醒中心、人设工作室、系统 |
 | D3 | 视觉风格 | **沿用当前**白底＋鼠尾草侧栏＋松绿主色的安静风格；**新增主题色自定义**，参考腾讯 QQ（QQNT）"超级调色盘" |
 | D4 | 交付节奏 | **拆分为多个合理 PR**，每个 PR 独立可合并、可验证 |
-
-本文只是规划，**不包含业务代码实现**。
 
 ## 2. 现状问题
 
@@ -266,12 +264,12 @@ src/shared/
 
 ## 10. PR 拆分计划
 
-按 AGENTS.md 的规定，每个 PR 对应一个任务编号和一条独立分支，从最新的 `origin/main` 切出；后一个 PR 依赖前一个 PR 已合并。
+每个任务使用独立分支，以表中上一任务分支的结果提交为起点。当前没有上一任务分支时，从已核实的 `main` 基线创建。表中的依赖列描述功能依赖。PR 按任务顺序审查和合入 `main`。
 
 | 顺序 | 任务 | 分支（建议） | 范围 | 依赖 | 主要验收 |
 | --- | --- | --- | --- | --- | --- |
 | 0 | **[T034](tasks/T034-ui-redesign-plan.md)** | `docs/T034-ui-redesign-plan` | 本规划文档、需求 R041／R042、任务记录、原型与 T035–T041 待开发任务单 | — | 文档链接与范围检查、`git diff --check` |
-| 1 | **[T035](tasks/T035-ui-foundation.md)** | `feat/T035-ui-foundation` | `tokens.css`、`ui/` 组件、`settings/router.ts`、6 项导航骨架（旧页面按 4.1 节挂到新分类下）、草稿圆点与"放弃修改" | T034 | 所有原 section id 可达；typecheck、单测、build；smoke 全量通过（只调整导航相关选择器）；1060×800 与 760×560 两种尺寸截图 |
+| 1 | **[T035](tasks/T035-ui-foundation.md)** | `feat/T035-settings-foundation` | `tokens.css`、`ui/` 组件、`settings/router.ts`、6 项导航骨架（旧页面按 4.1 节挂到新分类下）、草稿圆点与"放弃修改" | T034 | 所有原 section id 可达；typecheck、单测、build；smoke 全量通过（只调整导航相关选择器）；1060×800 与 760×560 两种尺寸截图 |
 | 2 | **[T036](tasks/T036-home-overview.md)** | `feat/T036-home-overview` | 首页总览、`reminder-health.ts`、刷新全部 | T035 | 健康色推导单测；首页隔离 smoke（演示数据和 `DESKTOPPLAY_TEST_NO_CODEX=1`）；空状态截图 |
 | 3 | **[T037](tasks/T037-reminder-center.md)** | `feat/T037-reminder-center` | 提醒中心矩阵、接入向导、余额提醒卡 | T036 | 现有 completion、attention 相关 smoke 通过；向导步骤推导单测 |
 | 4 | **[T038](tasks/T038-persona-studio.md)** | `feat/T038-persona-studio` | 人设工作室（合并为 Deepseek / GPT / Gemini 统一人设条，嵌入气泡三栏、短句、音效）；伙伴页（含可编辑昵称）、账户页、系统页的视觉统一 | T035 | 气泡、短句、音效、昵称相关单测与 smoke 通过；草稿保存与恢复；预览不裁切 |

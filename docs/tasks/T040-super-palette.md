@@ -5,14 +5,14 @@
 - 负责人：待定（开工前确认）。
 - 分支：`feat/T040-super-palette`（建议）；目标合并分支：`main`。
 - 工作目录：`D:\desktop1\DesktopPlay`。
-- 基准提交：待 T038、T039 合入后核实最新 `origin/main`。
+- 基准提交：待核实 `feat/T039-pet-bubble-refresh` 的结果提交。
 - 结果提交：未提交。
 - 已有未提交修改：开工前核实工作区状态。
 - 状态：**待开发**。
 
 ## 依赖
 
-- 依赖 [T038](T038-persona-studio.md) 与 [T039](T039-pet-bubble-refresh.md) 已完成并合入。
+- 依赖 [T038](T038-persona-studio.md) 的设置页面和 [T039](T039-pet-bubble-refresh.md) 的气泡配色变量。
 
 ## 目标与范围
 
@@ -56,5 +56,5 @@
 
 ## 下一步
 
-1. T038、T039 合入后切出 `feat/T040-super-palette`。
+1. 从 T039 分支的结果提交创建 `feat/T040-super-palette`。
 2. 先完成自定义图片 `<canvas>` 取色可行性验证与 `src/shared/theme.ts` 纯函数单测，再接入持久化与调色盘页面。

@@ -5,14 +5,14 @@
 - 负责人：待定（开工前确认）。
 - 分支：`feat/T039-pet-bubble-refresh`（建议）；目标合并分支：`main`。
 - 工作目录：`D:\desktop1\DesktopPlay`。
-- 基准提交：待 T035 合入后核实最新 `origin/main`。
+- 基准提交：待核实 `feat/T038-persona-studio` 的结果提交。
 - 结果提交：未提交。
 - 已有未提交修改：开工前核实工作区状态。
 - 状态：**待开发**。
 
 ## 依赖
 
-- 依赖 [T035](T035-ui-foundation.md) 已完成并合入（复用 `tokens.css` 变量体系）。
+- 复用 [T035](T035-ui-foundation.md) 的 `tokens.css` 变量体系。
 
 ## 目标与范围
 
@@ -56,5 +56,5 @@
 
 ## 下一步
 
-1. T035 合入后切出 `feat/T039-pet-bubble-refresh`。
+1. 从 T038 分支的结果提交创建 `feat/T039-pet-bubble-refresh`。
 2. 核实 Gemini 订阅方案字段在现有额度数据结构中的来源，若缺失则明确展示兜底规则后再动工。

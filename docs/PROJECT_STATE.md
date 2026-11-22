@@ -4,7 +4,8 @@
 
 ## 当前任务
 
-- [T034／R041／R042](tasks/T034-ui-redesign-plan.md)（2026-11-20，2026-11-22 补充预览反馈与后续任务单，分支 `docs/T034-ui-redesign-plan`，基准 `0d20d93`，**未提交**）：前端重设计与超级调色盘规划，只写文档，不改代码。规格见 [UI_REDESIGN.md](UI_REDESIGN.md)，原型见 [previews/T034/ui-mockup.html](previews/T034/ui-mockup.html)。后续 7 步待开发任务单已建立：[T035](tasks/T035-ui-foundation.md)（基础与导航）→ [T036](tasks/T036-home-overview.md)（首页）→ [T037](tasks/T037-reminder-center.md)（提醒中心）→ [T038](tasks/T038-persona-studio.md)（人设工作室与伙伴可编辑昵称）→ [T039](tasks/T039-pet-bubble-refresh.md)（桌宠气泡）→ [T040](tasks/T040-super-palette.md)（超级调色盘）→ [T041](tasks/T041-ui-redesign-handoff.md)（文档收尾）。验证：文档链接与 `git diff --check`，未运行代码检查。已清理 T032 的临时产物。
+- [T035／R041](tasks/T035-ui-foundation.md)（2026-11-22，`feat/T035-settings-foundation`，基准 `b07b82e`，**未提交，待审查**）已实现六项导航、共享视觉变量、DOM 组件和草稿保存／放弃。首页提供快捷入口。类型检查、构建、322 项单测、19 项 Electron 冒烟及两个尺寸的截图核对通过。[T036 首页总览](tasks/T036-home-overview.md) 将从 T035 分支的结果提交创建独立分支，审查与合入按任务顺序执行。
+- [T034／R041／R042](tasks/T034-ui-redesign-plan.md) 规划已在原分支本地提交 `b07b82e`，基准为远端 `main` 的 `0d20d93`。规格、原型与未开始阶段见 [UI_REDESIGN.md](UI_REDESIGN.md) 和 [T034 原型](previews/T034/ui-mockup.html)。
 - [T033／R040](tasks/T033-release-v210.md) 已发布 [v2.1.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.1.0)。[PR #38](https://github.com/Forest-Wood/DesktopPlay/pull/38) 合入主线，标签 `v2.1.0` 指向 `07f774b`。[发布工作流 44549546635](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44549546635) 通过单测、Windows x64 打包、更新运行时与全部六项附件摘要（含 NSIS 与免安装版 `.blockmap`）及公告校验。
 - [T032／R039](tasks/T032-incremental-update.md) 已通过 [PR #37](https://github.com/Forest-Wood/DesktopPlay/pull/37) 合入主线 `5b6f13a`，随 v2.1.0 分发：实现 NSIS（`electron-updater` `.blockmap`）与 Portable（流式 Rabin CDC + `64 KiB` Range 合并 + 本地 `programPath` 扫描 + 完整 SHA-256 校验）增量／差分更新、自动回退整包、增量进度与回退 ETA 重置及 6 项 Release 资产校验；并在 `AGENTS.md` 补充前序未提交任务先原分支本地提交再切新分支的隔离规则。
 - [T031／R038](tasks/T031-prune-overdefensive-tests.md) 已通过 [PR #36](https://github.com/Forest-Wood/DesktopPlay/pull/36) 合入主线 `9adeb77`：精简 `tests/` 中过度防御与跨层重复测试，将 `update-helper-fixtures.ps1` 的 2 分钟等待超时改为 `-IncludeSlowTimeout` 显式开关，并将“避免过度防御性测试”原则写入 `AGENTS.md` 与 PR 模板。
@@ -23,7 +24,7 @@
 
 ## 有效限制与后续
 
-- 清理记录和既有视觉测试证据见 T022／T023 交接。自 T029 起执行临时测试文件滚动清理规则：完成任务 `T(N)` 时删除 `T(N-2)` 的非跟踪临时测试目录／产物（例如完成 T099 时删除 T097），保留最新两轮产物与所有跟踪文件／正式文档；本次准备 T033 已清理 T031 临时产物。
+- 临时文件按 `T(N-2)` 规则清理。T035 已清理 T033 的三份非跟踪临时草稿，见当前任务记录。既有视觉证据见 T022／T023 交接。
 
 - 2026-11-12 GPT 额度只读排查（工作区 HEAD `cc318be`，保留全部既有 T022 未提交修改）：运行中安装版为 `D:\DesktopPet` v1.1.0，进程启动于 11-09，现存 VS Code Codex 扩展目录创建于 11-11。通过当前 `codex-quota.ts` 的发现及只读请求函数实测额度读取、解析成功，未记录账户身份或凭据。安装包代码与源代码均只在初始化发现程序，刷新失败不重新发现；旧扩展路径失效为高概率原因，未直接读取运行中缓存路径。建议完全退出并重开桌宠验证；尚未重启、未确认 UI 恢复、未修改业务代码或真实配置。诊断临时构建已在后续目录复核时确认不存在。若后续修复自动重新发现，另建任务分支；本次仅新增此排查记录，不归入 T022 实现结果。
 

@@ -1,0 +1,65 @@
+.ui-card {
+  min-width: 0;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.ui-status-chip { display: inline-flex; align-items: center; gap: 6px; }
+.ui-status-chip::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  background: var(--chip-dot);
+  border-radius: 50%;
+}
+.ui-status-chip[data-tone=ok] { --chip-dot: var(--ok); background: var(--ok-soft); color: var(--accent); }
+.ui-status-chip[data-tone=info] { --chip-dot: var(--info); background: var(--info-soft); color: var(--info-ink); }
+.ui-status-chip[data-tone=warn] { --chip-dot: var(--warn); background: var(--warn-soft); color: var(--warn-ink); }
+.ui-status-chip[data-tone=err] { --chip-dot: var(--err); background: var(--err-soft); color: var(--err-ink); }
+.ui-status-chip[data-tone=off] { --chip-dot: var(--off); background: var(--surface-alt); color: var(--muted); }
+
+.ui-ring {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) var(--meter-value), var(--line) 0);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+.ui-ring > span {
+  display: grid;
+  place-items: center;
+  width: calc(100% - 10px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--surface);
+}
+.ui-bar { width: 100%; height: 6px; accent-color: var(--accent); }
+.ui-spark-bars { display: flex; align-items: end; gap: 4px; height: 35px; }
+.ui-spark-bars > span {
+  flex: 1;
+  height: var(--bar-height);
+  min-height: 1px;
+  border-radius: 3px 3px 0 0;
+  background: var(--accent);
+}
+.ui-switch-row small { color: var(--muted); margin-top: 4px; }
+.ui-step-list { padding-inline-start: 24px; }
+.ui-step-list > li { padding-block: 5px; }
+.ui-step-list .ui-status-chip { margin-inline-start: 8px; }
+.ui-segmented { display: flex; flex-wrap: wrap; gap: 4px; }
+.ui-segmented > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--muted);
+  background: var(--surface);
+}
+.ui-segmented > button[aria-pressed=true] { color: var(--accent); background: var(--selected); border-color: var(--accent); }
+.ui-persona-picker img { width: 30px; height: 30px; object-fit: contain; }

@@ -1,9 +1,9 @@
 import { test, expect, _electron as electron } from '@playwright/test';
-import type { Page } from '@playwright/test';
 import electronPath from 'electron';
 import path from 'node:path';
 import { appendFile, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { electronArgs } from './electron-args';
+import { settingsPage } from './settings-page';
 import { codexHistoryFixture } from '../fixtures/codex-history';
 
 const metadata = (id: string) => `${JSON.stringify({ type: 'session_meta', payload: { id, source: 'vscode' } })}\n`;
@@ -12,9 +12,6 @@ async function launch(profile: string, home: string) {
   const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1', DESKTOPPLAY_TEST_NO_ONBOARDING: '1', DESKTOPPLAY_TEST_CODEX_HOME: home };
   delete env.ELECTRON_RUN_AS_NODE;
   return electron.launch({ executablePath: electronPath as unknown as string, args: electronArgs, env });
-}
-async function page(settings: Page, category: string, tab: string) {
-  await settings.locator(`[data-category="${category}"]`).click(); await settings.locator(`#tab-${tab}`).click();
 }
 async function profile() {
   await mkdir('.tmp', { recursive: true });
@@ -65,11 +62,11 @@ test('local events use editable persona text, preserve drafts and focus, respect
     await pet.evaluate(() => { window.desktopPlay.onCodexCompletion(() => { document.body.dataset.completionCount = String(Number(document.body.dataset.completionCount ?? 0) + 1); }); });
     await pet.evaluate(() => window.desktopPlay.openSettings());
     const settings = application.windows().find(win => win !== pet) ?? await application.waitForEvent('window');
-    await page(settings, 'reminders', 'completion');
+    await settingsPage(settings, 'completion');
     await expect(settings.locator('#completion-enabled')).toBeChecked();
     const custom = { whale: '小鲸鱼：GPT 已完成', gpt: '<b>GPT 输出完成</b>', dragon: '白龙已经替你等到答复了。' };
     const defaults = ['Codex 已经回复完啦，快去看看吧～', 'Codex 这轮输出完成了，来看看结果吧。', 'Codex 的答复已送达，我替你守候着。'];
-    await page(settings, 'bubbles', 'bubbles'); await settings.locator('#bubble-scenario').selectOption('completion-codex');
+    await settingsPage(settings, 'bubbles'); await settings.locator('#bubble-scenario').selectOption('completion-codex');
     for (const [index, persona] of (['whale', 'gpt', 'dragon'] as const).entries()) {
       await settings.locator(`[data-bubble-persona="${persona}"]`).click();
       await expect(settings.locator('#bubble-copy')).toHaveValue(defaults[index]);
@@ -78,13 +75,13 @@ test('local events use editable persona text, preserve drafts and focus, respect
     await settings.locator('#bubble-reset').click();
     await expect(settings.locator('#bubble-copy')).toHaveValue(defaults[2]);
     await settings.locator('#bubble-copy').fill(custom.dragon);
-    await page(settings, 'account', 'codex'); await page(settings, 'bubbles', 'bubbles');
+    await settingsPage(settings, 'codex'); await settingsPage(settings, 'bubbles');
     for (const persona of ['whale', 'gpt', 'dragon'] as const) {
       await settings.locator(`[data-bubble-persona="${persona}"]`).click();
       await expect(settings.locator('#bubble-copy')).toHaveValue(custom[persona]);
     }
     expect((await settings.evaluate(() => window.desktopPlay.getState())).settings.bubbleProfilesByPersona.whale.rules['completion-codex'].message).toBe(defaults[0]);
-    await page(settings, 'reminders', 'completion');
+    await settingsPage(settings, 'completion');
 
     const chosen = path.join(f.directory, 'chosen-codex'); await mkdir(path.join(chosen, 'sessions'), { recursive: true });
     const chosenFile = path.join(chosen, 'sessions', 'desktop.jsonl'); await writeFile(chosenFile, metadata('chosen-client') + finished('before-choice'));

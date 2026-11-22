@@ -1,3 +1,4 @@
+import './tokens.css';
 import './styles.css';
 import type { AppState, DesktopApi } from '../shared/types';
 import { createDemoApi } from './demo';

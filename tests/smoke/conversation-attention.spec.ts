@@ -3,6 +3,7 @@ import electronPath from 'electron';
 import { mkdir, mkdtemp } from 'node:fs/promises';
 import path from 'node:path';
 import { electronArgs } from './electron-args';
+import { settingsPage } from './settings-page';
 
 async function launch(profile?: string) {
   await mkdir('.tmp', { recursive: true }); profile ??= await mkdtemp(path.resolve('.tmp/smoke-attention-'));
@@ -15,18 +16,22 @@ test('phrase controls preserve drafts, reject insufficient candidates and persis
   try {
     let pet = await app.firstWindow(); await pet.evaluate(() => window.desktopPlay.openSettings());
     let settings = app.windows().find(window => window !== pet) ?? await app.waitForEvent('window');
-    await settings.locator('[data-category="pet"]').click(); await settings.locator('#tab-companionship').click();
+    await settingsPage(settings, 'companionship');
     await settings.locator('#phrases').fill('First\nSecond\nThird\nFourth'); await settings.locator('#phrase-count').fill('2'); await settings.locator('#phrase-mode').selectOption('random');
     await settings.locator('[data-phrase-index="1"]').uncheck(); await settings.locator('[data-phrase-index="3"]').uncheck();
     await settings.locator('[data-persona="dragon"]').click(); await settings.locator('[data-persona="whale"]').click();
     await expect(settings.locator('#phrase-count')).toHaveValue('2'); await expect(settings.locator('#phrase-mode')).toHaveValue('random'); await expect(settings.locator('[data-phrase-index="1"]')).not.toBeChecked();
     await settings.locator('#phrase-count').fill('3'); await settings.locator('#save-settings').click(); await expect(settings.locator('#operation-status')).toContainText('候选短句数不能少于');
     await settings.locator('#phrase-count').fill('2'); await settings.locator('#phrase-mode').selectOption('sequential'); await settings.locator('#save-settings').click(); await expect(settings.locator('#save-hint')).toHaveText('设置已保存');
+    await settings.locator('#phrases').fill('First\nSecond\nThird revised\nFourth');
+    await expect(settings.locator('#save-hint')).toHaveText('1 项未保存');
+    await settings.locator('#save-settings').click();
+    await expect(settings.locator('#save-hint')).toHaveText('设置已保存');
     await settings.screenshot({ path: 'test-results/T013-phrase-settings.png' });
     await app.close(); app = (await launch(fixture.profile)).app; pet = await app.firstWindow(); await expect(pet.locator('.pet-character')).toBeVisible();
     const saved = await pet.evaluate(async () => (await window.desktopPlay.getState()).settings.phraseDisplayByPersona.whale); expect(saved).toEqual({ count: 2, mode: 'sequential', selectedIndices: [0, 2] });
     const click = () => pet.evaluate(() => (document.querySelector('.pet-character') as HTMLElement).click());
-    await click(); await click(); await click(); await expect(pet.locator('.bubble-message')).toHaveText('First'); await click(); await expect(pet.locator('.bubble-message')).toHaveText('Third'); await click(); await expect(pet.locator('.bubble-page')).toHaveText('1/4');
+    await click(); await click(); await click(); await expect(pet.locator('.bubble-message')).toHaveText('First'); await click(); await expect(pet.locator('.bubble-message')).toHaveText('Third revised'); await click(); await expect(pet.locator('.bubble-page')).toHaveText('1/4');
     await pet.evaluate(async () => { const { settings } = await window.desktopPlay.getState(); settings.phraseDisplayByPersona.whale.count = 0; await window.desktopPlay.updateSettings({ phraseDisplayByPersona: settings.phraseDisplayByPersona }); });
     await expect(pet.locator('.bubble-page')).toHaveText('1/2');
   } finally { await app.close(); }

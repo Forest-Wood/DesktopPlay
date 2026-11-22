@@ -5,14 +5,14 @@
 - 负责人：待定（开工前确认）。
 - 分支：`docs/T041-ui-redesign-handoff`（建议）；目标合并分支：`main`。
 - 工作目录：`D:\desktop1\DesktopPlay`。
-- 基准提交：待 T040 合入后核实最新 `origin/main`。
+- 基准提交：待核实 `feat/T040-super-palette` 的结果提交。
 - 结果提交：未提交。
 - 已有未提交修改：开工前核实工作区状态。
 - 状态：**待开发**。
 
 ## 依赖
 
-- 依赖 [T040](T040-super-palette.md)（及前置 T035–T039）全部已完成并合入。
+- 依赖 [T040](T040-super-palette.md) 和 T035–T039 的已验证实现。
 
 ## 目标与范围
 
@@ -46,5 +46,5 @@
 
 ## 下一步
 
-1. T040 合入后切出 `docs/T041-ui-redesign-handoff`。
-2. 对照最终合入代码完成 `DESIGN.md` 迁移与正式截图更新。
+1. 从 T040 分支的结果提交创建 `docs/T041-ui-redesign-handoff`。
+2. 对照已验证的实现完成 `DESIGN.md` 迁移与正式截图更新。

@@ -3,6 +3,7 @@ import electronPath from 'electron';
 import path from 'node:path';
 import { mkdir, mkdtemp } from 'node:fs/promises';
 import { electronArgs } from './electron-args';
+import { settingsPage } from './settings-page';
 
 test('reset cards keep authoritative count, local cutoff detail and compact persona layout', async () => {
   await mkdir('.tmp', { recursive: true });
@@ -15,6 +16,7 @@ test('reset cards keep authoritative count, local cutoff detail and compact pers
     await expect(pet.locator('.pet-character')).toBeVisible();
     await pet.evaluate(async () => { await window.desktopPlay.selectPet('gpt'); await window.desktopPlay.updateSettings({ bubbleDurationSeconds: 60 }); await window.desktopPlay.openSettings(); });
     const settings = application.windows().find(win => win !== pet) ?? await application.waitForEvent('window', { predicate: win => win !== pet });
+    await settingsPage(settings, 'codex');
     await expect(settings.locator('#codex-quotas')).toBeVisible();
     const base = await pet.evaluate(() => window.desktopPlay.getState());
     base.codex = { ...base.codex, status: 'ready', planType: 'pro', updatedAt: new Date().toISOString(), error: null,

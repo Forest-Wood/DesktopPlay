@@ -5,14 +5,14 @@
 - 负责人：待定（开工前确认）。
 - 分支：`feat/T038-persona-studio`（建议）；目标合并分支：`main`。
 - 工作目录：`D:\desktop1\DesktopPlay`。
-- 基准提交：待 T035 合入后核实最新 `origin/main`（可与 T036/T037 按合并顺序协调）。
+- 基准提交：待核实 `feat/T037-reminder-center` 的结果提交。
 - 结果提交：未提交。
 - 已有未提交修改：开工前核实工作区状态。
 - 状态：**待开发**。
 
 ## 依赖
 
-- 依赖 [T035](T035-ui-foundation.md) 已完成并合入。
+- 复用 [T035](T035-ui-foundation.md) 的导航和共享组件。
 
 ## 目标与范围
 
@@ -55,5 +55,5 @@
 
 ## 下一步
 
-1. T035 合入后切出 `feat/T038-persona-studio`。
+1. 从 T037 分支的结果提交创建 `feat/T038-persona-studio`。
 2. 先确定 GPT 合并人设的旧配置兼容规则与昵称持久化字段定义，再逐页实现并验证。

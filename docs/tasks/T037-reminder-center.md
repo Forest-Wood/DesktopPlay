@@ -5,14 +5,14 @@
 - 负责人：待定（开工前确认）。
 - 分支：`feat/T037-reminder-center`（建议）；目标合并分支：`main`。
 - 工作目录：`D:\desktop1\DesktopPlay`。
-- 基准提交：待 T036 合入后核实最新 `origin/main`。
+- 基准提交：待核实 `feat/T036-home-overview` 的结果提交。
 - 结果提交：未提交。
 - 已有未提交修改：开工前核实工作区状态。
 - 状态：**待开发**。
 
 ## 依赖
 
-- 依赖 [T036](T036-home-overview.md) 已完成并合入（复用 `reminder-health.ts`）。
+- 复用 [T036](T036-home-overview.md) 的 `reminder-health.ts`。
 
 ## 目标与范围
 
@@ -51,5 +51,5 @@
 
 ## 下一步
 
-1. T036 合入后切出 `feat/T037-reminder-center`。
+1. 从 T036 分支的结果提交创建 `feat/T037-reminder-center`。
 2. 抽取步骤推导逻辑并补齐单测，再完成矩阵与向导 UI 迁移。

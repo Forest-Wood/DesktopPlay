@@ -11,10 +11,24 @@ import { COMPLETION_SOURCES, petPersona } from '../shared/bubble-settings';
 import { formatUpdateDownloadDetail } from '../shared/app-update';
 import { APP_VERSION, GEMINI_PETS, GPT_DRAGON_PET, GPT_PET } from '../shared/defaults';
 import { PersonaSoundPlayer } from './sounds';
+import { mountSettingsRouter, settingsCategory, type SettingsPage } from './settings/router';
+import { card } from './ui/components';
+import './ui/components.css';
+
+function sameDraftValue(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
+  const leftFields = Object.entries(left);
+  const rightFields = right as Record<string, unknown>;
+  return leftFields.length === Object.keys(right).length
+    && leftFields.every(([key, value]) => Object.hasOwn(right, key) && sameDraftValue(value, rightFields[key]));
+}
 
 export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppState, demo: boolean) {
   let state = initial;
+  let draftBase = initial.settings;
   let dirty = false;
+  let saving = false;
   let draftRevision = 0;
   let disposed = false;
   let soundPersona: PetPersona = petPersona(initial);
@@ -23,7 +37,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const preview = new PersonaSoundPlayer(api, (slot, text) => { if (!disposed) { soundWarnings.set(warningKey(slot), text); root.querySelector<HTMLElement>(`#sound-warning-${slot}`)!.textContent = text; } });
   root.innerHTML = `
     <div class="settings-shell">
-      <aside class="sidebar"><a class="brand" href="#overview"><span class="brand-mark"><img src="./assets/whale.png" alt=""></span><span>DesktopPet<small>让桌面多一点陪伴</small></span></a>
+      <aside class="sidebar"><a class="brand" href="#home"><span class="brand-mark"><img src="./assets/whale.png" alt=""></span><span>DesktopPet<small>让桌面多一点陪伴</small></span></a>
         <div class="nav-caption">我的桌面</div>
         <nav aria-label="设置分区"></nav>
         <button id="companion-shortcut" class="companion-card" type="button" aria-label="调整当前桌宠">
@@ -35,7 +49,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
         <div class="sidebar-footer"><span>DesktopPet</span><span>v${APP_VERSION}</span></div>
       </aside>
       <main class="settings-main">
-        <header class="workspace-header"><div><div class="eyebrow">我的桌面 <span aria-hidden="true">/</span> <span id="category-label">账户与用量</span></div><h1>桌宠的栖息地<span aria-hidden="true">✦</span></h1><p id="category-description">看一眼用量，安心回到手边的事。</p></div><span id="companion-presence" class="presence-chip"></span></header>
+        <header class="workspace-header"><div><div class="eyebrow">我的桌面 <span aria-hidden="true">/</span> <span id="category-label">首页总览</span></div><h1>桌宠的栖息地<span aria-hidden="true">✦</span></h1></div><span id="companion-presence" class="presence-chip"></span></header>
         ${demo ? '<div class="demo-banner" role="status">本地演示模式 · 以下余额与 Codex 额度为布局示例，不连接真实账户。</div>' : ''}
         <div id="operation-status" class="operation-status" role="status" aria-live="polite"></div>
         <section id="overview" class="section"><div class="section-heading"><h2>余额概览</h2><span id="network-status" class="status-chip"></span></div>
@@ -57,7 +71,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
             <label class="field-label" for="phrases">陪伴短句 <span>每行一句</span></label><textarea id="phrases" name="phrases" rows="3" maxlength="4000" placeholder="今天也要照顾好自己呀。"></textarea></div>
           </section>
           <section id="reminders" class="section"><div class="section-heading"><h2>余额提醒</h2><span class="section-note">轻轻提醒，安心工作</span></div><div class="panel reminder-grid"><div><label class="field-label" for="low-balance">余额低于</label><input id="low-balance" name="lowBalanceThreshold" type="text" inputmode="decimal" placeholder="不填写则关闭"><p class="hint">以账户币种计算，留空关闭低余额提醒。</p></div><div><label class="field-label" for="daily-budget">今日观测消费达到</label><input id="daily-budget" name="dailyBudget" type="text" inputmode="decimal" placeholder="不填写则关闭"><p class="hint">按电脑当前时区分段、每日统计，留空关闭预算提醒。</p></div></div></section>
-          <div class="save-bar" data-dirty="false"><div class="save-copy"><span class="save-indicator" aria-hidden="true"></span><div><span id="save-hint" role="status" aria-live="polite">设置已同步</span><small>偏好调整将在保存后生效</small></div></div><button id="save-settings" type="submit" class="primary-button">保存设置</button></div>
+          <div class="save-bar" data-dirty="false"><div class="save-copy"><span class="save-indicator" aria-hidden="true"></span><span id="save-hint" role="status" aria-live="polite">设置已同步</span></div><div class="save-actions"><button id="discard-settings" type="button" class="text-button" disabled>放弃修改</button><button id="save-settings" type="submit" class="primary-button">保存设置</button></div></div>
         </form>
         <section id="records" class="section"><div class="section-heading"><h2>消费记录</h2><span id="records-zone" class="section-note"></span></div><div class="panel"><p id="records-period" class="hint"></p><div class="table-scroll"><table><caption class="sr-only">每日已观测消费及余额增加</caption><thead><tr><th scope="col">日期／统计时区</th><th scope="col">已观测消费</th><th scope="col">余额增加</th></tr></thead><tbody id="history-body"></tbody></table></div><div class="statistics-note"><strong>这些数字代表什么？</strong><p>消费是两次余额观测之间的下降量，不是逐次调用账单。应用关闭或断网期间的变化只能在下一次观测时发现；同时发生的充值与消费可能相互抵消。每日首次成功观测建立起点，跨午夜差额不计入新一天；仅同一统计分段、当日相邻观测下降累计。切换电脑时区会建立新分段；旧记录保留原北京时间口径。</p><p>DesktopPet 不提供 AI 聊天，也不估算每轮对话费用。金额展示保留 2 位小数，内部记录保留 8 位。</p></div></div></section>
         <footer class="page-footer">让每一天，都有一个小伙伴陪着。 ✦</footer>
@@ -69,28 +83,13 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const settingsForm = element<HTMLFormElement>('settings-form');
   const content = document.createElement('div'); content.className = 'settings-content';
   main.append(content);
-  const tabs = document.createElement('nav'); tabs.className = 'page-tabs'; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', '设置子页面');
-  const pages = [
-    { category: 'pet', label: '我的桌宠', children: [['appearance', '角色与模式'], ['behavior', '桌面行为'], ['companionship', '陪伴短句']] },
-    { category: 'account', label: '账户与用量', children: [['overview', 'DeepSeek'], ['codex', 'Codex'], ['gemini', 'Gemini'], ['records', '消费记录']] },
-    { category: 'reminders', label: '提醒与声音', children: [['completion', '对话提醒'], ['reminders', '余额提醒'], ['sound', '声音']] },
-    { category: 'bubbles', label: '气泡与文案', children: [['bubbles', '文案与样式']] },
-    { category: 'about', label: '关于', children: [['version', '版本与更新'], ['guide', '使用说明'], ['licenses', '素材与许可证'], ['uninstall', '卸载']] },
-  ];
-  const categoryDescriptions: Record<string, string> = {
-    account: '看一眼用量，安心回到手边的事。',
-    pet: '选一个喜欢的伙伴，把陪伴调成你的样子。',
-    reminders: '需要的时候轻轻提醒，专注的时候安静陪伴。',
-    bubbles: '从一句话到一抹颜色，让每次回应都更合心意。',
-    about: '关于这个小小的桌面伙伴。',
-  };
-  const navigationPaths: Record<string, string> = {
-    account: '<rect x="3" y="5" width="18" height="15" rx="3"/><path d="M3 9h18M7 15h3"/>',
-    pet: '<path d="M5 10 4 3l6 4h4l6-4-1 7a8 8 0 1 1-14 0Z"/><path d="M9 13h.01M15 13h.01M10 17q2 2 4 0"/>',
-    bubbles: '<path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2V11.5A8.5 8.5 0 0 1 10.5 3h2a8.5 8.5 0 0 1 8.5 8.5Z"/><path d="M7 10h9M7 14h6"/>',
-    reminders: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9M9 21h6"/>',
-    about: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
-  };
+  const home = document.createElement('section');
+  home.id = 'home';
+  home.className = 'section';
+  const homeLinks = card();
+  homeLinks.innerHTML = '<h2 id="home-heading">快捷入口</h2><div class="button-row"><button type="button" class="secondary-button" data-settings-page="overview">DeepSeek 余额</button><button type="button" class="secondary-button" data-settings-page="codex">Codex 额度</button><button type="button" class="secondary-button" data-settings-page="gemini">Gemini 额度</button><button type="button" class="secondary-button" data-settings-page="completion">对话提醒</button><button type="button" class="secondary-button" data-settings-page="version">版本与更新</button></div>';
+  home.append(homeLinks);
+  content.append(home);
   const makePage = (id: string, title: string, html: string) => {
     const section = document.createElement('section'); section.id = id; section.className = 'section'; section.innerHTML = `<div class="section-heading"><h2>${title}</h2></div><div class="panel">${html}</div>`; content.append(section); return section;
   };
@@ -184,54 +183,37 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   makePage('licenses', '素材与许可证', '<div class="guide-list"><article><h3>代码与开源来源</h3><p>代码采用 MIT 许可证。部分代码参考 MeteorNOX / DeepSeek-Balance-Whale-Widget，并保留上游署名与许可证。</p></article><article><h3>小鲸鱼与音效</h3><p>源自上游项目，维护者确认获得独立分发授权。美术与声音素材不随代码转为 MIT 授权。</p></article><article><h3>GPT、白龙与 Gemini</h3><p>根据用户参考与提供素材制作的非官方形象，不代表 OpenAI 或 Google 的官方吉祥物、合作或认可。第三方商标权归原权利人。</p></article><article><h3>完整声明</h3><p>随应用分发的 LICENSE 与 THIRD_PARTY_NOTICES.md 包含完整许可证、素材来源与授权边界。</p></article></div>');
   makePage('uninstall', '卸载 DesktopPet', '<p class="page-description">移除程序，并按你的选择清理本机数据。</p><dl class="uninstall-paths"><dt>运行模式</dt><dd id="uninstall-kind">正在检查…</dd><dt>程序位置</dt><dd id="uninstall-program">正在检查…</dd><dt>用户数据位置</dt><dd id="uninstall-data">正在检查…</dd></dl><label class="toggle-label uninstall-delete-label" for="uninstall-remove-data"><span>同时删除本机用户数据<small>默认开启，可关闭以保留设置与素材。</small></span><input id="uninstall-remove-data" type="checkbox" checked></label><p class="hint">清理范围：API Key、设置、余额与消费记录、自定义图片、自定义音频和缓存。同一用户运行的安装版与免安装版可能共用这些数据，清理会同时影响它们。</p><p id="uninstall-reason" class="sound-warning" role="status"></p><button id="uninstall-start" class="uninstall-button" type="button" disabled>卸载 DesktopPet</button><p class="hint">点击后会显示系统确认对话框，取消即可返回。</p>');
   const saveBar = root.querySelector<HTMLElement>('.save-bar')!;
-  const setSaveHint = (message: string) => { saveBar.dataset.dirty = String(dirty); element('save-hint').textContent = message; };
+  const discardButton = element<HTMLButtonElement>('discard-settings');
+  const setSaveHint = (message: string) => {
+    saveBar.dataset.dirty = String(dirty);
+    discardButton.disabled = !dirty || saving;
+    const hint = element('save-hint');
+    if (hint.textContent !== message) hint.textContent = message;
+  };
   // Keep the actual character in view before the immediate appearance actions.
   const appearancePanel = element('appearance').querySelector<HTMLElement>('.panel')!;
   appearancePanel.prepend(root.querySelector<HTMLElement>('.pet-preview-row')!);
   root.querySelector('.pet-preview-row')!.after(element('pet-mode').closest('.setting-row')!);
   main.append(content, saveBar);
-  main.querySelector('header')!.after(tabs);
   element<HTMLButtonElement>('save-settings').setAttribute('form', 'settings-form');
   for (const id of ['update-download', 'update-install', 'update-save-first']) element(id).classList.add('primary-button');
   for (const control of content.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input[name], textarea[name]')) control.setAttribute('form', 'settings-form');
   settingsForm.hidden = true;
   root.querySelector('.page-footer')!.remove();
-  const sidebar = root.querySelector('.sidebar nav')!; sidebar.replaceChildren();
-  const pageMemory = new Map<string, string>();
-  let activeCategory = 'account';
-  let refreshPageTime = () => {};
-  let stopBubblePreview = () => {};
-  const showPage = (id: string) => {
-    refreshPageTime();
-    if (id === 'gemini') void api.refreshGeminiQuota().catch(() => {});
-    preview.stop(); stopBubblePreview();
-    pageMemory.set(activeCategory, id);
-    for (const section of content.querySelectorAll<HTMLElement>(':scope > section')) section.hidden = section.id !== id;
-    for (const tab of tabs.querySelectorAll<HTMLButtonElement>('button')) { const selected = tab.dataset.page === id; tab.setAttribute('aria-selected', String(selected)); tab.tabIndex = selected ? 0 : -1; }
-    content.scrollTop = 0;
-  };
-  const showCategory = (category: string) => {
-    const group = pages.find(page => page.category === category)!; activeCategory = category;
-    element('category-label').textContent = group.label;
-    element('category-description').textContent = categoryDescriptions[category];
-    for (const button of sidebar.querySelectorAll('button')) button.setAttribute('aria-current', button.getAttribute('data-category') === category ? 'page' : 'false');
-    tabs.replaceChildren();
-    for (const [id, label] of group.children) { const button = document.createElement('button'); button.id = `tab-${id}`; button.type = 'button'; button.textContent = label; button.dataset.page = id; button.setAttribute('role', 'tab'); button.setAttribute('aria-controls', id); button.addEventListener('click', () => showPage(id)); tabs.append(button); element(id).setAttribute('role', 'tabpanel'); element(id).setAttribute('aria-labelledby', button.id); }
-    showPage(pageMemory.get(category) ?? group.children[0][0]);
-  };
-  for (const group of pages) { const button = document.createElement('button'); button.type = 'button'; button.dataset.category = group.category; button.innerHTML = `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${navigationPaths[group.category]}</svg><span>${group.label}</span>`; button.addEventListener('click', () => showCategory(group.category)); sidebar.append(button); }
-  tabs.addEventListener('keydown', event => { if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return; event.preventDefault(); const buttons = [...tabs.querySelectorAll<HTMLButtonElement>('button')]; const index = buttons.indexOf(document.activeElement as HTMLButtonElement); const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length; buttons[next].click(); buttons[next].focus(); });
-  pageMemory.set('account', initial.activePet === 'gemini' ? 'gemini' : initial.activePet === 'gpt' ? 'codex' : 'overview'); showCategory('account');
-  const openVersion = () => { showCategory('about'); showPage('version'); };
-  if (new URLSearchParams(location.search).get('page') === 'version') openVersion();
-  const stopSettingsPage = api.onSettingsPage(openVersion);
-  root.querySelector('.brand')!.addEventListener('click', event => { event.preventDefault(); showCategory('account'); });
-  element('companion-shortcut').addEventListener('click', () => { showCategory('pet'); showPage('appearance'); element('tab-appearance').focus(); });
-  for (const button of root.querySelectorAll<HTMLButtonElement>('[data-settings-page]')) button.addEventListener('click', () => {
-    const id = button.dataset.settingsPage!;
-    const group = pages.find(page => page.children.some(([pageId]) => pageId === id))!;
-    showCategory(group.category); showPage(id); element(`tab-${id}`).focus();
+  const router = mountSettingsRouter(root, content, initial.activePet === 'gemini' ? 'gemini' : initial.activePet === 'gpt' ? 'codex' : 'overview', page => {
+    renderPeriod();
+    if (page === 'gemini') void api.refreshGeminiQuota().catch(() => {});
+    preview.stop();
+    bubbleEditor.stopAudio();
   });
+  root.querySelector('.brand')!.addEventListener('click', event => { event.preventDefault(); router.navigate('home'); });
+  element('companion-shortcut').addEventListener('click', () => router.navigate('pet', 'appearance', 'tab'));
+  for (const button of root.querySelectorAll<HTMLButtonElement>('[data-settings-page]')) {
+    button.addEventListener('click', () => {
+      const page = button.dataset.settingsPage as SettingsPage;
+      router.navigate(settingsCategory(page), page, 'tab');
+    });
+  }
   let persona: PetPersona = petPersona(initial);
   let phraseDraft: Record<PetPersona, string[]> = structuredClone(initial.settings.phrasesByPersona);
   let phraseDisplayDraft = structuredClone(initial.settings.phraseDisplayByPersona);
@@ -257,24 +239,21 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
       const label = document.createElement('label'); label.className = 'toggle-label';
       const caption = document.createElement('span'); caption.textContent = text;
       const check = document.createElement('input'); check.type = 'checkbox'; check.setAttribute('form', 'settings-form'); check.dataset.phraseIndex = String(index); check.checked = phraseDisplayDraft[persona].selectedIndices.includes(index);
-      check.addEventListener('change', () => { const indices = new Set(phraseDisplayDraft[persona].selectedIndices); if (check.checked) indices.add(index); else indices.delete(index); phraseDisplayDraft[persona].selectedIndices = [...indices].sort((a, b) => a - b); });
+      check.addEventListener('change', () => { const indices = new Set(phraseDisplayDraft[persona].selectedIndices); if (check.checked) indices.add(index); else indices.delete(index); phraseDisplayDraft[persona].selectedIndices = [...indices].sort((a, b) => a - b); markDraftChanged(); });
       label.append(caption, check); candidates.append(label);
     }
   };
   element('phrase-count').addEventListener('input', () => { phraseDisplayDraft[persona].count = Number(element<HTMLInputElement>('phrase-count').value); });
-  element('phrase-mode').addEventListener('change', () => { phraseDisplayDraft[persona].mode = element<HTMLSelectElement>('phrase-mode').value as 'random' | 'sequential'; dirty = true; draftRevision++; setSaveHint('有尚未保存的调整'); });
+  element('phrase-mode').addEventListener('change', () => { phraseDisplayDraft[persona].mode = element<HTMLSelectElement>('phrase-mode').value as 'random' | 'sequential'; markDraftChanged(); });
   for (const button of root.querySelectorAll<HTMLButtonElement>('[data-persona]')) button.addEventListener('click', () => { capturePhrases(); persona = button.dataset.persona as PetPersona; phraseInput.value = phraseDraft[persona].join('\n'); previewPhrases(); });
   phraseInput.addEventListener('input', () => { capturePhrases(); previewPhrases(); });
   const form = element<HTMLFormElement>('settings-form');
   const input = (name: string) => form.elements.namedItem(name) as HTMLInputElement;
   const notify = (message: string, error = false) => { const el = element('operation-status'); el.textContent = message; el.classList.toggle('error', error); };
-  const markCompletionDirty = () => { dirty = true; draftRevision++; setSaveHint('有尚未保存的调整'); };
-  const bubbleEditor = mountBubbleEditor(element('bubble-editor'), api, initial, markCompletionDirty, notify, next => update(next));
-  stopBubblePreview = bubbleEditor.stopAudio;
+  const bubbleEditor = mountBubbleEditor(element('bubble-editor'), api, initial, () => markDraftChanged(), notify, next => update(next));
   for (const button of root.querySelectorAll<HTMLButtonElement>('[data-edit-completion], [data-edit-sound]')) button.addEventListener('click', () => {
-    showCategory('bubbles'); showPage('bubbles'); bubbleEditor.select(`completion-${button.dataset.editCompletion ?? button.dataset.editSound}` as import('../shared/types').BubbleScenario, button.dataset.editSound ? soundPersona : undefined);
-    if (button.dataset.editSound) { element('bubble-completion-audio').scrollIntoView({ block: 'center' }); element('bubble-sound-enabled').focus({ preventScroll: true }); }
-    else element('bubble-scenario').focus({ preventScroll: true });
+    bubbleEditor.select(`completion-${button.dataset.editCompletion ?? button.dataset.editSound}` as import('../shared/types').BubbleScenario, button.dataset.editSound ? soundPersona : undefined);
+    router.navigate('studio', 'bubbles', element(button.dataset.editSound ? 'bubble-sound-enabled' : 'bubble-scenario'));
   });
   let directoryDraft = initial.settings.codexCompletionDirectory;
   let dshDirectoryDraft = initial.settings.deepseekCompletionDirectory;
@@ -282,15 +261,15 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     element<HTMLInputElement>('completion-directory').value = directoryDraft ?? '默认 Codex 目录';
     element<HTMLInputElement>('dsh-directory').value = dshDirectoryDraft ?? '默认 DSH 会话目录';
   };
-  element('dsh-default-directory').addEventListener('click', () => { dshDirectoryDraft = null; renderCompletionDraft(); markCompletionDirty(); });
+  element('dsh-default-directory').addEventListener('click', () => { dshDirectoryDraft = null; renderCompletionDraft(); markDraftChanged(); });
   element('dsh-choose-directory').addEventListener('click', () => {
     const button = element<HTMLButtonElement>('dsh-choose-directory'); button.disabled = true;
-    void api.chooseDeepseekCompletionDirectory().then(directory => { if (!disposed && directory !== null) { dshDirectoryDraft = directory; renderCompletionDraft(); markCompletionDirty(); } }).catch(error => { if (!disposed) notify(error instanceof Error ? error.message : '无法选择 DSH 目录。', true); }).finally(() => { if (!disposed) button.disabled = false; });
+    void api.chooseDeepseekCompletionDirectory().then(directory => { if (!disposed && directory !== null) { dshDirectoryDraft = directory; renderCompletionDraft(); markDraftChanged(); } }).catch(error => { if (!disposed) notify(error instanceof Error ? error.message : '无法选择 DSH 目录。', true); }).finally(() => { if (!disposed) button.disabled = false; });
   });
-  element('completion-default-directory').addEventListener('click', () => { directoryDraft = null; renderCompletionDraft(); markCompletionDirty(); });
+  element('completion-default-directory').addEventListener('click', () => { directoryDraft = null; renderCompletionDraft(); markDraftChanged(); });
   element('completion-choose-directory').addEventListener('click', () => {
     const button = element<HTMLButtonElement>('completion-choose-directory'); button.disabled = true;
-    void api.chooseCodexCompletionDirectory().then(directory => { if (!disposed && directory !== null) { directoryDraft = directory; renderCompletionDraft(); markCompletionDirty(); } }).catch(error => { if (!disposed) notify(error instanceof Error ? error.message : '无法选择目录，请重试。', true); }).finally(() => { if (!disposed) button.disabled = false; });
+    void api.chooseCodexCompletionDirectory().then(directory => { if (!disposed && directory !== null) { directoryDraft = directory; renderCompletionDraft(); markDraftChanged(); } }).catch(error => { if (!disposed) notify(error instanceof Error ? error.message : '无法选择目录，请重试。', true); }).finally(() => { if (!disposed) button.disabled = false; });
   });
   const soundSlots: SoundSlot[] = ['press', 'release'];
   const renderSounds = () => {
@@ -344,6 +323,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   });
   let modeDirty = false;
   const fill = (settings: AppSettings) => {
+    draftBase = settings;
     modeDirty = false;
     element<HTMLSelectElement>('pet-mode').value = settings.petMode;
     input('autoCheckUpdates').checked = settings.autoCheckUpdates;
@@ -361,7 +341,69 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     phraseDraft = structuredClone(settings.phrasesByPersona); phraseDisplayDraft = structuredClone(settings.phraseDisplayByPersona); phraseInput.value = phraseDraft[persona].join('\n'); previewPhrases(); ranges();
   };
   const ranges = () => { element('scale-output').textContent = `${Number(input('scale').value).toFixed(2)}×`; element('volume-output').textContent = `${Math.round(Number(input('volume').value) * 100)}%`; };
-  content.addEventListener('input', event => { if ((event.target as HTMLInputElement).form !== form) return; dirty = true; if ((event.target as HTMLElement).id === 'pet-mode') modeDirty = true; draftRevision++; ranges(); element('codex-attention-draft').hidden = input('codexHookEnabled').checked === state.settings.codexHookEnabled && input('attention-codex').checked === state.settings.attentionEnabledBySource.codex; setSaveHint('有尚未保存的调整'); });
+  const draftPages = {
+    appearance: ['petMode', 'scale'],
+    behavior: ['alwaysOnTop', 'snapToEdges', 'launchAtLogin'],
+    reminders: ['lowBalanceThreshold', 'dailyBudget'],
+    completion: ['codexCompletionEnabled', 'codexCompletionDirectory', 'codexHookEnabled', 'chatgptCompletionEnabled',
+      'deepseekCompletionEnabled', 'deepseekCompletionDirectory', 'geminiCompletionEnabled', 'geminiHookEnabled', 'attentionEnabledBySource'],
+    companionship: ['phrasesByPersona', 'phraseDisplayByPersona'],
+    sound: ['soundEnabled', 'volume'],
+    bubbles: ['bubbleProfilesByPersona'],
+    version: ['autoCheckUpdates'],
+  } satisfies Partial<Record<SettingsPage, (keyof AppSettings)[]>>;
+  const readDraft = (): AppSettings => ({
+    ...draftBase,
+    petMode: element<HTMLSelectElement>('pet-mode').value as AppSettings['petMode'],
+    scale: Number(input('scale').value),
+    alwaysOnTop: input('alwaysOnTop').checked,
+    snapToEdges: input('snapToEdges').checked,
+    launchAtLogin: input('launchAtLogin').checked,
+    lowBalanceThreshold: input('lowBalanceThreshold').value.trim() || null,
+    dailyBudget: input('dailyBudget').value.trim() || null,
+    codexCompletionEnabled: input('codexCompletionEnabled').checked,
+    codexCompletionDirectory: directoryDraft,
+    codexHookEnabled: input('codexHookEnabled').checked,
+    chatgptCompletionEnabled: input('chatgptCompletionEnabled').checked,
+    deepseekCompletionEnabled: input('deepseekCompletionEnabled').checked,
+    deepseekCompletionDirectory: dshDirectoryDraft,
+    geminiCompletionEnabled: input('geminiCompletionEnabled').checked,
+    geminiHookEnabled: input('geminiHookEnabled').checked,
+    attentionEnabledBySource: Object.fromEntries(COMPLETION_SOURCES.map(source => [source, input(`attention-${source}`).checked])) as AppSettings['attentionEnabledBySource'],
+    phrasesByPersona: phraseDraft,
+    phraseDisplayByPersona: phraseDisplayDraft,
+    soundEnabled: input('soundEnabled').checked,
+    volume: Number(input('volume').value),
+    bubbleProfilesByPersona: bubbleEditor.getProfiles(),
+    autoCheckUpdates: input('autoCheckUpdates').checked,
+  });
+  const changedFields = (draft: AppSettings) => Object.entries(draftPages).flatMap(([page, keys]) =>
+    keys.filter(key => !sameDraftValue(draft[key], draftBase[key])).map(key => ({ page: page as SettingsPage, key })),
+  );
+  const draftHint = (count: number) => count ? `${count} 项未保存` : '设置已同步';
+  const renderDraft = (changes = changedFields(readDraft())) => {
+    dirty = changes.length > 0;
+    modeDirty = changes.some(({ key }) => key === 'petMode');
+    router.setDraftPages(new Set(changes.map(({ page }) => page)));
+    setSaveHint(draftHint(changes.length));
+    element('codex-attention-draft').hidden = input('codexHookEnabled').checked === state.settings.codexHookEnabled
+      && input('attention-codex').checked === state.settings.attentionEnabledBySource.codex;
+  };
+  function markDraftChanged() {
+    draftRevision++;
+    renderDraft();
+  }
+  content.addEventListener('input', event => {
+    const control = event.target as HTMLInputElement;
+    if (control.form !== form || !control.name || control.id === 'phrase-mode' || control.closest('#bubble-editor')) return;
+    ranges();
+    markDraftChanged();
+  });
+  const syncPetMode = () => {
+    if (modeDirty) return;
+    element<HTMLSelectElement>('pet-mode').value = state.settings.petMode;
+    draftBase = { ...draftBase, petMode: state.settings.petMode };
+  };
   const update = (next: AppState) => {
     if (disposed) return;
     state = next;
@@ -371,7 +413,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     element('companion-mode').textContent = `${state.settings.petMode === 'simple' ? '简洁模式' : '完整模式'} · ${state.activePet === 'deepseek' ? '关注余额与消费' : state.activePet === 'gemini' ? '关注 Gemini 额度' : '关注 Codex 额度'}`;
     element('companion-presence').textContent = state.petVisible ? '正在桌面陪伴' : '桌宠已隐藏';
     element('companion-presence').dataset.visible = String(state.petVisible);
-    if (!modeDirty) element<HTMLSelectElement>('pet-mode').value = state.settings.petMode;
+    if (!saving) syncPetMode();
     const u = state.appUpdate;
     const updateLabels = { idle: '尚未检查更新', checking: '正在检查更新…', current: '当前已是最新版本', available: `发现新版本 v${u.latestVersion}`, downloading: `正在下载 ${u.progress.toFixed(1)}%`, ready: `v${u.latestVersion} 已下载，重启后更新`, installing: '正在准备重启更新…', error: '更新暂未完成', unsupported: '当前运行模式不执行更新' };
     element('update-status').textContent = updateLabels[u.status];
@@ -430,7 +472,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     element('dsh-completion-status').textContent = [dshLabels[state.deepseekCompletion.status], state.deepseekCompletion.error].filter(Boolean).join(' · ');
     element('dsh-current-directory').textContent = `当前目录：${state.deepseekCompletion.directory}`;
     element<HTMLButtonElement>('refresh-codex').disabled = state.codex.status === 'loading';
-    if (!dirty) fill(next.settings);
+    if (!dirty && !saving) fill(next.settings);
     const labels = { unconfigured: '尚未连接', loading: '正在更新', ready: '已连接', error: '连接异常' };
     element('network-status').textContent = labels[state.status]; element('network-status').dataset.status = state.status;
     updateMoney(element('total-balance'), state.balance?.total, state.balance?.currency);
@@ -485,24 +527,62 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   element('update-download').addEventListener('click', () => { void updateAction(() => api.downloadUpdate()); });
   element('update-cancel').addEventListener('click', () => { void updateAction(() => api.cancelUpdateDownload()); });
   element('update-install').addEventListener('click', () => {
+    if (saving) return;
     if (dirty) { element('update-dirty-dialog').hidden = false; return; }
     void updateAction(() => api.installUpdate());
   });
-  element('update-discard').addEventListener('click', () => { dirty = false; fill(state.settings); setSaveHint('设置已同步'); element('update-dirty-dialog').hidden = true; void updateAction(() => api.installUpdate()); });
+  const discardDraft = () => {
+    preview.stop();
+    bubbleEditor.stopAudio();
+    fill(state.settings);
+    renderDraft([]);
+    element('update-dirty-dialog').hidden = true;
+  };
+  discardButton.addEventListener('click', () => {
+    discardDraft();
+    element('save-settings').focus({ preventScroll: true });
+  });
+  element('update-discard').addEventListener('click', () => {
+    if (saving) return;
+    discardDraft();
+    void updateAction(() => api.installUpdate());
+  });
   element('update-keep-editing').addEventListener('click', () => { element('update-dirty-dialog').hidden = true; });
   element('update-save-first').addEventListener('click', () => { element('update-dirty-dialog').hidden = true; form.requestSubmit(); });
   form.addEventListener('submit', event => {
     event.preventDefault();
+    if (saving) return;
     try {
-      capturePhrases(); validatePhraseDisplays(phraseDisplayDraft, phraseDraft);
-      const patch: AppSettings = { ...state.settings, petMode: element<HTMLSelectElement>('pet-mode').value as AppSettings['petMode'], autoCheckUpdates: input('autoCheckUpdates').checked, codexCompletionEnabled: input('codexCompletionEnabled').checked, codexCompletionDirectory: directoryDraft, bubbleProfilesByPersona: bubbleEditor.getProfiles(), chatgptCompletionEnabled: input('chatgptCompletionEnabled').checked, deepseekCompletionEnabled: input('deepseekCompletionEnabled').checked, deepseekCompletionDirectory: dshDirectoryDraft, scale: Math.max(0.5, Math.min(2, Number(input('scale').value))), volume: Math.max(0, Math.min(1, Number(input('volume').value))), lowBalanceThreshold: decimalSetting(input('lowBalanceThreshold').value), dailyBudget: decimalSetting(input('dailyBudget').value), phrasesByPersona: Object.fromEntries(Object.entries(phraseDraft).map(([key, lines]) => [key, lines.map(line => line.trim()).filter(Boolean)])) as Record<PetPersona, string[]>, soundEnabled: input('soundEnabled').checked, alwaysOnTop: input('alwaysOnTop').checked, snapToEdges: input('snapToEdges').checked, launchAtLogin: input('launchAtLogin').checked };
+      capturePhrases();
+      const draft = readDraft();
+      const changes = changedFields(draft);
+      if (!changes.length) { setSaveHint('设置已保存'); return; }
+      validatePhraseDisplays(draft.phraseDisplayByPersona, draft.phrasesByPersona);
+      const submitted = structuredClone(Object.fromEntries(changes.map(({ key }) => [key, draft[key]]))) as Partial<AppSettings>;
+      const patch = { ...submitted };
+      if ('lowBalanceThreshold' in patch) patch.lowBalanceThreshold = decimalSetting(draft.lowBalanceThreshold ?? '');
+      if ('dailyBudget' in patch) patch.dailyBudget = decimalSetting(draft.dailyBudget ?? '');
+      if ('phrasesByPersona' in patch) patch.phraseDisplayByPersona = structuredClone(draft.phraseDisplayByPersona);
       const savingRevision = draftRevision;
-      patch.phraseDisplayByPersona = structuredClone(phraseDisplayDraft);
-      patch.geminiCompletionEnabled = input('geminiCompletionEnabled').checked;
-      patch.geminiHookEnabled = input('geminiHookEnabled').checked;
-      patch.codexHookEnabled = input('codexHookEnabled').checked;
-      patch.attentionEnabledBySource = Object.fromEntries(COMPLETION_SOURCES.map(source => [source, input(`attention-${source}`).checked])) as AppSettings['attentionEnabledBySource'];
-      void run(element('save-settings'), async () => { const next = await api.updateSettings(patch); if (savingRevision === draftRevision) { dirty = false; fill(next.settings); setSaveHint('设置已保存'); } else { setSaveHint('已保存先前调整；新草稿尚未保存'); } return next; }, '设置已保存，桌宠已经收到啦。');
+      saving = true;
+      discardButton.disabled = true;
+      void run(element('save-settings'), async () => {
+        const next = await api.updateSettings(patch);
+        if (savingRevision === draftRevision) {
+          fill(next.settings);
+          renderDraft([]);
+        } else {
+          draftBase = { ...draftBase, ...submitted };
+          renderDraft();
+          if (!dirty) fill(next.settings);
+        }
+        if (!dirty) setSaveHint('设置已保存');
+        return next;
+      }, '').finally(() => {
+        saving = false;
+        syncPetMode();
+        discardButton.disabled = !dirty;
+      });
     } catch (error) { notify(error instanceof Error ? error.message : '请检查输入。', true); }
   });
   const renderPeriod = () => {
@@ -516,10 +596,13 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     element('balance-updated').textContent = `更新于 ${localBalanceTime(state.balance?.observedAt)} · ${zoneLabel(new Date(state.balance?.observedAt ?? Date.now()))}`;
   };
   const refreshTime = () => { if (!disposed) renderPeriod(); };
-  refreshPageTime = refreshTime;
   document.addEventListener('visibilitychange', refreshTime); window.addEventListener('focus', refreshTime);
   const periodTimer = setInterval(refreshTime, 60000);
-  update(initial); fill(initial.settings);
+  update(initial);
+  const openVersion = () => router.navigate('system', 'version', 'tab');
+  if (new URLSearchParams(location.search).get('page') === 'version') openVersion();
+  else router.navigate('home');
+  const stopSettingsPage = api.onSettingsPage(openVersion);
   const geminiTimer = setInterval(() => { if (!element('gemini').hidden && state.activePet !== 'gemini') void api.refreshGeminiQuota().catch(() => {}); }, 60000);
   const countdown = setInterval(() => { renderQuota(element('codex-quotas'), state.codex, false, demo); element('codex-status').textContent = quotaStatus(state.codex, demo); renderGeminiQuota(element('gemini-quotas'), state.geminiQuota, false, false); }, 30000);
   return { update, dispose: () => { disposed = true; clearInterval(periodTimer); document.removeEventListener('visibilitychange', refreshTime); window.removeEventListener('focus', refreshTime); stopSettingsPage(); preview.dispose(); bubbleEditor.dispose(); clearInterval(geminiTimer); clearInterval(countdown); } };

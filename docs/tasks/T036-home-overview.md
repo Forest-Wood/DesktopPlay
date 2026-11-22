@@ -5,14 +5,14 @@
 - 负责人：待定（开工前确认）。
 - 分支：`feat/T036-home-overview`（建议）；目标合并分支：`main`。
 - 工作目录：`D:\desktop1\DesktopPlay`。
-- 基准提交：待 T035 合入后核实最新 `origin/main`。
+- 基准提交：待核实 `feat/T035-settings-foundation` 的结果提交。
 - 结果提交：未提交。
 - 已有未提交修改：开工前核实工作区状态。
 - 状态：**待开发**。
 
 ## 依赖
 
-- 依赖 [T035](T035-ui-foundation.md) 已完成并合入。
+- 依赖 [T035](T035-ui-foundation.md) 的导航、共享组件和草稿栏。
 
 ## 目标与范围
 
@@ -53,5 +53,5 @@
 
 ## 下一步
 
-1. T035 合入后切出 `feat/T036-home-overview`。
+1. 从 T035 分支的结果提交创建 `feat/T036-home-overview`。
 2. 先编写 `reminder-health.ts` 与单测，再实现 `views/home.ts` 与首页冒烟用例。
