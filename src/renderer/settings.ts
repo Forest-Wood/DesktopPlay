@@ -18,6 +18,7 @@ import { arrangePhrases, mountStudio, soundCards } from './settings/views/studio
 import { mountPartners } from './settings/views/pet';
 import { mountAccounts } from './settings/views/account';
 import { mountSystem } from './settings/views/system';
+import { mountPalette } from './settings/views/palette';
 import './ui/components.css';
 import './settings/views/studio.css';
 
@@ -106,6 +107,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const geminiSection = makePage('gemini', 'Gemini 剩余额度', '<div id="gemini-quotas"></div><div class="codex-actions"><p id="gemini-status" class="hint" role="status"></p><div class="button-row"><button id="refresh-gemini" class="secondary-button" type="button">↻ 刷新额度</button></div></div><p class="hint">优先读取本机运行中的 Antigravity 实时额度；客户端关闭时回退到已登录的 agy CLI。</p>');
   geminiSection.querySelector('.section-heading')!.insertAdjacentHTML('beforeend', '<span id="gemini-status-chip" class="status-chip"></span>');
   const behavior = makePage('behavior', '桌面行为', '<p class="page-description">让小伙伴按你的习惯，留在桌面上。</p>');
+  const palette = mountPalette(makePage('palette', '外观与调色盘', ''), initial, () => markDraftChanged());
   const sound = makePage('sound', '音效', '');
   makePage('bubbles', '气泡与提示', '<div id="bubble-editor"></div>');
   const completion = document.createElement('section');
@@ -285,6 +287,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     draftBase = settings;
     modeDirty = false;
     partners.fill(settings);
+    palette.fill(settings.theme);
     input('autoCheckUpdates').checked = settings.autoCheckUpdates;
     for (const name of ['soundEnabled', 'alwaysOnTop', 'snapToEdges', 'launchAtLogin'] as const) input(name).checked = settings[name];
     input('scale').value = String(settings.scale); input('volume').value = String(settings.volume);
@@ -309,9 +312,11 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     sound: ['soundEnabled', 'volume'],
     bubbles: ['bubbleProfilesByPersona'],
     version: ['autoCheckUpdates'],
+    palette: ['theme'],
   } satisfies Partial<Record<SettingsPage, (keyof AppSettings)[]>>;
   const readDraft = (): AppSettings => ({
     ...draftBase,
+    theme: palette.read(),
     petMode: element<HTMLSelectElement>('pet-mode').value as AppSettings['petMode'],
     petNicknames: partners.readNicknames(),
     scale: Number(input('scale').value),
@@ -379,6 +384,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     if (disposed) return;
     stateRevision++;
     state = next;
+    palette.update(next);
     const nickname = petNickname(state);
     element<HTMLImageElement>('companion-image').src = state.pet.url;
     element('companion-name').textContent = nickname;
@@ -556,6 +562,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
       validatePhraseDisplays(draft.phraseDisplayByPersona, draft.phrasesByPersona);
       const submitted = structuredClone(Object.fromEntries(changes.map(({ key }) => [key, draft[key]]))) as Partial<AppSettings>;
       const patch = { ...submitted };
+      if ('theme' in patch) patch.theme = palette.validate();
       if ('petNicknames' in patch) patch.petNicknames = normalizePetNicknames(patch.petNicknames);
       if ('lowBalanceThreshold' in patch) patch.lowBalanceThreshold = decimalSetting(draft.lowBalanceThreshold ?? '');
       if ('dailyBudget' in patch) patch.dailyBudget = decimalSetting(draft.dailyBudget ?? '');
@@ -604,5 +611,5 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const stopSettingsPage = api.onSettingsPage(openVersion);
   const geminiTimer = setInterval(() => { if (!element('gemini').hidden && state.activePet !== 'gemini') void api.refreshGeminiQuota().catch(() => {}); }, 60000);
   const countdown = setInterval(() => { renderQuota(element('codex-quotas'), state.codex, false, demo); element('codex-status').textContent = quotaStatus(state.codex, demo); renderGeminiQuota(element('gemini-quotas'), state.geminiQuota, false, false); }, 30000);
-  return { update, dispose: () => { disposed = true; clearInterval(periodTimer); document.removeEventListener('visibilitychange', refreshTime); window.removeEventListener('focus', refreshTime); stopSettingsPage(); preview.dispose(); bubbleEditor.dispose(); reminderView.dispose(); clearInterval(geminiTimer); clearInterval(countdown); } };
+  return { update, dispose: () => { disposed = true; clearInterval(periodTimer); document.removeEventListener('visibilitychange', refreshTime); window.removeEventListener('focus', refreshTime); stopSettingsPage(); preview.dispose(); bubbleEditor.dispose(); reminderView.dispose(); palette.dispose(); clearInterval(geminiTimer); clearInterval(countdown); } };
 }

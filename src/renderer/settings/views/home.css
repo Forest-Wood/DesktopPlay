@@ -119,9 +119,9 @@
   width: 65px;
   height: 61px;
   flex-shrink: 0;
-  border: 1px solid var(--stage-ring);
+  border: 1px solid var(--companion-ring);
   border-radius: 26px 26px 12px 12px;
-  background: var(--stage-tint);
+  background: var(--companion-tint);
 }
 .home-stage img { width: 59px; height: 59px; object-fit: contain; }
 #home-pet-choices { margin-top: 8px; }

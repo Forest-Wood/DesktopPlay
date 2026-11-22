@@ -11,6 +11,7 @@ import { pageCount, nextPage, pageIndicator, summaryText, usageStatus } from './
 import { PersonaSoundPlayer } from './sounds';
 import { petNickname } from '../shared/pet-nicknames';
 import { mountBubbleMore } from './bubble-more';
+import { mountPetTheme } from './theme';
 import './pet-bubble.css';
 
 const NOTICE_SOURCES: Record<CompletionSource, string> = {
@@ -62,6 +63,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     </div></section><button type="button" class="pet-character"><span class="pet-mirror"><img class="pet-image" draggable="false" alt=""></span>${demo ? '<span class="pet-demo">本地演示</span>' : ''}</button></div>`;
   const query = <T extends HTMLElement = HTMLElement>(selector: string) => root.querySelector<T>(selector)!;
   const canvas = query('.pet-canvas'), character = query<HTMLButtonElement>('.pet-character'), image = query<HTMLImageElement>('.pet-image');
+  const updateTheme = mountPetTheme(canvas);
   const bubble = query('.pet-bubble'), message = query('.bubble-message'), quota = query('.bubble-quota'), status = query('.pet-status');
   const refresh = query<HTMLButtonElement>('.bubble-refresh'), confirm = query<HTMLButtonElement>('.bubble-confirm');
   const more = mountBubbleMore(bubble);
@@ -199,6 +201,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     const timingChanged = JSON.stringify(rule().dismissal) !== JSON.stringify(resolveBubble(next.settings.bubbleProfilesByPersona, persona(next), scenario()).dismissal) || (!persistent() && JSON.stringify(state.settings.bubbleProfilesByPersona) !== JSON.stringify(next.settings.bubbleProfilesByPersona));
     if (changedPet || state.sounds[persona(state)].press.revision !== next.sounds[persona(next)].press.revision || state.sounds[persona(state)].release.revision !== next.sounds[persona(next)].release.revision) soundWarning = '';
     state = next; hidden = !state.petVisible;
+    updateTheme(state);
     if (hidden) {
       clearCompletionPending();
       close();

@@ -1,4 +1,15 @@
 export type PetPersona = 'whale' | 'gpt' | 'dragon' | 'gemini';
+export type ThemePresetId = 'sage' | 'mint' | 'sea' | 'starlight' | 'sakura' | 'apricot' | 'ink' | 'persona';
+export type ThemeTexture = 'none' | 'dots' | 'grid' | 'stars';
+export interface ThemeSettings {
+  preset: ThemePresetId | 'custom';
+  accent: string;
+  overrides: Partial<Record<'sidebar' | 'stage' | 'bubble', string>>;
+  texture: ThemeTexture;
+  intensity: number;
+  applyToSettings: boolean;
+  applyToPet: boolean;
+}
 export type CompletionSource = 'codex' | 'chatgpt-work' | 'deepseek-harness' | 'antigravity';
 export type SoundSlot = 'press' | 'release' | `completion-${CompletionSource}`;
 export type BubbleScenario = 'usage' | 'summary' | 'phrases' | 'retention' | 'low-balance' | 'daily-budget' | 'update' | `completion-${CompletionSource}` | `attention-${CompletionSource}`;
@@ -28,6 +39,7 @@ export interface UninstallInfo {
   reason: string | null;
 }
 export interface AppSettings {
+  theme: ThemeSettings;
   petMode: 'simple' | 'full';
   petNicknames: Record<PetPersona, string>;
   autoCheckUpdates: boolean;

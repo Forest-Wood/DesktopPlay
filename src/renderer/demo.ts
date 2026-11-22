@@ -6,6 +6,7 @@ import { BUILTIN_PETS, DEFAULT_SETTINGS, GPT_DRAGON_PET, DEFAULT_SOUNDS } from '
 import type { AppState, DesktopApi } from '../shared/types';
 import { initialUpdateState } from '../shared/app-update';
 import { normalizePetNicknames } from '../shared/pet-nicknames';
+import { normalizeTheme } from '../shared/theme';
 
 export function createDemoApi(): DesktopApi {
   const savedPet = localStorage.getItem('desktopplay-demo-pet');
@@ -49,6 +50,7 @@ export function createDemoApi(): DesktopApi {
     updateSettings: async patch => {
       const settings = { ...state.settings, ...patch };
       if (Object.hasOwn(patch, 'petNicknames')) settings.petNicknames = normalizePetNicknames(patch.petNicknames);
+      if (Object.hasOwn(patch, 'theme')) settings.theme = normalizeTheme(patch.theme);
       state = { ...state, settings };
       return emit();
     },

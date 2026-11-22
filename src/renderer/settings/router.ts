@@ -4,7 +4,7 @@ export const settingsPages = {
   account: { label: '账户', pages: { overview: 'DeepSeek', codex: 'Codex', gemini: 'Gemini', records: '消费记录' }, icon: '<rect x="3" y="5" width="18" height="15" rx="3"/><path d="M3 9h18M7 15h3"/>' },
   reminders: { label: '提醒中心', pages: { completion: '对话提醒', reminders: '余额提醒' }, icon: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9M9 21h6"/>' },
   studio: { label: '人设工作室', pages: { bubbles: '气泡', companionship: '短句', sound: '音效' }, icon: '<path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2V11.5A8.5 8.5 0 0 1 10.5 3h2a8.5 8.5 0 0 1 8.5 8.5Z"/><path d="M7 10h9M7 14h6"/>' },
-  system: { label: '系统', pages: { version: '版本与更新', guide: '使用说明', licenses: '素材与许可证', uninstall: '卸载' }, icon: '<rect x="3" y="4" width="18" height="13" rx="3"/><path d="M8 21h8m-4-4v4"/>' },
+  system: { label: '系统', pages: { version: '版本与更新', palette: '外观与调色盘', guide: '使用说明', licenses: '素材与许可证', uninstall: '卸载' }, icon: '<rect x="3" y="4" width="18" height="13" rx="3"/><path d="M8 21h8m-4-4v4"/>' },
 };
 
 export type SettingsCategory = keyof typeof settingsPages;

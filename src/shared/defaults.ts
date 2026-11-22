@@ -1,6 +1,7 @@
 import { DEFAULT_BUBBLE_PROFILES, PERSONAS, SOUND_SLOTS } from './bubble-settings';
 import { phraseDisplays } from './phrases';
 import { EMPTY_PET_NICKNAMES } from './pet-nicknames';
+import { DEFAULT_THEME } from './theme';
 import type { AppSettings, BuiltinPetId, PetAsset, PetPersona, SoundMetadataMap } from './types';
 export const APP_VERSION = '2.1.0';
 export const DEFAULT_COMPLETION_MESSAGES: Record<PetPersona, string> = {
@@ -17,6 +18,7 @@ export const DEFAULT_PHRASES_BY_PERSONA: Record<PetPersona, string[]> = {
   dragon: ['我会收起翅膀，安静陪着你。', '让眼睛休息一会儿吧，旅途还很长。', '今天的努力，我都替你珍藏着。'],
 };
 export const DEFAULT_SETTINGS: AppSettings = {
+  theme: structuredClone(DEFAULT_THEME),
   petMode: 'full',
   petNicknames: { ...EMPTY_PET_NICKNAMES },
   autoCheckUpdates: true,

@@ -80,8 +80,8 @@
 }
 
 .settings-view #app {
-  --companion-tint: var(--stage-tint);
-  --companion-ring: var(--stage-ring);
+  --companion-tint: var(--theme-stage-tint, var(--stage-tint));
+  --companion-ring: var(--theme-stage-ring, var(--stage-ring));
 }
 .settings-view #app.gpt-theme { --stage-tint: #e4f2eb; --stage-ring: #d2e8dd; }
 .settings-view #app.dragon-theme { --stage-tint: #efebf5; --stage-ring: #e1d9ed; }
