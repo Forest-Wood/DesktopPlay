@@ -4,7 +4,8 @@
 
 ## 当前任务
 
-- [T042／R043](tasks/T042-release-v220.md)（2026-11-22，`release/T042-v220`，基准 `242a007`，**进行中**）：准备发布 DesktopPet `v2.2.0`（以 `v2.1.0` 为基准，`patch, minor` -> `2.2.0`），同步版本字段、`release-plan.json` 与 `docs/releases/v2.2.0.md`，并修复 `tests/smoke/theme-palette.spec.ts` 截图动画抖动。待 CI 通过后合入 `main` 并推送标签 `v2.2.0`。
+- [T043／R044](tasks/T043-inverted-bubble-tail.md)（2026-11-23，`fix/T043-inverted-bubble-tail`，基准 `37e2aad`，**未提交，待审查**）：修复桌宠倒置且水平镜像时气泡尖角未同步倒置的 CSS 优先级冲突。`npm.cmd run build`、`desktop.spec.ts`（`native layout`）与倒置截图目视核对通过；已按 `T(N-2)` 规则清理 `.tmp/T041-capture`。
+- [T042／R043](tasks/T042-release-v220.md) 已发布 [v2.2.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.2.0)（`37e2aad`，[PR #41](https://github.com/Forest-Wood/DesktopPlay/pull/41)，发布工作流 `45034132074`）。
 - [T034–T041／R041／R042](tasks/T041-ui-redesign-handoff.md) 已通过 [PR #40](https://github.com/Forest-Wood/DesktopPlay/pull/40) 合入主线 `242a007`，完成设置窗口 6 项导航重设计、首页总览、提醒中心矩阵、人设工作室、伙伴可编辑昵称、桌宠气泡升级、超级调色盘及 `DESIGN.md`／`docs/previews/T041/` 正式交接。
 - [T033／R040](tasks/T033-release-v210.md) 已发布 [v2.1.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.1.0)。[PR #38](https://github.com/Forest-Wood/DesktopPlay/pull/38) 合入主线，标签 `v2.1.0` 指向 `07f774b`。[发布工作流 44549546635](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44549546635) 通过单测、Windows x64 打包、更新运行时与全部六项附件摘要（含 NSIS 与免安装版 `.blockmap`）及公告校验。
 - [T032／R039](tasks/T032-incremental-update.md) 已通过 [PR #37](https://github.com/Forest-Wood/DesktopPlay/pull/37) 合入主线 `5b6f13a`，随 v2.1.0 分发：实现 NSIS（`electron-updater` `.blockmap`）与 Portable（流式 Rabin CDC + `64 KiB` Range 合并 + 本地 `programPath` 扫描 + 完整 SHA-256 校验）增量／差分更新、自动回退整包、增量进度与回退 ETA 重置及 6 项 Release 资产校验；并在 `AGENTS.md` 补充前序未提交任务先原分支本地提交再切新分支的隔离规则。
@@ -33,4 +34,4 @@
 - 原生鼠标间歇偏移仍无根因结论，见 T010／T014／T022；T022 当前实现及基准对照均复现按住时位置偏移，不能用早期单次通过认定已解决。
 - 受限 Electron 存在启动超时／AppContainer 环境限制；隔离测试可在沙箱外运行，保持应用 Electron 沙箱启用。测试不得使用真实账户、账本或修改真实客户端设置。
 - appId、`%APPDATA%\DesktopPlay` 及安装／portable 共用数据保持兼容。等待与完成提示默认点击前常驻，可按场景设置定时关闭，隐藏／退出清空，不补历史。
-- 下一独立任务编号：T043／R044。
+- 下一独立任务编号：T044／R045。
