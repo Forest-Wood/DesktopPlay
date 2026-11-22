@@ -32,7 +32,19 @@ test('theme drafts preview instantly, apply by scope, survive restart, and reset
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
     const bubble = pet.locator('.pet-bubble');
     await expect(bubble).toBeVisible();
-    const first = await bubble.screenshot({ animations: 'disabled' });
+    const bubbleStyle = () => bubble.evaluate(el => {
+      const s = getComputedStyle(el);
+      const canvas = el.closest('.pet-canvas') as HTMLElement | null;
+      return {
+        bg: s.backgroundColor,
+        color: s.color,
+        border: s.borderColor,
+        shadow: s.boxShadow,
+        themeBg: canvas?.style.getPropertyValue('--theme-pet-bubble-bg') ?? '',
+      };
+    });
+    const firstStyle = await bubbleStyle();
+    const first = await bubble.screenshot({ animations: 'disabled', omitBackground: true });
     await settingsPage(settings, 'palette');
     await expect(settings.locator('[data-theme-preset]')).toHaveCount(8);
     await expect(settings.locator('#theme-apply-pet')).not.toBeChecked();
@@ -54,7 +66,8 @@ test('theme drafts preview instantly, apply by scope, survive restart, and reset
     await expect(settings.locator('#theme-texture')).toHaveValue('stars');
     await save();
     expect(await saved()).toMatchObject({ preset: 'starlight', texture: 'stars', applyToPet: false });
-    expect((await bubble.screenshot({ animations: 'disabled' })).equals(first)).toBe(true);
+    expect(await bubbleStyle()).toEqual(firstStyle);
+    expect((await bubble.screenshot({ animations: 'disabled', omitBackground: true })).equals(first)).toBe(true);
 
     await settings.locator('#theme-accent').fill('#ffffcc');
     await expect(settings.locator('#theme-adjustment')).toContainText('已自动加深');
