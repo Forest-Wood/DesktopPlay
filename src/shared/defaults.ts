@@ -3,7 +3,7 @@ import { phraseDisplays } from './phrases';
 import { EMPTY_PET_NICKNAMES } from './pet-nicknames';
 import { DEFAULT_THEME } from './theme';
 import type { AppSettings, BuiltinPetId, PetAsset, PetPersona, SoundMetadataMap } from './types';
-export const APP_VERSION = '2.1.0';
+export const APP_VERSION = '2.2.0';
 export const DEFAULT_COMPLETION_MESSAGES: Record<PetPersona, string> = {
   gemini: '这轮任务完成啦，来看看吧。',
   whale: 'GPT 已经回复完啦，快去看看吧～',

@@ -31,7 +31,22 @@ test('theme drafts preview instantly, apply by scope, survive restart, and reset
     await pet.evaluate(() => window.desktopPlay.updateSettings({ bubbleDurationSeconds: 60, soundEnabled: false }));
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
     const bubble = pet.locator('.pet-bubble');
-    const first = await bubble.screenshot();
+    await expect(bubble).toBeVisible();
+    const bubbleStyle = () => bubble.evaluate(el => {
+      const s = getComputedStyle(el);
+      const canvas = el.closest('.pet-canvas') as HTMLElement | null;
+      return {
+        bg: s.backgroundColor,
+        color: s.color,
+        border: s.borderColor,
+        shadow: s.boxShadow,
+        themeBg: canvas?.style.getPropertyValue('--theme-pet-bubble-bg') ?? '',
+        themeInk: canvas?.style.getPropertyValue('--theme-pet-bubble-ink') ?? '',
+        themeBorder: canvas?.style.getPropertyValue('--theme-pet-bubble-border') ?? '',
+        themeRing: canvas?.style.getPropertyValue('--theme-pet-bubble-ring') ?? '',
+      };
+    });
+    const firstStyle = await bubbleStyle();
     await settingsPage(settings, 'palette');
     await expect(settings.locator('[data-theme-preset]')).toHaveCount(8);
     await expect(settings.locator('#theme-apply-pet')).not.toBeChecked();
@@ -53,7 +68,7 @@ test('theme drafts preview instantly, apply by scope, survive restart, and reset
     await expect(settings.locator('#theme-texture')).toHaveValue('stars');
     await save();
     expect(await saved()).toMatchObject({ preset: 'starlight', texture: 'stars', applyToPet: false });
-    expect((await bubble.screenshot()).equals(first)).toBe(true);
+    expect(await bubbleStyle()).toEqual(firstStyle);
 
     await settings.locator('#theme-accent').fill('#ffffcc');
     await expect(settings.locator('#theme-adjustment')).toContainText('已自动加深');
