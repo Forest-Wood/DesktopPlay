@@ -116,22 +116,6 @@
 .settings-view .related-settings { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 16px; }
 .settings-view .related-settings h3 { font-size: 12px; }
 .settings-view .related-settings p { font-size: 11px; color: var(--muted); margin-top: 7px; }
-.settings-view #completion > .panel { padding: 0; border: 0; box-shadow: none; }
-.settings-view #completion .page-description { margin-bottom: 14px; font-size: 11px; }
-.settings-view .integration-card { border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-bottom: 14px; }
-.settings-view .integration-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
-.settings-view .integration-heading h3 { font-size: 15px; }
-.settings-view .integration-heading p { font-size: 10px; color: var(--muted); margin-top: 4px; }
-.settings-view .integration-heading button { color: var(--accent); }
-.settings-view .integration-toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 4px 0; }
-.settings-view .integration-toggles .toggle-label { padding: 9px 0; border: 0; font-size: 12px; }
-.settings-view .integration-statuses .hint { font-size: 10px !important; margin-top: 5px !important; }
-.settings-view .integration-details { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
-.settings-view .integration-details summary { cursor: pointer; width: fit-content; color: var(--accent); font-size: 11px; padding: 3px 0; }
-.settings-view .integration-details summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
-.settings-view .integration-configuration { padding-top: 10px; }
-.settings-view .integration-configuration .integration-steps { margin-bottom: 14px; font-size: 11px; }
-
 /* Keep the live bubble preview beside the editor's first controls, not below them. */
 .settings-view #bubble-editor { display: grid; grid-template-columns: minmax(0, 1fr) 245px; column-gap: 22px; align-items: start; }
 .settings-view #bubble-editor > .hint,
@@ -241,9 +225,6 @@
   .settings-view .section-heading { flex-wrap: wrap; gap: 6px; }
   .settings-view .key-panel form { flex-wrap: wrap; }
   .settings-view .key-panel input { flex: 1 1 100%; }
-  .settings-view .integration-toggles { gap: 14px; }
-  .settings-view .integration-toggles .toggle-label { font-size: 10px; gap: 8px; }
-  .settings-view .integration-card { padding: 15px; }
 }
 
 @media (max-width: 620px) {

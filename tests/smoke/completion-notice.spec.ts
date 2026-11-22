@@ -86,7 +86,7 @@ test('local events use editable persona text, preserve drafts and focus, respect
     const chosen = path.join(f.directory, 'chosen-codex'); await mkdir(path.join(chosen, 'sessions'), { recursive: true });
     const chosenFile = path.join(chosen, 'sessions', 'desktop.jsonl'); await writeFile(chosenFile, metadata('chosen-client') + finished('before-choice'));
     await application.evaluate(({ dialog }, directory) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [directory] }); }, chosen);
-    await settings.locator('.integration-card[data-source="codex"] .integration-details > summary').click();
+    await settings.locator('.integration-card[data-source="codex"] [data-reminder-guide]').click();
     await settings.locator('#completion-choose-directory').click();
     await expect(settings.locator('#completion-directory')).toHaveValue(chosen);
     expect((await settings.evaluate(() => window.desktopPlay.getState())).settings.codexCompletionDirectory).toBeNull();

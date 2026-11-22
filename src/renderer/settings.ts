@@ -13,6 +13,7 @@ import { APP_VERSION, GEMINI_PETS, GPT_DRAGON_PET, GPT_PET } from '../shared/def
 import { PersonaSoundPlayer } from './sounds';
 import { mountSettingsRouter, settingsCategory, type SettingsPage } from './settings/router';
 import { mountHome } from './settings/views/home';
+import { mountReminders } from './settings/views/reminders';
 import './ui/components.css';
 
 function sameDraftValue(left: unknown, right: unknown): boolean {
@@ -72,7 +73,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
             <div class="toggle-grid"><label class="toggle-label"><span>启用点击音效</span><input name="soundEnabled" type="checkbox"></label><label class="toggle-label"><span>始终置于顶层</span><input name="alwaysOnTop" type="checkbox"></label><label class="toggle-label"><span>贴近边缘时自动吸附</span><input name="snapToEdges" type="checkbox"></label><label class="toggle-label"><span>开机自动启动</span><input name="launchAtLogin" type="checkbox"></label></div>
             <label class="field-label" for="phrases">陪伴短句 <span>每行一句</span></label><textarea id="phrases" name="phrases" rows="3" maxlength="4000" placeholder="今天也要照顾好自己呀。"></textarea></div>
           </section>
-          <section id="reminders" class="section"><div class="section-heading"><h2>余额提醒</h2><span class="section-note">轻轻提醒，安心工作</span></div><div class="panel reminder-grid"><div><label class="field-label" for="low-balance">余额低于</label><input id="low-balance" name="lowBalanceThreshold" type="text" inputmode="decimal" placeholder="不填写则关闭"><p class="hint">以账户币种计算，留空关闭低余额提醒。</p></div><div><label class="field-label" for="daily-budget">今日观测消费达到</label><input id="daily-budget" name="dailyBudget" type="text" inputmode="decimal" placeholder="不填写则关闭"><p class="hint">按电脑当前时区分段、每日统计，留空关闭预算提醒。</p></div></div></section>
+          <section id="reminders" class="section"><div class="reminder-balance"><div class="section-heading"><h2>余额提醒</h2></div><div class="panel reminder-grid"><div><label class="field-label" for="low-balance">余额低于</label><input id="low-balance" name="lowBalanceThreshold" type="text" inputmode="decimal" placeholder="不填写则关闭"><p class="hint">以账户币种计算，留空关闭低余额提醒。</p></div><div><label class="field-label" for="daily-budget">今日观测消费达到</label><input id="daily-budget" name="dailyBudget" type="text" inputmode="decimal" placeholder="不填写则关闭"><p class="hint">按电脑当前时区分段、每日统计，留空关闭预算提醒。</p></div></div></div></section>
           <div class="save-bar" data-dirty="false"><div class="save-copy"><span class="save-indicator" aria-hidden="true"></span><span id="save-hint" role="status" aria-live="polite">设置已同步</span></div><div class="save-actions"><button id="discard-settings" type="button" class="text-button" disabled>放弃修改</button><button id="save-settings" type="submit" class="primary-button">保存设置</button></div></div>
         </form>
         <section id="records" class="section"><div class="section-heading"><h2>消费记录</h2><span id="records-zone" class="section-note"></span></div><div class="panel"><p id="records-period" class="hint"></p><div class="table-scroll"><table><caption class="sr-only">每日已观测消费及余额增加</caption><thead><tr><th scope="col">日期／统计时区</th><th scope="col">已观测消费</th><th scope="col">余额增加</th></tr></thead><tbody id="history-body"></tbody></table></div><div class="statistics-note"><strong>这些数字代表什么？</strong><p>消费是两次余额观测之间的下降量，不是逐次调用账单。应用关闭或断网期间的变化只能在下一次观测时发现；同时发生的充值与消费可能相互抵消。每日首次成功观测建立起点，跨午夜差额不计入新一天；仅同一统计分段、当日相邻观测下降累计。切换电脑时区会建立新分段；旧记录保留原北京时间口径。</p><p>DesktopPet 不提供 AI 聊天，也不估算每轮对话费用。金额展示保留 2 位小数，内部记录保留 8 位。</p></div></div></section>
@@ -98,74 +99,16 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const behavior = makePage('behavior', '桌面行为', '<p class="page-description">让小伙伴按你的习惯，留在桌面上。</p>');
   const sound = makePage('sound', '声音', '<p class="page-description">给每次轻轻按下，留一点回应。</p>');
   makePage('bubbles', '气泡与提示', '<div id="bubble-editor"></div>');
-  makePage('completion', '对话提醒', `<label class="toggle-label"><span>监听 Codex 成功完成事件</span><input id="completion-enabled" name="codexCompletionEnabled" type="checkbox"></label>
-    <label class="field-label" for="completion-directory">Codex 主目录</label><p id="completion-status" class="hint" role="status"></p><p id="completion-current-directory" class="hint completion-path"></p><input id="completion-directory" type="text" readonly><div class="button-row"><button id="completion-choose-directory" class="secondary-button" type="button">选择目录</button><button id="completion-default-directory" class="text-button" type="button">使用默认目录</button><button type="button" class="text-button" data-edit-completion="codex">编辑 Codex 提示</button></div>
-    <p class="hint">选择包含 sessions 的 Codex 主目录，一般为 .codex。只读监听，不补发历史。</p>
-    <label class="toggle-label"><span>监听 ChatGPT Work 原生结束通知</span><input name="chatgptCompletionEnabled" type="checkbox"></label><p id="chatgpt-completion-status" class="hint" role="status"></p><p class="hint">请在 ChatGPT 桌面应用中将回合结束通知设为“始终”（Always）。这里只接收原生结束通知，失败或中止也会提醒；启动前的通知不会补弹。</p><button type="button" class="text-button" data-edit-completion="chatgpt-work">编辑 Work 提示</button>
-    <label class="toggle-label"><span>监听 DeepSeek Harness 成功完成事件</span><input name="deepseekCompletionEnabled" type="checkbox"></label><p id="dsh-completion-status" class="hint" role="status"></p><p id="dsh-current-directory" class="hint completion-path"></p><label class="field-label" for="dsh-directory">DSH 会话目录</label><input id="dsh-directory" type="text" readonly><div class="button-row"><button id="dsh-choose-directory" class="secondary-button" type="button">选择会话目录</button><button id="dsh-default-directory" class="text-button" type="button">使用默认目录</button><button type="button" class="text-button" data-edit-completion="deepseek-harness">编辑 DSH 提示</button></div><p class="hint">默认 DSH_HOME/sessions，未设置时为 ~/.dsh/sessions。支持本机 v4 普通与压缩日志；目录及开关保存后生效。隐藏桌宠时不提醒。</p>`);
+  const completion = document.createElement('section');
+  completion.id = 'completion';
+  completion.className = 'section';
+  content.append(completion);
   const phrases = makePage('companionship', '陪伴短句', '<p class="page-description">各角色独立保存。自定义 GPT 图片使用原版 GPT 短句。</p><div class="persona-tabs" role="group" aria-label="短句人设"><button type="button" data-persona="whale">小鲸鱼</button><button type="button" data-persona="gpt">原版 GPT</button><button type="button" data-persona="dragon">白龙</button><button type="button" data-persona="gemini">Gemini</button></div><div class="phrase-preview"><img id="phrase-preview-image" alt=""><p id="phrase-preview-text"></p></div><label class="field-label" for="phrases">陪伴短句 <span>每行一句 · 保存后生效</span></label>');
   phrases.querySelector('.panel')!.append(element<HTMLTextAreaElement>('phrases'));
   phrases.querySelector('.panel')!.insertAdjacentHTML('beforeend', '<div class="phrase-display-controls"><label class="field-label" for="phrase-count">每轮展示数量 N</label><input id="phrase-count" name="phraseCount" form="settings-form" type="number" min="0" max="20" step="1"><label class="field-label" for="phrase-mode">展示模式</label><select id="phrase-mode" name="phraseMode" form="settings-form"><option value="sequential">按顺序切换</option><option value="random">随机展示</option></select><p class="hint">0 表示关闭短句页。勾选至少 N 条候选；每轮每页展示一句。顺序模式接着上轮看过的位置继续。</p><div id="phrase-candidates" role="group" aria-label="候选短句"></div></div>');
-  element('completion').querySelector('.panel')!.insertAdjacentHTML('afterbegin', `<h3>等待回应提醒</h3><p class="hint">提问卡片、填写请求和审批弹窗触发提醒；普通正文里的追问不识别。气泡按所选方式关闭，隐藏或退出时清空；回应仍在原客户端完成。</p>
-    <label class="toggle-label"><span>ChatGPT App 等待回应<small>覆盖聊天、Work 和 App 内 Codex。</small></span><input name="attention-chatgpt-work" type="checkbox"></label>
-    <p id="chatgpt-attention-status" class="hint" role="status"></p><p id="chatgpt-attention-directory" class="hint completion-path"></p>
-    <ol class="integration-steps"><li>在 ChatGPT 设置的通知页面开启“提问”和“权限”通知，并允许系统通知。</li><li>切换到其他会话或应用，再触发一次提问卡片或审批；正在查看的会话沿用 ChatGPT 原生规则，不重复提醒。</li><li>状态出现“已收到等待回应事件”和时间后，表示事件链路已接通。</li></ol>
-    <label class="toggle-label"><span>Codex CLI／VS Code 等待回应<small>接入后有提问或审批就提醒，包括正在查看的会话。</small></span><input name="attention-codex" type="checkbox"></label>
-    <label class="toggle-label"><span>启用 Codex CLI／IDE hook 接入<small>保存后合并 hooks.json 并备份；关闭后只移除 DesktopPet 的配置。</small></span><input name="codexHookEnabled" type="checkbox"></label>
-    <p id="codex-attention-status" class="hint" role="status"></p><p id="codex-attention-directory" class="hint completion-path"></p><p id="codex-attention-draft" class="hint" hidden>接入设置尚未保存，当前仍使用已保存的设置。</p>
-    <ol class="integration-steps"><li>开启上方 hook 接入，点击底部“保存设置”；保存后检查客户端是否支持接入。</li><li>在使用上述主目录的 Codex CLI 输入 /hooks，审阅并信任 DesktopPet 转发项。桌宠不会代为信任。</li><li>保存工作并重新加载 VS Code，再新建 Codex 会话触发提问或审批；状态显示收到事件后接入完成。若仍等待，请核对 VS Code 使用的 Codex 主目录。</li></ol>
-    <label class="toggle-label"><span>DeepSeek Harness 等待回应</span><input name="attention-deepseek-harness" type="checkbox"></label><h3 class="completion-section-title">完成提醒</h3>`);
   element('appearance').querySelector('label[for="phrases"]')!.remove();
-  // Group completion and waiting controls by the app the user wants to connect.
-  // Move existing controls so their identities, draft values and form association stay intact.
-  const completionPanel = element('completion').querySelector<HTMLElement>('.panel')!;
-  const waitingLabel = (source: CompletionSource) => root.querySelector<HTMLInputElement>(`input[name="attention-${source}"]`)!.closest('label')!;
-  const completedLabel = (name: string) => root.querySelector<HTMLInputElement>(`input[name="${name}"]`)!.closest('label')!;
-  const siblingsUntil = (start: Element, end: Element | null): Element[] => {
-    const nodes: Element[] = [];
-    for (let node: Element | null = start; node && node !== end; node = node.nextElementSibling) nodes.push(node);
-    return nodes;
-  };
-  const geminiControls = document.createElement('div');
-  geminiControls.innerHTML = `<label class="toggle-label"><span>需要回应时提醒</span><input name="attention-antigravity" type="checkbox"></label>
-    <label class="toggle-label"><span>完成时提醒</span><input name="geminiCompletionEnabled" type="checkbox"></label>
-    <label class="toggle-label"><span>接入 Antigravity 完成 hook<small>可选；用于补充 agy CLI 完成提醒并区分错误／取消中止。保存后写入全局 hooks.json，关闭只移除 DesktopPet 的条目。</small></span><input name="geminiHookEnabled" type="checkbox"></label>
-    <p id="gemini-integration-status" class="hint" role="status"></p><p class="hint">App、VS Code 与 IDE 的完成及等待回应均自动只读监听本机会话摘要，无需配置 hook；启用完成 hook 后请在 Antigravity 中重新加载会话。</p>
-    <button type="button" class="text-button" data-edit-completion="antigravity">编辑提示</button>`;
-  const integrations = [
-    { source: 'antigravity', title: 'Gemini · Antigravity', description: '桌面 App、VS Code／IDE 和 agy CLI', nodes: [...geminiControls.children] },
-    { source: 'codex', title: 'Codex', description: 'CLI 与 VS Code 中的编程任务', nodes: [
-      ...siblingsUntil(waitingLabel('codex'), waitingLabel('deepseek-harness')),
-      ...siblingsUntil(completedLabel('codexCompletionEnabled'), completedLabel('chatgptCompletionEnabled')),
-    ] },
-    { source: 'chatgpt-work', title: 'ChatGPT App', description: 'Work 完成，以及 App 内的提问与审批', nodes: [
-      ...siblingsUntil(waitingLabel('chatgpt-work'), waitingLabel('codex')),
-      ...siblingsUntil(completedLabel('chatgptCompletionEnabled'), completedLabel('deepseekCompletionEnabled')),
-    ] },
-    { source: 'deepseek-harness', title: 'DeepSeek Harness', description: '本机任务完成与等待回应', nodes: [
-      ...siblingsUntil(waitingLabel('deepseek-harness'), completionPanel.querySelector('.completion-section-title')),
-      ...siblingsUntil(completedLabel('deepseekCompletionEnabled'), null),
-    ] },
-  ];
-  completionPanel.replaceChildren();
-  completionPanel.insertAdjacentHTML('beforeend', '<p class="page-description">先选择要接收提醒的应用。完成与等待提醒独立开关，接入说明按需展开；所有开关保存后生效。</p>');
-  for (const integration of integrations) {
-    const card = document.createElement('article'); card.className = 'integration-card'; card.dataset.source = integration.source;
-    card.innerHTML = `<div class="integration-heading"><div><h3>${integration.title}</h3><p>${integration.description}</p></div></div><div class="integration-toggles"></div><div class="integration-statuses"></div><details class="integration-details"><summary>接入与目录设置</summary><div class="integration-configuration"></div></details>`;
-    for (const node of integration.nodes) {
-      const control = node.querySelector<HTMLInputElement>('input[type="checkbox"]');
-      if (control && !['codexHookEnabled', 'geminiHookEnabled'].includes(control.name)) {
-        const label = node.querySelector('span')!;
-        label.textContent = control.name.startsWith('attention-') ? '需要回应时提醒' : '完成时提醒';
-        card.querySelector('.integration-toggles')!.append(node);
-      } else if (node.id.endsWith('-status') || node.id === 'codex-attention-draft') {
-        card.querySelector('.integration-statuses')!.append(node);
-      } else card.querySelector('.integration-configuration')!.append(node);
-    }
-    const edit = card.querySelector<HTMLButtonElement>('[data-edit-completion]')!;
-    edit.textContent = '编辑提示 ↗'; card.querySelector('.integration-heading')!.append(edit);
-    completionPanel.append(card);
-  }
+  const reminderView = mountReminders(completion, element('reminders'), api, initial,
+    (persona, source) => bubbleEditor.getCompletionVolume(persona, source));
   const toggles = element('appearance').querySelector('.toggle-grid')!;
   for (const name of ['alwaysOnTop', 'snapToEdges', 'launchAtLogin']) behavior.querySelector('.panel')!.append(root.querySelector(`input[name="${name}"]`)!.closest('label')!);
   sound.querySelector('.panel')!.append(root.querySelector('input[name="soundEnabled"]')!.closest('label')!);
@@ -200,6 +143,8 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   settingsForm.hidden = true;
   root.querySelector('.page-footer')!.remove();
   const router = mountSettingsRouter(root, content, initial.activePet === 'gemini' ? 'gemini' : initial.activePet === 'gpt' ? 'codex' : 'overview', page => {
+    reminderView.showBalance(page === 'completion');
+    reminderView.stopAudio();
     renderPeriod();
     if (page === 'gemini') void api.refreshGeminiQuota().catch(() => {});
     preview.stop();
@@ -251,8 +196,9 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const notify = (message: string, error = false) => { const el = element('operation-status'); el.textContent = message; el.classList.toggle('error', error); };
   const bubbleEditor = mountBubbleEditor(element('bubble-editor'), api, initial, () => markDraftChanged(), notify, next => update(next));
   for (const button of root.querySelectorAll<HTMLButtonElement>('[data-edit-completion], [data-edit-sound]')) button.addEventListener('click', () => {
-    bubbleEditor.select(`completion-${button.dataset.editCompletion ?? button.dataset.editSound}` as import('../shared/types').BubbleScenario, button.dataset.editSound ? soundPersona : undefined);
-    router.navigate('studio', 'bubbles', element(button.dataset.editSound ? 'bubble-sound-enabled' : 'bubble-scenario'));
+    const source = (button.dataset.editCompletion ?? button.dataset.editSound) as CompletionSource;
+    bubbleEditor.select(`completion-${source}`, button.dataset.editSound ? soundPersona : petPersona(state));
+    router.navigate('studio', 'bubbles', element('bubble-sound-enabled'));
   });
   let directoryDraft = initial.settings.codexCompletionDirectory;
   let dshDirectoryDraft = initial.settings.deepseekCompletionDirectory;
@@ -333,7 +279,6 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     input('geminiCompletionEnabled').checked = settings.geminiCompletionEnabled;
     input('geminiHookEnabled').checked = settings.geminiHookEnabled;
     input('codexHookEnabled').checked = settings.codexHookEnabled;
-    element('codex-attention-draft').hidden = true;
     for (const source of COMPLETION_SOURCES) input(`attention-${source}`).checked = settings.attentionEnabledBySource[source];
     directoryDraft = settings.codexCompletionDirectory; dshDirectoryDraft = settings.deepseekCompletionDirectory; renderCompletionDraft(); bubbleEditor.fill(settings);
     input('lowBalanceThreshold').value = settings.lowBalanceThreshold ?? ''; input('dailyBudget').value = settings.dailyBudget ?? '';
@@ -380,13 +325,25 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     keys.filter(key => !sameDraftValue(draft[key], draftBase[key])).map(key => ({ page: page as SettingsPage, key })),
   );
   const draftHint = (count: number) => count ? `${count} 项未保存` : '设置已同步';
+  const reminderDrafts = () => {
+    const drafts = new Set<CompletionSource>();
+    const saved = state.settings;
+    if (directoryDraft !== saved.codexCompletionDirectory || input('codexHookEnabled').checked !== saved.codexHookEnabled) drafts.add('codex');
+    if (dshDirectoryDraft !== saved.deepseekCompletionDirectory) drafts.add('deepseek-harness');
+    if (input('geminiHookEnabled').checked !== saved.geminiHookEnabled) drafts.add('antigravity');
+    for (const source of COMPLETION_SOURCES) {
+      if (input(`attention-${source}`).checked !== saved.attentionEnabledBySource[source]) drafts.add(source);
+    }
+    return drafts;
+  };
+  const updateReminders = () => reminderView.update(state, reminderDrafts());
   const renderDraft = (changes = changedFields(readDraft())) => {
     dirty = changes.length > 0;
     modeDirty = changes.some(({ key }) => key === 'petMode');
     router.setDraftPages(new Set(changes.map(({ page }) => page)));
     setSaveHint(draftHint(changes.length));
-    element('codex-attention-draft').hidden = input('codexHookEnabled').checked === state.settings.codexHookEnabled
-      && input('attention-codex').checked === state.settings.attentionEnabledBySource.codex;
+    updateReminders();
+    if (!home.hidden) renderPeriod();
   };
   function markDraftChanged() {
     draftRevision++;
@@ -443,7 +400,6 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     element('gemini-status-chip').dataset.status = geminiChip.status;
     element('gemini-status').textContent = geminiStatus(state.geminiQuota, demo);
     element<HTMLButtonElement>('refresh-gemini').disabled = state.geminiQuota.status === 'loading';
-    element('gemini-integration-status').textContent = state.geminiIntegration;
     element('gpt-appearance-options').hidden = state.activePet !== 'gpt';
     element('appearance-custom').hidden = !state.hasCustomGpt;
     element('appearance-custom').style.display = state.hasCustomGpt ? '' : 'none';
@@ -451,28 +407,9 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     renderQuota(element('codex-quotas'), state.codex, false, demo);
     element('codex-status').textContent = quotaStatus(state.codex, demo); element('codex-status').dataset.status = state.codex.status;
     element('codex-updated').textContent = `更新于 ${localTime(state.codex.updatedAt)} · 本地时间`;
-    const completionLabels = { disabled: '完成提醒已关闭', starting: '正在连接本机会话…', watching: '正在监听新的完成事件', unavailable: '等待 Codex 会话', error: '会话监听异常' };
-    element('completion-status').textContent = [completionLabels[state.codexCompletion.status], state.codexCompletion.error].filter(Boolean).join(' · ');
-    element('completion-current-directory').textContent = `当前目录：${state.codexCompletion.directory}`;
-    const hook = state.codexAttention;
-    const hookLabel = !state.settings.attentionEnabledBySource.codex ? 'Codex CLI／VS Code 等待提醒已关闭'
-      : !state.settings.codexHookEnabled ? '未接入：等待提醒已开启，请开启 hook 接入并保存设置'
-      : ({ disabled: 'hook 接入尚未启动', starting: '已配置，等待实际提问或审批事件：请在 Codex CLI /hooks 审阅并信任；旧会话未响应时保存工作并重新加载 VS Code', watching: '已收到等待回应事件', unavailable: '客户端暂不支持 hook', error: 'Codex hook 接入异常' }[hook.status]);
-    element('codex-attention-status').textContent = [hookLabel, state.settings.codexHookEnabled ? hook.error : null, hook.lastAttentionAt ? `最近事件：${localTime(hook.lastAttentionAt)}` : null].filter(Boolean).join(' · ');
-    element('codex-attention-directory').textContent = `hook 主目录：${hook.directory || state.codexCompletion.directory || '正在读取…'}`;
-    element('codex-attention-draft').hidden = input('codexHookEnabled').checked === state.settings.codexHookEnabled && input('attention-codex').checked === state.settings.attentionEnabledBySource.codex;
-    const appAttention = state.chatgptCompletion;
-    const appAttentionLabel = !state.settings.attentionEnabledBySource['chatgpt-work'] ? 'ChatGPT App 等待提醒已关闭'
-      : ({ disabled: 'ChatGPT App 监听尚未启动', starting: '正在连接 ChatGPT 桌面通知日志…', watching: appAttention.lastAttentionAt ? '已收到等待回应事件' : '日志已连接，等待实际提问或审批事件；请确认已开启提问和权限通知', unavailable: '未找到 ChatGPT 桌面通知日志，请先启动 ChatGPT App', error: 'ChatGPT 桌面通知日志读取异常' }[appAttention.status]);
-    element('chatgpt-attention-status').textContent = [appAttentionLabel, appAttention.error, appAttention.lastAttentionAt ? `最近事件：${localTime(appAttention.lastAttentionAt)}` : null].filter(Boolean).join(' · ');
-    element('chatgpt-attention-directory').textContent = `通知日志目录：${appAttention.directory || '正在读取…'}`;
-    const workLabels = { disabled: 'ChatGPT Work 提醒已关闭', starting: '正在连接 ChatGPT 桌面通知…', watching: '正在监听 ChatGPT 桌面结束通知', unavailable: '未找到 ChatGPT 桌面通知日志，请先启动桌面应用', error: 'ChatGPT 桌面通知监听异常' };
-    element('chatgpt-completion-status').textContent = [workLabels[state.chatgptCompletion.status], state.chatgptCompletion.error].filter(Boolean).join(' · ');
-    const dshLabels = { disabled: 'DSH 提醒已关闭', starting: '正在连接 DSH 会话…', watching: '正在监听 DSH 新的完成事件', unavailable: '等待 DSH 会话', error: 'DSH 会话监听异常' };
-    element('dsh-completion-status').textContent = [dshLabels[state.deepseekCompletion.status], state.deepseekCompletion.error].filter(Boolean).join(' · ');
-    element('dsh-current-directory').textContent = `当前目录：${state.deepseekCompletion.directory}`;
     element<HTMLButtonElement>('refresh-codex').disabled = state.codex.status === 'loading';
     if (!dirty && !saving) fill(next.settings);
+    updateReminders();
     const labels = { unconfigured: '尚未连接', loading: '正在更新', ready: '已连接', error: '连接异常' };
     element('network-status').textContent = labels[state.status]; element('network-status').dataset.status = state.status;
     updateMoney(element('total-balance'), state.balance?.total, state.balance?.currency);
@@ -539,11 +476,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   };
   const homeView = mountHome(home, {
     navigate: page => router.navigate(settingsCategory(page), page, 'tab'),
-    openReminder: source => {
-      const details = content.querySelector<HTMLDetailsElement>(`.integration-card[data-source="${source}"] .integration-details`)!;
-      details.open = true;
-      router.navigate('reminders', 'completion', details.querySelector('summary')!);
-    },
+    openReminder: source => router.navigate('reminders', 'completion', reminderView.openGuide(source)),
     connectDeepSeek: () => router.navigate('account', 'overview', element('api-key')),
     connectCodex: () => {
       const choose = element<HTMLButtonElement>('choose-codex');
@@ -660,17 +593,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     element('deepseek-period-rule').textContent = explanation;
     element('records-period').textContent = `${heading}。${explanation}`;
     element('balance-updated').textContent = `更新于 ${localBalanceTime(state.balance?.observedAt)} · ${zoneLabel(new Date(state.balance?.observedAt ?? Date.now()))}`;
-    if (!home.hidden) {
-      const drafts = new Set<CompletionSource>();
-      const saved = state.settings;
-      if (directoryDraft !== saved.codexCompletionDirectory || input('codexHookEnabled').checked !== saved.codexHookEnabled) drafts.add('codex');
-      if (dshDirectoryDraft !== saved.deepseekCompletionDirectory) drafts.add('deepseek-harness');
-      if (input('geminiHookEnabled').checked !== saved.geminiHookEnabled) drafts.add('antigravity');
-      for (const source of COMPLETION_SOURCES) {
-        if (input(`attention-${source}`).checked !== saved.attentionEnabledBySource[source]) drafts.add(source);
-      }
-      homeView.update(state, drafts, period, now);
-    }
+    if (!home.hidden) homeView.update(state, reminderDrafts(), period, now);
   };
   const refreshTime = () => { if (!disposed) renderPeriod(); };
   document.addEventListener('visibilitychange', refreshTime); window.addEventListener('focus', refreshTime);
@@ -682,5 +605,5 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const stopSettingsPage = api.onSettingsPage(openVersion);
   const geminiTimer = setInterval(() => { if (!element('gemini').hidden && state.activePet !== 'gemini') void api.refreshGeminiQuota().catch(() => {}); }, 60000);
   const countdown = setInterval(() => { renderQuota(element('codex-quotas'), state.codex, false, demo); element('codex-status').textContent = quotaStatus(state.codex, demo); renderGeminiQuota(element('gemini-quotas'), state.geminiQuota, false, false); }, 30000);
-  return { update, dispose: () => { disposed = true; clearInterval(periodTimer); document.removeEventListener('visibilitychange', refreshTime); window.removeEventListener('focus', refreshTime); stopSettingsPage(); preview.dispose(); bubbleEditor.dispose(); clearInterval(geminiTimer); clearInterval(countdown); } };
+  return { update, dispose: () => { disposed = true; clearInterval(periodTimer); document.removeEventListener('visibilitychange', refreshTime); window.removeEventListener('focus', refreshTime); stopSettingsPage(); preview.dispose(); bubbleEditor.dispose(); reminderView.dispose(); clearInterval(geminiTimer); clearInterval(countdown); } };
 }

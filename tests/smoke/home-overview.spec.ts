@@ -87,8 +87,8 @@ test('home opens by default, guides setup, and refreshes all three accounts in o
     await settings.screenshot({ path: 'test-results/T036-home-1060x800-desktop.png', scale: 'css' });
 
     await settings.locator('#home .home-reminder[data-source=chatgpt-work]').click();
-    await expect(settings.locator('#completion .integration-card[data-source=chatgpt-work] details')).toHaveJSProperty('open', true);
-    await expect(settings.locator('#completion .integration-card[data-source=chatgpt-work] summary')).toBeFocused();
+    await expect(settings.locator('#reminder-guide-chatgpt-work')).toBeVisible();
+    await expect(settings.locator('#completion .integration-card[data-source=chatgpt-work] [data-reminder-guide]')).toBeFocused();
     await settingsPage(settings, 'home');
     await settings.getByRole('button', { name: '切换为简洁模式' }).click();
     await expect(settings.locator('#home-pet-mode')).toHaveText('简洁模式');

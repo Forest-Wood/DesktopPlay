@@ -1,7 +1,7 @@
 # DesktopPet 前端重设计与超级调色盘规格（R041／R042）
 
 - 日期：2026-11-20（Asia/Shanghai）。规划任务：[T034](tasks/T034-ui-redesign-plan.md)。
-- 状态：分阶段实现。[T035](tasks/T035-ui-foundation.md) 已实现六项导航、视觉变量与草稿交互，[T036](tasks/T036-home-overview.md) 已实现首页总览和提醒健康状态。本文件记录 T035–T041 的共同设计，具体实现和验收见各任务记录。
+- 状态：分阶段实现。[T035](tasks/T035-ui-foundation.md) 已实现六项导航和共用界面，[T036](tasks/T036-home-overview.md) 已实现首页总览，[T037](tasks/T037-reminder-center.md) 已实现提醒中心。本文件记录 T035–T041 的共同设计，具体实现和验收见各任务记录。
 - 交互原型（虚构数据、仅作视觉参考，不进入构建）：[docs/previews/T034/ui-mockup.html](previews/T034/ui-mockup.html)。
 - 现行界面规范仍以 [DESIGN.md](../DESIGN.md) 为准；各 PR 合并时把已落地的部分迁移进 DESIGN.md，并删除本文中对应的"规划"描述，避免两处长期重复。
 
@@ -103,7 +103,7 @@ flowchart LR
 | 蓝 `--info` | 监听中 | `status` 为 `watching` 或 `starting` |
 
 - **接入向导**：点击某行展开，把原来的目录选择、Hook 开关、信任说明改成步骤条，每一步标注"已完成／待完成"（可推导的步骤自动打勾，无法推导的步骤只显示说明，不虚构状态）。保留原有控件 id：`completion-enabled`、`completion-directory`、`dsh-directory`、`codex-attention-status` 等。
-- **余额提醒**放在页底卡片中，保留 `low-balance`、`daily-budget`。
+- **余额提醒**放在矩阵下方，“余额提醒”标签也可打开同一张卡片。两处共用 `low-balance`、`daily-budget` 和草稿。
 
 ### 5.5 人设工作室（`bubbles`、`companionship`、`sound`）
 - **顶部人设条**：Deepseek（原小鲸鱼）、GPT（合并原版 GPT 与白龙）、Gemini 三个头像（使用真实素材缩略图），选中的头像使用该人设的主题色。三个子页**共用同一个当前人设**，取代原来 `persona-tabs`、`data-sound-persona`、`data-bubble-persona` 三套各自独立的选择器。

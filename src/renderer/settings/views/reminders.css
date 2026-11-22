@@ -1,0 +1,103 @@
+.settings-view .reminder-intro { margin-bottom: 14px; color: var(--muted); }
+.reminder-matrix {
+  --reminder-columns: minmax(112px, 1.35fr) minmax(40px, .5fr) minmax(58px, .65fr) minmax(88px, 1.1fr) minmax(82px, 1fr) minmax(100px, 1fr);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.reminder-row {
+  display: grid;
+  grid-template-columns: var(--reminder-columns);
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+}
+.reminder-matrix-head {
+  border-radius: 13px 13px 0 0;
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-size: 11px;
+}
+.reminder-matrix-head > :nth-child(2),
+.reminder-matrix-head > :nth-child(3) { text-align: center; }
+.integration-card { border-top: 1px solid var(--line); }
+.reminder-source-row { min-height: 59px; cursor: pointer; }
+.reminder-source-row:hover { background: var(--accent-soft); }
+.reminder-source { min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
+.reminder-channel label { display: flex; justify-content: center; align-items: center; gap: 7px; cursor: pointer; }
+.settings-view .reminder-channel input { width: 32px; height: 20px; }
+.settings-view .reminder-channel input::after { width: 14px; height: 14px; }
+.settings-view .reminder-channel input:checked::after { transform: translateX(12px); }
+.reminder-cell-caption { display: none; }
+.settings-view .reminder-disclosure {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 6px;
+  padding: 6px 0;
+  color: var(--accent);
+  text-align: left;
+  white-space: normal;
+}
+.reminder-disclosure span { display: inline-block; }
+.reminder-disclosure[aria-expanded=true] span { transform: rotate(180deg); }
+.reminder-health .ui-status-chip { white-space: nowrap; }
+.reminder-time { margin-top: 4px; font-size: 10px; color: var(--muted); }
+.reminder-audio { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.settings-view .reminder-audio button { padding: 6px 7px; white-space: nowrap; }
+.settings-view .reminder-audio .text-button { color: var(--accent); }
+.reminder-guide { border-top: 1px solid var(--line); background: var(--nav); }
+.integration-card:last-child .reminder-source-row,
+.integration-card:last-child .reminder-guide { border-radius: 0 0 13px 13px; }
+.reminder-guide-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 17px;
+  padding: 14px;
+  align-items: start;
+}
+.reminder-configuration {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.reminder-configuration input:not([type=checkbox]) { margin-top: 7px; }
+.reminder-configuration .button-row { margin-top: 7px; }
+.settings-view .reminder-configuration .toggle-label { padding: 9px 0; }
+.reminder-steps .ui-step-list { margin: 7px 0 0; }
+.reminder-steps .ui-step-list li { font-size: 12px; line-height: 1.6; }
+.reminder-steps .ui-status-chip { white-space: nowrap; }
+.reminder-balance { margin-top: 18px; }
+#reminders .reminder-balance { margin-top: 0; }
+#reminder-audio-status:empty { display: none; }
+
+@media (max-width: 880px) {
+  .reminder-matrix-head {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .reminder-matrix-head + .integration-card { border-top: 0; }
+  .reminder-source-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.35fr);
+    grid-template-areas: 'source source health' 'completion attention method' 'audio audio audio';
+    gap: 8px;
+  }
+  .reminder-source { grid-area: source; }
+  .reminder-completion { grid-area: completion; }
+  .reminder-attention { grid-area: attention; }
+  .reminder-method { grid-area: method; min-width: 0; }
+  .reminder-health { grid-area: health; justify-self: end; }
+  .reminder-audio { grid-area: audio; }
+  .reminder-channel label { justify-content: flex-start; flex-wrap: wrap; }
+  .reminder-cell-caption { display: inline; font-size: 10px; color: var(--muted); }
+  .reminder-method .reminder-cell-caption { display: block; }
+  .reminder-audio .reminder-cell-caption { margin-inline-end: 4px; }
+  .reminder-guide-content { grid-template-columns: minmax(0, 1fr); }
+}

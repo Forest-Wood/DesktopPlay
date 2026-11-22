@@ -94,7 +94,7 @@ test('hook guide saves explicit opt-in and real relay files reach bubbles withou
   const { app, pet, settings, profile, file } = await launch(true);
   try {
     await expect(settings.locator('#codex-attention-status')).toContainText('未接入');
-    await settings.locator('.integration-card[data-source="codex"] .integration-details > summary').click();
+    await settings.locator('.integration-card[data-source="codex"] [data-reminder-guide]').click();
     await expect(settings.locator('#codex-attention-directory')).toContainText(path.join(profile, 'codex-test-home'));
     await settings.locator('input[name="codexHookEnabled"]').check();
     await expect(settings.locator('#codex-attention-draft')).toBeVisible();

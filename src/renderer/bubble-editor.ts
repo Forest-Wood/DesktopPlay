@@ -1,4 +1,4 @@
-import type { AppSettings, AppState, BubbleProfiles, BubbleScenario, BubbleStyle, DesktopApi, PetPersona, SoundSlot } from '../shared/types';
+import type { AppSettings, AppState, BubbleProfiles, BubbleScenario, BubbleStyle, CompletionSource, DesktopApi, PetPersona, SoundSlot } from '../shared/types';
 import { COMPLETION_SOURCES, DEFAULT_BUBBLE_PROFILES, PERSONAS, SCENARIO_LABELS, SCENARIOS, petPersona, resolveBubble } from '../shared/bubble-settings';
 import { demoGeminiQuota } from '../shared/gemini';
 import { GEMINI_PETS, DEFAULT_PET, GPT_PET, GPT_DRAGON_PET } from '../shared/defaults';
@@ -124,6 +124,7 @@ export function mountBubbleEditor(root: HTMLElement, api: DesktopApi, initial: A
   audio.sync(persona, state.sounds); render();
   return {
     getProfiles: (): BubbleProfiles => structuredClone(profiles),
+    getCompletionVolume: (persona: PetPersona, source: CompletionSource) => profiles[persona].rules[`completion-${source}`].volume,
     fill: (settings: AppSettings) => { profiles = structuredClone(settings.bubbleProfilesByPersona); render(); },
     update: (next: AppState) => { state = next; audio.sync(persona, state.sounds); renderAudio(); },
     select: (scenario: BubbleScenario, nextPersona?: PetPersona) => { audio.stop(); kind = scenario; if (nextPersona) persona = nextPersona; audio.sync(persona, state.sounds); render(); },

@@ -101,12 +101,12 @@ test('settings exposes the saved global mode and local peak information', async 
     await expect(settings.locator('.integration-card')).toHaveCount(4);
     for (const source of ['codex', 'chatgpt-work', 'deepseek-harness', 'antigravity']) {
       const card = settings.locator(`.integration-card[data-source="${source}"]`);
-      await expect(card.locator('.integration-toggles input')).toHaveCount(2);
-      await expect(card.locator('.integration-toggles')).toBeVisible();
-      await expect(card.locator('.integration-details')).toHaveJSProperty('open', false);
+      await expect(card.locator('.reminder-channel input')).toHaveCount(2);
+      await expect(card.locator('.reminder-health')).toBeVisible();
+      await expect(card.locator('[data-reminder-guide]')).toHaveAttribute('aria-expanded', 'false');
     }
     await expect(settings.locator('input[name="codexHookEnabled"]')).toBeHidden();
-    await expect(settings.locator('#codex-attention-status')).toBeVisible();
+    await expect(settings.locator('#codex-attention-status')).toBeHidden();
     await expect(settings.locator('#companion-mode')).toContainText('完整模式');
     expect(await pet.evaluate(async () => (await window.desktopPlay.getState()).settings.petMode)).toBe('full');
     await settingsPage(settings, 'reminders');
@@ -140,7 +140,7 @@ test('settings exposes the saved global mode and local peak information', async 
     await settings.locator('#bubbles [data-settings-page="completion"]').click();
     await settings.locator('[data-edit-completion="chatgpt-work"]').click();
     await expect(settings.locator('#bubble-scenario')).toHaveValue('completion-chatgpt-work');
-    await expect(settings.locator('#bubble-scenario')).toBeFocused();
+    await expect(settings.locator('#bubble-sound-enabled')).toBeFocused();
     await settingsPage(settings, 'records');
     await expect(settings.locator('#records-zone')).toContainText('电脑时区');
     await expect(settings.locator('#records-period')).toContainText('当前');

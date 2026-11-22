@@ -20,6 +20,10 @@ const healthLabels: Record<ReminderTone, string> = {
 
 type ReminderState = Pick<AppState, 'settings' | 'codexCompletion' | 'codexAttention' | 'chatgptCompletion' | 'deepseekCompletion' | 'geminiIntegration'>;
 
+export function geminiSummaryListening(status: string) {
+  return status.split(' · ').some(part => part.endsWith('监听中'));
+}
+
 export function reminderHealth(state: ReminderState, source: CompletionSource, hasSetupDraft = false) {
   const completion = sourceEnabled(state.settings, source);
   const attention = state.settings.attentionEnabledBySource[source];
@@ -31,7 +35,7 @@ export function reminderHealth(state: ReminderState, source: CompletionSource, h
   const lastAttentionAt = attention ? (source === 'codex' ? (codexHook ? state.codexAttention.lastAttentionAt : null)
     : source === 'antigravity' ? null : sharedListener.lastAttentionAt) ?? null : null;
   const gemini = source === 'antigravity' ? state.geminiIntegration : '';
-  const geminiConnected = gemini.split(' · ').some(part => part.endsWith('监听中'))
+  const geminiConnected = geminiSummaryListening(gemini)
     || (!attention && gemini.includes('完成 hook 已接入'));
 
   let tone: ReminderTone;
