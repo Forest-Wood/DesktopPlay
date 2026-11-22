@@ -31,7 +31,8 @@ test('theme drafts preview instantly, apply by scope, survive restart, and reset
     await pet.evaluate(() => window.desktopPlay.updateSettings({ bubbleDurationSeconds: 60, soundEnabled: false }));
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
     const bubble = pet.locator('.pet-bubble');
-    const first = await bubble.screenshot();
+    await expect(bubble).toBeVisible();
+    const first = await bubble.screenshot({ animations: 'disabled' });
     await settingsPage(settings, 'palette');
     await expect(settings.locator('[data-theme-preset]')).toHaveCount(8);
     await expect(settings.locator('#theme-apply-pet')).not.toBeChecked();
@@ -53,7 +54,7 @@ test('theme drafts preview instantly, apply by scope, survive restart, and reset
     await expect(settings.locator('#theme-texture')).toHaveValue('stars');
     await save();
     expect(await saved()).toMatchObject({ preset: 'starlight', texture: 'stars', applyToPet: false });
-    expect((await bubble.screenshot()).equals(first)).toBe(true);
+    expect((await bubble.screenshot({ animations: 'disabled' })).equals(first)).toBe(true);
 
     await settings.locator('#theme-accent').fill('#ffffcc');
     await expect(settings.locator('#theme-adjustment')).toContainText('已自动加深');
