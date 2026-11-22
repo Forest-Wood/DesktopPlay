@@ -12,7 +12,7 @@ import { formatUpdateDownloadDetail } from '../shared/app-update';
 import { APP_VERSION, GEMINI_PETS, GPT_DRAGON_PET, GPT_PET } from '../shared/defaults';
 import { PersonaSoundPlayer } from './sounds';
 import { mountSettingsRouter, settingsCategory, type SettingsPage } from './settings/router';
-import { card } from './ui/components';
+import { mountHome } from './settings/views/home';
 import './ui/components.css';
 
 function sameDraftValue(left: unknown, right: unknown): boolean {
@@ -30,6 +30,8 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   let dirty = false;
   let saving = false;
   let draftRevision = 0;
+  let stateRevision = 0;
+  let operationTicket = 0;
   let disposed = false;
   let soundPersona: PetPersona = petPersona(initial);
   const soundWarnings = new Map<string, string>();
@@ -50,7 +52,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
       </aside>
       <main class="settings-main">
         <header class="workspace-header"><div><div class="eyebrow">我的桌面 <span aria-hidden="true">/</span> <span id="category-label">首页总览</span></div><h1>桌宠的栖息地<span aria-hidden="true">✦</span></h1></div><span id="companion-presence" class="presence-chip"></span></header>
-        ${demo ? '<div class="demo-banner" role="status">本地演示模式 · 以下余额与 Codex 额度为布局示例，不连接真实账户。</div>' : ''}
+        ${demo ? '<div class="demo-banner" role="status">本地演示模式 · 账户和提醒使用示例数据。</div>' : ''}
         <div id="operation-status" class="operation-status" role="status" aria-live="polite"></div>
         <section id="overview" class="section"><div class="section-heading"><h2>余额概览</h2><span id="network-status" class="status-chip"></span></div>
           <div class="balance-grid"><article class="balance-card"><div class="card-label">当前账户余额 <span class="card-provider">DEEPSEEK</span></div><div id="total-balance" class="big-money">—</div><div class="balance-bottom"><span id="balance-updated">尚未更新</span><button id="refresh" class="light-button" type="button">↻ 刷新余额</button></div></article>
@@ -86,9 +88,6 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   const home = document.createElement('section');
   home.id = 'home';
   home.className = 'section';
-  const homeLinks = card();
-  homeLinks.innerHTML = '<h2 id="home-heading">快捷入口</h2><div class="button-row"><button type="button" class="secondary-button" data-settings-page="overview">DeepSeek 余额</button><button type="button" class="secondary-button" data-settings-page="codex">Codex 额度</button><button type="button" class="secondary-button" data-settings-page="gemini">Gemini 额度</button><button type="button" class="secondary-button" data-settings-page="completion">对话提醒</button><button type="button" class="secondary-button" data-settings-page="version">版本与更新</button></div>';
-  home.append(homeLinks);
   content.append(home);
   const makePage = (id: string, title: string, html: string) => {
     const section = document.createElement('section'); section.id = id; section.className = 'section'; section.innerHTML = `<div class="section-heading"><h2>${title}</h2></div><div class="panel">${html}</div>`; content.append(section); return section;
@@ -406,6 +405,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   };
   const update = (next: AppState) => {
     if (disposed) return;
+    stateRevision++;
     state = next;
     element<HTMLImageElement>('companion-image').src = state.pet.url;
     element('companion-name').textContent = state.pet.name;
@@ -492,18 +492,83 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     if (!days.length) { const row = document.createElement('tr'); const cell = document.createElement('td'); cell.colSpan = 3; cell.className = 'empty-records'; cell.textContent = '还没有观测记录，连接账户后从今天开始。'; row.append(cell); tbody.append(row); }
     for (const day of days) { const row = document.createElement('tr'); for (const text of [`${day.date} · ${day.timeZone ? `${day.timeZone} · 分段始于 ${localBalanceTime(day.startedAt, day.timeZone)}` : '原北京时间 · UTC+08:00'}`, money(day.spent, day.currency), money(day.increased, day.currency)]) { const cell = document.createElement('td'); cell.textContent = text; row.append(cell); } tbody.append(row); }
   };
+  const runStateAction = async (action: () => Promise<AppState>) => {
+    const revision = stateRevision;
+    const result = await action();
+    if (revision === stateRevision) update(result);
+    return result;
+  };
   const run = async (button: HTMLButtonElement, action: () => Promise<AppState>, success: string) => {
+    const ticket = ++operationTicket;
     button.disabled = true; notify('正在处理…');
     try {
-      const result = await action(); update(result);
+      const result = await runStateAction(action);
+      if (disposed || ticket !== operationTicket) return;
       if (button.id === 'refresh' && result.status !== 'ready') notify(result.error || (result.status === 'unconfigured' ? '尚未连接账户，请先保存 API Key。' : result.status === 'loading' ? '余额仍在更新中，请稍候。' : '余额查询失败，请稍后重试。'), result.status === 'error');
       else if (button.id === 'refresh' && result.balance && !result.balance.isAvailable) notify('账户余额暂不可用，请检查账户状态。', true);
       else if (button.id === 'refresh-gemini' && result.geminiQuota.error) notify(result.geminiQuota.error, true);
       else if ((button.id === 'refresh-codex' || button.id === 'choose-codex') && result.codex.status !== 'ready') notify(result.codex.error || quotaStatus(result.codex, demo), result.codex.status === 'error');
       else notify(success);
-    } catch (error) { notify(error instanceof Error ? error.message : '操作失败，请重试。', true); }
+    } catch (error) { if (!disposed && ticket === operationTicket) notify(error instanceof Error ? error.message : '操作失败，请重试。', true); }
     finally { button.disabled = button.id === 'clear-key' ? !state.hasApiKey : button.id === 'refresh' ? state.status === 'loading' : button.id === 'refresh-codex' ? state.codex.status === 'loading' : false; }
   };
+  const refreshAll = async (button: HTMLButtonElement) => {
+    const ticket = ++operationTicket;
+    button.disabled = true;
+    button.textContent = '正在刷新…';
+    const jobs = [
+      { name: 'DeepSeek', refresh: () => api.refreshBalance(), ready: (next: AppState) => next.status === 'ready' && !!next.balance?.isAvailable },
+      { name: 'Codex', refresh: () => api.refreshCodexQuota(), ready: (next: AppState) => next.codex.status === 'ready' },
+      { name: 'Gemini', refresh: () => api.refreshGeminiQuota(), ready: (next: AppState) => next.geminiQuota.status === 'ready' },
+    ];
+    const pending: string[] = [];
+    try {
+      for (const job of jobs) {
+        if (disposed) return;
+        try {
+          if (!job.ready(await runStateAction(job.refresh))) pending.push(job.name);
+        } catch {
+          pending.push(job.name);
+        }
+      }
+      if (!disposed && ticket === operationTicket) notify(pending.length ? `已尝试刷新。未连接或读取失败：${pending.join('、')}。` : '三个账户均已刷新。');
+    } finally {
+      button.disabled = false;
+      button.textContent = '刷新全部';
+    }
+  };
+  const homeView = mountHome(home, {
+    navigate: page => router.navigate(settingsCategory(page), page, 'tab'),
+    openReminder: source => {
+      const details = content.querySelector<HTMLDetailsElement>(`.integration-card[data-source="${source}"] .integration-details`)!;
+      details.open = true;
+      router.navigate('reminders', 'completion', details.querySelector('summary')!);
+    },
+    connectDeepSeek: () => router.navigate('account', 'overview', element('api-key')),
+    connectCodex: () => {
+      const choose = element<HTMLButtonElement>('choose-codex');
+      router.navigate('account', 'codex', choose);
+      choose.click();
+    },
+    refresh: button => void refreshAll(button),
+    toggleMode: button => {
+      const petMode = state.settings.petMode === 'simple' ? 'full' : 'simple';
+      void run(button, () => api.updateSettings({ petMode }), '');
+    },
+    checkUpdates: () => {
+      router.navigate('system', 'version', 'tab');
+      element<HTMLButtonElement>('update-check').click();
+    },
+    selectPet: (id, button) => { if (state.activePet !== id) void run(button, () => api.selectPet(id), '角色已切换。'); },
+    changeAppearance: button => {
+      if (state.activePet === 'gemini') {
+        void run(button, () => api.selectGeminiAppearance(state.geminiAppearance === 'classic' ? 'sketch' : 'classic'), 'Gemini 造型已切换。');
+      } else if (state.activePet === 'gpt') {
+        void run(button, () => api.selectGptAppearance(state.gptAppearance === 'dragon' ? 'classic' : 'dragon'), 'GPT 造型已切换。');
+      } else if (demo) router.navigate('pet', 'appearance', 'tab');
+      else void run(button, () => api.choosePet(), '角色图片已更新。');
+    },
+  }, demo);
   for (const id of ['deepseek', 'gpt', 'gemini'] as const) element(`select-${id}`).addEventListener('click', () => void run(element(`select-${id}`), () => api.selectPet(id), `已切换到${id === 'gemini' ? ' Gemini' : id === 'gpt' ? ' GPT 小伙伴' : '小鲸鱼'}。`));
   for (const id of ['classic', 'dragon', 'custom'] as const) element(`appearance-${id}`).addEventListener('click', () => void run(element(`appearance-${id}`), () => api.selectGptAppearance(id), 'GPT 造型已切换，Codex 额度保持共用。'));
   for (const id of ['classic', 'sketch'] as const) element('gemini-' + id).addEventListener('click', () => void run(element('gemini-' + id), () => api.selectGeminiAppearance(id), 'Gemini 造型已切换。'));
@@ -586,7 +651,8 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     } catch (error) { notify(error instanceof Error ? error.message : '请检查输入。', true); }
   });
   const renderPeriod = () => {
-    const period = deepseekPeriod();
+    const now = new Date();
+    const period = deepseekPeriod(now);
     const heading = `${period.label}${period.note ? ` · ${period.note}` : ''} · ${period.zone}`;
     element('deepseek-period').textContent = heading;
     element('records-zone').textContent = `电脑时区 · ${period.zone}`;
@@ -594,6 +660,17 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
     element('deepseek-period-rule').textContent = explanation;
     element('records-period').textContent = `${heading}。${explanation}`;
     element('balance-updated').textContent = `更新于 ${localBalanceTime(state.balance?.observedAt)} · ${zoneLabel(new Date(state.balance?.observedAt ?? Date.now()))}`;
+    if (!home.hidden) {
+      const drafts = new Set<CompletionSource>();
+      const saved = state.settings;
+      if (directoryDraft !== saved.codexCompletionDirectory || input('codexHookEnabled').checked !== saved.codexHookEnabled) drafts.add('codex');
+      if (dshDirectoryDraft !== saved.deepseekCompletionDirectory) drafts.add('deepseek-harness');
+      if (input('geminiHookEnabled').checked !== saved.geminiHookEnabled) drafts.add('antigravity');
+      for (const source of COMPLETION_SOURCES) {
+        if (input(`attention-${source}`).checked !== saved.attentionEnabledBySource[source]) drafts.add(source);
+      }
+      homeView.update(state, drafts, period, now);
+    }
   };
   const refreshTime = () => { if (!disposed) renderPeriod(); };
   document.addEventListener('visibilitychange', refreshTime); window.addEventListener('focus', refreshTime);

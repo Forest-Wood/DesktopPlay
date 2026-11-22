@@ -1,7 +1,7 @@
 # DesktopPet 前端重设计与超级调色盘规格（R041／R042）
 
 - 日期：2026-11-20（Asia/Shanghai）。规划任务：[T034](tasks/T034-ui-redesign-plan.md)。
-- 状态：分阶段实现。六项导航、视觉变量与草稿交互已在 [T035](tasks/T035-ui-foundation.md) 实现。本文件记录 T035–T041 的共同设计，具体实现和验收见各任务记录。
+- 状态：分阶段实现。[T035](tasks/T035-ui-foundation.md) 已实现六项导航、视觉变量与草稿交互，[T036](tasks/T036-home-overview.md) 已实现首页总览和提醒健康状态。本文件记录 T035–T041 的共同设计，具体实现和验收见各任务记录。
 - 交互原型（虚构数据、仅作视觉参考，不进入构建）：[docs/previews/T034/ui-mockup.html](previews/T034/ui-mockup.html)。
 - 现行界面规范仍以 [DESIGN.md](../DESIGN.md) 为准；各 PR 合并时把已落地的部分迁移进 DESIGN.md，并删除本文中对应的"规划"描述，避免两处长期重复。
 
@@ -75,7 +75,7 @@ flowchart LR
 - **账户卡**（`auto-fit, minmax(230px, 1fr)` 网格，窄窗口自动变成单列）：
   - DeepSeek：显示余额（大号等宽数字）、今日已观测金额、最近 7 个日分段的迷你柱状图（取自 `ledger.history`，数据不足 7 天时只画已有天数，不补零）、峰谷标签（复用 `deepseekPeriod`）。
   - Codex：每周窗口和 5H 窗口各一个环形进度（窗口识别规则与现有 `renderQuota` 一致：每周在左，只有存在 300 分钟窗口时才显示 5H 环，不显示占位）。另显示套餐标签、重置倒计时、重置卡张数。
-  - Gemini：3 条进度条，规则与 `renderGeminiQuota` 一致：共享池显示"共享"而非 0%，缺失时显示"未提供"。
+  - Gemini：复用 `renderGeminiQuota` 的三个额度窗口。共享池显示“与 Gemini 共用”，缺失时显示“未提供”。套餐标签读取额度响应明确提供的名称，缺少时显示“套餐未提供”。
   - 右上角状态胶囊共 5 种：正常／刷新中／异常（展示最近数据）／未连接／演示。点击整张卡片进入对应的账户子页。
   - **空状态**：显示主按钮，替代原来的红色错误文字。DeepSeek 显示"添加 API Key"，Codex 显示"选择 codex.exe"，Gemini 显示"打开 Antigravity 或登录 agy"（只给提示，不代用户启动）。
 - **提醒健康条**：4 个小块，各显示来源名、`完成 ●／等待 ●` 两个开关状态、健康色（规则见 5.4）、最近事件时间（有 `lastAttentionAt` 时显示）。点击跳到提醒中心并展开该来源的行。

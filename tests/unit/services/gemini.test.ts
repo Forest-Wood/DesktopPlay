@@ -35,13 +35,15 @@ it('uses the signed-in CLI when local is closed, keeps the last success across f
   vi.useFakeTimers(); vi.setSystemTime(new Date('2026-11-18T04:59:59Z'));
   const fresh = (remaining: number) => ({groups:[{buckets:[{id:'gemini-5h',remaining_fraction:remaining,reset_time:expiry}]}]});
   const local = vi.fn().mockRejectedValue(new Error('closed'));
-  const cli = vi.fn().mockResolvedValueOnce(fresh(.38)).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(fresh(1));
+  const cli = vi.fn().mockResolvedValueOnce({ ...fresh(.38), planName: 'AI Pro' }).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(fresh(1));
   const svc = new GeminiQuotaService(local, cli, () => {});
   await Promise.all([svc.refresh(),svc.refresh()]);
   expect(cli).toHaveBeenCalledTimes(1); const old = svc.getState();
+  expect(old.planName).toBe('AI Pro');
   vi.setSystemTime(new Date('2026-11-18T05:00:01Z'));
-  await svc.refresh(); expect(svc.getState()).toMatchObject({status:'error', windows:old.windows, updatedAt:old.updatedAt});
+  await svc.refresh(); expect(svc.getState()).toMatchObject({status:'error', windows:old.windows, updatedAt:old.updatedAt, planName:'AI Pro'});
   await svc.refresh(); expect(svc.getState().windows['gemini-5h']?.remainingPercent).toBe(100);
+  expect(svc.getState().planName).toBeUndefined();
   local.mockResolvedValueOnce(fresh(.63)); await svc.refresh(); expect(cli).toHaveBeenCalledTimes(3);
 });
 

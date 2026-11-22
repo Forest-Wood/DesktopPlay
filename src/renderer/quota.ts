@@ -81,6 +81,10 @@ export function quotaStatus(quota: CodexQuotaState, demo: boolean): string {
   return { idle: '尚未读取', ready: '已连接 Codex', unavailable: '未连接 Codex', error: '读取失败', loading: '正在读取' }[quota.status];
 }
 
+export function mainQuotaBucket(quota: CodexQuotaState) {
+  return quota.buckets.find(bucket => bucket.id.toLowerCase() === 'codex') ?? quota.buckets[0];
+}
+
 export function renderQuota(root: HTMLElement, quota: CodexQuotaState, compact: boolean, demo: boolean, simple = false): void {
   root.replaceChildren();
   root.classList.toggle('quota-compact', compact);
@@ -94,7 +98,7 @@ export function renderQuota(root: HTMLElement, quota: CodexQuotaState, compact: 
   if (!quota.buckets.length) {
     add(root, 'p', 'quota-empty', quota.status === 'loading' ? '正在读取额度与重置时间…' : '额度未知 · 请先登录本机 Codex。');
   }
-  const main = quota.buckets.find(bucket => bucket.id.toLowerCase() === 'codex') ?? quota.buckets[0];
+  const main = mainQuotaBucket(quota);
   for (const bucket of main ? [main, ...quota.buckets.filter(bucket => bucket !== main)] : []) {
     const card = add(root, 'article', 'quota-bucket');
     add(card, 'h3', 'quota-bucket-name', bucket.name);

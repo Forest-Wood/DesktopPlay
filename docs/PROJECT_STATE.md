@@ -4,7 +4,8 @@
 
 ## 当前任务
 
-- [T035／R041](tasks/T035-ui-foundation.md)（2026-11-22，`feat/T035-settings-foundation`，基准 `b07b82e`，**未提交，待审查**）已实现六项导航、共享视觉变量、DOM 组件和草稿保存／放弃。首页提供快捷入口。类型检查、构建、322 项单测、19 项 Electron 冒烟及两个尺寸的截图核对通过。[T036 首页总览](tasks/T036-home-overview.md) 将从 T035 分支的结果提交创建独立分支，审查与合入按任务顺序执行。
+- [T036／R041](tasks/T036-home-overview.md)（2026-11-22，`feat/T036-home-overview`，基准 `ef88296`，**未提交，待审查**）已实现三账户总览、提醒健康卡、当前伙伴和快捷操作。构建、327 项单测、8 项相关 Electron 冒烟、Edge 演示和两个尺寸的截图核对通过。开始 [T037 提醒中心](tasks/T037-reminder-center.md) 时，从 T036 结果提交创建下一条分支。
+- [T035／R041](tasks/T035-ui-foundation.md) 已在 `feat/T035-settings-foundation` 保存本地结果 `ef88296`，提供六项导航、共享视觉变量、DOM 组件和草稿交互。322 项单测、19 项 Electron 冒烟及两个尺寸的截图核对通过，待审查。
 - [T034／R041／R042](tasks/T034-ui-redesign-plan.md) 规划已在原分支本地提交 `b07b82e`，基准为远端 `main` 的 `0d20d93`。规格、原型与未开始阶段见 [UI_REDESIGN.md](UI_REDESIGN.md) 和 [T034 原型](previews/T034/ui-mockup.html)。
 - [T033／R040](tasks/T033-release-v210.md) 已发布 [v2.1.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.1.0)。[PR #38](https://github.com/Forest-Wood/DesktopPlay/pull/38) 合入主线，标签 `v2.1.0` 指向 `07f774b`。[发布工作流 44549546635](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44549546635) 通过单测、Windows x64 打包、更新运行时与全部六项附件摘要（含 NSIS 与免安装版 `.blockmap`）及公告校验。
 - [T032／R039](tasks/T032-incremental-update.md) 已通过 [PR #37](https://github.com/Forest-Wood/DesktopPlay/pull/37) 合入主线 `5b6f13a`，随 v2.1.0 分发：实现 NSIS（`electron-updater` `.blockmap`）与 Portable（流式 Rabin CDC + `64 KiB` Range 合并 + 本地 `programPath` 扫描 + 完整 SHA-256 校验）增量／差分更新、自动回退整包、增量进度与回退 ETA 重置及 6 项 Release 资产校验；并在 `AGENTS.md` 补充前序未提交任务先原分支本地提交再切新分支的隔离规则。
@@ -24,7 +25,7 @@
 
 ## 有效限制与后续
 
-- 临时文件按 `T(N-2)` 规则清理。T035 已清理 T033 的三份非跟踪临时草稿，见当前任务记录。既有视觉证据见 T022／T023 交接。
+- 临时文件按 `T(N-2)` 规则清理。T036 未发现 T034 的非跟踪临时产物，见当前任务记录。既有视觉证据见 T022／T023 交接。
 
 - 2026-11-12 GPT 额度只读排查（工作区 HEAD `cc318be`，保留全部既有 T022 未提交修改）：运行中安装版为 `D:\DesktopPet` v1.1.0，进程启动于 11-09，现存 VS Code Codex 扩展目录创建于 11-11。通过当前 `codex-quota.ts` 的发现及只读请求函数实测额度读取、解析成功，未记录账户身份或凭据。安装包代码与源代码均只在初始化发现程序，刷新失败不重新发现；旧扩展路径失效为高概率原因，未直接读取运行中缓存路径。建议完全退出并重开桌宠验证；尚未重启、未确认 UI 恢复、未修改业务代码或真实配置。诊断临时构建已在后续目录复核时确认不存在。若后续修复自动重新发现，另建任务分支；本次仅新增此排查记录，不归入 T022 实现结果。
 
