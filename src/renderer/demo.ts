@@ -5,6 +5,7 @@ import { builtinSound } from '../shared/bubble-settings';
 import { BUILTIN_PETS, DEFAULT_SETTINGS, GPT_DRAGON_PET, DEFAULT_SOUNDS } from '../shared/defaults';
 import type { AppState, DesktopApi } from '../shared/types';
 import { initialUpdateState } from '../shared/app-update';
+import { normalizePetNicknames } from '../shared/pet-nicknames';
 
 export function createDemoApi(): DesktopApi {
   const savedPet = localStorage.getItem('desktopplay-demo-pet');
@@ -45,7 +46,12 @@ export function createDemoApi(): DesktopApi {
     onCodexCompletion: () => () => {},
     onPetHidden: () => () => {},
     getState: async () => state,
-    updateSettings: async patch => { state = { ...state, settings: { ...state.settings, ...patch } }; return emit(); },
+    updateSettings: async patch => {
+      const settings = { ...state.settings, ...patch };
+      if (Object.hasOwn(patch, 'petNicknames')) settings.petNicknames = normalizePetNicknames(patch.petNicknames);
+      state = { ...state, settings };
+      return emit();
+    },
     setApiKey: async () => { state = { ...state, hasApiKey: true }; return emit(); },
     clearApiKey: async () => { state = { ...state, hasApiKey: false }; return emit(); },
     refreshBalance: async () => { state = { ...state, balance: { ...state.balance!, observedAt: new Date().toISOString() } }; return emit(); },

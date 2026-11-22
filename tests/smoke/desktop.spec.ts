@@ -5,7 +5,7 @@ import path from 'node:path';
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { fitScale } from '../../src/main/geometry';
 import { electronArgs } from './electron-args';
-import { settingsPage } from './settings-page';
+import { selectStudioPersona, settingsPage } from './settings-page';
 
 
 function soundFixture(seed: number): Buffer {
@@ -88,7 +88,7 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
     await expect(pet.locator('.pet-image')).toBeVisible();
     expect(await settings.evaluate(() => typeof (window as unknown as { require?: unknown }).require)).toBe('undefined');
     expect(await settings.evaluate(() => window.desktopPlay.getState())).toMatchObject({ hasApiKey: false, status: 'unconfigured' });
-    await settingsPage(settings, 'appearance');
+    await settingsPage(settings, 'behavior');
     await settings.locator('#scale').fill('1.25');
     await settingsPage(settings, 'sound');
     await settings.locator('input[name="soundEnabled"]').uncheck();
@@ -97,7 +97,7 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
     await settings.locator('#bubble-profile-hover').fill('4');
     await settingsPage(settings, 'reminders');
     await settings.locator('#low-balance').fill('10.12345678');
-    await settingsPage(settings, 'appearance');
+    await settingsPage(settings, 'behavior');
     await expect(settings.locator('#scale')).toHaveValue('1.25');
     await settingsPage(settings, 'bubbles');
     await expect(settings.locator('#bubble-profile-duration')).toHaveValue('7');
@@ -167,8 +167,8 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
     }
     await application.evaluate(({ BrowserWindow }, state) => { for (const win of BrowserWindow.getAllWindows()) win.webContents.send('desktopplay:state', state); }, quotaState);
     await settingsPage(settings, 'companionship');
-    for (const persona of ['whale', 'gpt', 'dragon', 'gemini']) {
-      await settings.locator(`[data-persona="${persona}"]`).click();
+    for (const persona of ['whale', 'gpt', 'dragon', 'gemini'] as const) {
+      await selectStudioPersona(settings, persona);
       await settings.locator('#phrases').fill(`smoke-${persona}`);
       await settings.locator('#phrase-count').fill('1');
     }

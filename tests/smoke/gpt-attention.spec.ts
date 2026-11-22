@@ -4,7 +4,7 @@ import { appendFile, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promise
 import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { electronArgs } from './electron-args';
-import { settingsPage } from './settings-page';
+import { selectStudioPersona, settingsPage } from './settings-page';
 import { chatgptAttention } from '../fixtures/chatgpt-notification';
 
 async function launch(hooks = false) {
@@ -136,7 +136,7 @@ test('T023 reminder dismissal and question priority', async () => {
   };
   try {
     await settingsPage(settings, 'bubbles');
-    await settings.locator('[data-bubble-persona="whale"]').click();
+    await selectStudioPersona(settings, 'whale');
     await settings.locator('#bubble-scenario').selectOption('attention-codex');
     await settings.locator('#bubble-dismiss-mode').selectOption('timed');
     await settings.locator('#bubble-dismiss-seconds').fill('2');

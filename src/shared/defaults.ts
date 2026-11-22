@@ -1,5 +1,6 @@
 import { DEFAULT_BUBBLE_PROFILES, PERSONAS, SOUND_SLOTS } from './bubble-settings';
 import { phraseDisplays } from './phrases';
+import { EMPTY_PET_NICKNAMES } from './pet-nicknames';
 import type { AppSettings, BuiltinPetId, PetAsset, PetPersona, SoundMetadataMap } from './types';
 export const APP_VERSION = '2.1.0';
 export const DEFAULT_COMPLETION_MESSAGES: Record<PetPersona, string> = {
@@ -17,6 +18,7 @@ export const DEFAULT_PHRASES_BY_PERSONA: Record<PetPersona, string[]> = {
 };
 export const DEFAULT_SETTINGS: AppSettings = {
   petMode: 'full',
+  petNicknames: { ...EMPTY_PET_NICKNAMES },
   autoCheckUpdates: true,
   alwaysOnTop: true,
   launchAtLogin: false,

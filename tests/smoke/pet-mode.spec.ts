@@ -3,7 +3,7 @@ import electronPath from 'electron';
 import { mkdir, mkdtemp } from 'node:fs/promises';
 import path from 'node:path';
 import { electronArgs } from './electron-args';
-import { settingsPage } from './settings-page';
+import { selectStudioPersona, settingsPage } from './settings-page';
 import type { ConversationNotice } from '../../src/shared/types';
 
 async function launch(profile?: string) {
@@ -130,11 +130,11 @@ test('settings exposes the saved global mode and local peak information', async 
     expect(await pet.evaluate(async () => (await window.desktopPlay.getState()).settings.petMode)).toBe('simple');
     await settings.screenshot({ path: 'test-results/T019-mode-settings.png' });
     await settingsPage(settings, 'sound');
-    await settings.locator('[data-sound-persona="dragon"]').click();
+    await selectStudioPersona(settings, 'dragon');
     await settings.locator('[data-edit-sound="codex"]').click();
     await expect(settings.locator('[data-category="studio"]')).toHaveAttribute('aria-current', 'page');
     await expect(settings.locator('#bubble-scenario')).toHaveValue('completion-codex');
-    await expect(settings.locator('[data-bubble-persona="dragon"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(settings.locator('[data-studio-gpt="dragon"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(settings.locator('#bubble-sound-enabled')).toBeFocused();
     await expect(settings.locator('.save-bar')).toHaveAttribute('data-dirty', 'false');
     await settings.locator('#bubbles [data-settings-page="completion"]').click();

@@ -3,7 +3,7 @@ import electronPath from 'electron';
 import path from 'node:path';
 import { appendFile, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { electronArgs } from './electron-args';
-import { settingsPage } from './settings-page';
+import { selectStudioPersona, settingsPage } from './settings-page';
 import { codexHistoryFixture } from '../fixtures/codex-history';
 
 const metadata = (id: string) => `${JSON.stringify({ type: 'session_meta', payload: { id, source: 'vscode' } })}\n`;
@@ -68,7 +68,7 @@ test('local events use editable persona text, preserve drafts and focus, respect
     const defaults = ['Codex 已经回复完啦，快去看看吧～', 'Codex 这轮输出完成了，来看看结果吧。', 'Codex 的答复已送达，我替你守候着。'];
     await settingsPage(settings, 'bubbles'); await settings.locator('#bubble-scenario').selectOption('completion-codex');
     for (const [index, persona] of (['whale', 'gpt', 'dragon'] as const).entries()) {
-      await settings.locator(`[data-bubble-persona="${persona}"]`).click();
+      await selectStudioPersona(settings, persona);
       await expect(settings.locator('#bubble-copy')).toHaveValue(defaults[index]);
       await settings.locator('#bubble-copy').fill(custom[persona]);
     }
@@ -77,7 +77,7 @@ test('local events use editable persona text, preserve drafts and focus, respect
     await settings.locator('#bubble-copy').fill(custom.dragon);
     await settingsPage(settings, 'codex'); await settingsPage(settings, 'bubbles');
     for (const persona of ['whale', 'gpt', 'dragon'] as const) {
-      await settings.locator(`[data-bubble-persona="${persona}"]`).click();
+      await selectStudioPersona(settings, persona);
       await expect(settings.locator('#bubble-copy')).toHaveValue(custom[persona]);
     }
     expect((await settings.evaluate(() => window.desktopPlay.getState())).settings.bubbleProfilesByPersona.whale.rules['completion-codex'].message).toBe(defaults[0]);

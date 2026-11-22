@@ -9,6 +9,7 @@ import { geminiStatus, renderGeminiQuota } from './gemini-quota';
 import { localTime, quotaStatus, renderQuota } from './quota';
 import { pageCount, nextPage, summaryText, usageStatus } from './bubble-pages';
 import { PersonaSoundPlayer } from './sounds';
+import { petNickname } from '../shared/pet-nicknames';
 
 export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, demo: boolean) {
   let completionQueue: ConversationNotice[] = [];
@@ -176,7 +177,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     image.style.left = `${layout.image.x}px`; image.style.top = `${layout.image.y}px`; image.style.width = `${layout.image.width}px`; image.style.height = `${layout.image.height}px`;
     canvas.classList.toggle('flipped', state.flipped); canvas.classList.toggle('vertical-flipped', state.verticalFlipped); canvas.classList.toggle('bubble-below', state.bubblePlacement === 'below');
     canvas.classList.toggle('gpt-theme', state.activePet === 'gpt'); canvas.classList.toggle('dragon-theme', state.activePet === 'gpt' && state.gptAppearance === 'dragon'); canvas.classList.toggle('gemini-theme', state.activePet === 'gemini'); image.src = state.pet.url;
-    character.setAttribute('aria-label', `${state.pet.name}，${simple() ? '点击查看剩余额度' : '点击切换用量、小报告和陪伴短句'}，拖动调整位置，右键打开菜单`);
+    character.setAttribute('aria-label', `${petNickname(state)}，${simple() ? '点击查看剩余额度' : '点击切换用量、小报告和陪伴短句'}，拖动调整位置，右键打开菜单`);
     render();
     if (state.alert && state.alert.id !== lastAlertId) { lastAlertId = state.alert.id; if (!hidden && !simple()) pendingAlert = state.alert; }
     flushAlert();

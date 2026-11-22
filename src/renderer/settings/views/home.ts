@@ -1,5 +1,6 @@
 import { deepseekPeriod } from '../../../shared/deepseek-time';
 import { BUILTIN_PETS } from '../../../shared/defaults';
+import { petNickname } from '../../../shared/pet-nicknames';
 import { REMINDER_SOURCES, reminderHealth } from '../../../shared/reminder-health';
 import type { AppState, BuiltinPetId, CompletionSource } from '../../../shared/types';
 import { money } from '../../format';
@@ -264,7 +265,7 @@ export function mountHome(root: HTMLElement, actions: HomeActions, demo: boolean
       const simple = state.settings.petMode === 'simple';
       mode.textContent = simple ? '切换为完整模式' : '切换为简洁模式';
       find('#home-pet-mode').textContent = simple ? '简洁模式' : '完整模式';
-      find('#home-pet-name').textContent = state.pet.name;
+      find('#home-pet-name').textContent = petNickname(state);
       find<HTMLImageElement>('.home-stage img').src = state.pet.url;
       for (const option of roleOptions) option.setAttribute('aria-pressed', String(option.dataset.value === state.activePet));
     },

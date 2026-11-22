@@ -29,6 +29,7 @@ export interface UninstallInfo {
 }
 export interface AppSettings {
   petMode: 'simple' | 'full';
+  petNicknames: Record<PetPersona, string>;
   autoCheckUpdates: boolean;
   alwaysOnTop: boolean;
   launchAtLogin: boolean;

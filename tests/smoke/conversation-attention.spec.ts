@@ -3,7 +3,7 @@ import electronPath from 'electron';
 import { mkdir, mkdtemp } from 'node:fs/promises';
 import path from 'node:path';
 import { electronArgs } from './electron-args';
-import { settingsPage } from './settings-page';
+import { selectStudioPersona, settingsPage } from './settings-page';
 
 async function launch(profile?: string) {
   await mkdir('.tmp', { recursive: true }); profile ??= await mkdtemp(path.resolve('.tmp/smoke-attention-'));
@@ -19,7 +19,7 @@ test('phrase controls preserve drafts, reject insufficient candidates and persis
     await settingsPage(settings, 'companionship');
     await settings.locator('#phrases').fill('First\nSecond\nThird\nFourth'); await settings.locator('#phrase-count').fill('2'); await settings.locator('#phrase-mode').selectOption('random');
     await settings.locator('[data-phrase-index="1"]').uncheck(); await settings.locator('[data-phrase-index="3"]').uncheck();
-    await settings.locator('[data-persona="dragon"]').click(); await settings.locator('[data-persona="whale"]').click();
+    await selectStudioPersona(settings, 'dragon'); await selectStudioPersona(settings, 'whale');
     await expect(settings.locator('#phrase-count')).toHaveValue('2'); await expect(settings.locator('#phrase-mode')).toHaveValue('random'); await expect(settings.locator('[data-phrase-index="1"]')).not.toBeChecked();
     await settings.locator('#phrase-count').fill('3'); await settings.locator('#save-settings').click(); await expect(settings.locator('#operation-status')).toContainText('候选短句数不能少于');
     await settings.locator('#phrase-count').fill('2'); await settings.locator('#phrase-mode').selectOption('sequential'); await settings.locator('#save-settings').click(); await expect(settings.locator('#save-hint')).toHaveText('设置已保存');

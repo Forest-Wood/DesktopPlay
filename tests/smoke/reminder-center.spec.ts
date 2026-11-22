@@ -85,7 +85,7 @@ test('reminder matrix expands guides, saves drafts and opens the active persona 
     await expect(settings.locator('body')).toHaveAttribute('data-reminder-preview-volume', '0.65');
     await chatgpt.getByRole('button', { name: '编辑 ChatGPT App 完成音效' }).click();
     await expect(settings.locator('#bubble-scenario')).toHaveValue('completion-chatgpt-work');
-    await expect(settings.locator('[data-bubble-persona=dragon]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(settings.locator('[data-studio-gpt=dragon]')).toHaveAttribute('aria-pressed', 'true');
     await expect(settings.locator('#bubble-sound-enabled')).toBeFocused();
     await expect(settings.locator('#bubble-sound-volume')).toHaveValue('0.65');
   } finally { await app.close(); }
