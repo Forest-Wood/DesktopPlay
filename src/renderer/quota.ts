@@ -1,4 +1,5 @@
 import type { CodexQuotaBucket, CodexQuotaState, CodexQuotaWindow, CodexResetCredit } from '../shared/types';
+import { ring } from './ui/components';
 import './quota.css';
 
 export function planLabel(plan: string | null): string {
@@ -114,7 +115,11 @@ export function renderQuota(root: HTMLElement, quota: CodexQuotaState, compact: 
       add(title, 'span', '', slot.label);
       add(title, 'span', '', '剩余');
       const remaining = quotaWindow && Number.isFinite(quotaWindow.remainingPercent) ? Math.max(0, Math.min(100, quotaWindow.remainingPercent)) : null;
-      add(row, 'strong', 'quota-percentage', quotaWindow ? remainingLabel(quotaWindow.remainingPercent) : '未提供');
+      if (compact && remaining !== null) {
+        const meter = ring(`${slot.label}剩余额度`, Number(remaining.toFixed(1)));
+        meter.querySelector('span')!.className = 'quota-percentage';
+        row.append(meter);
+      } else add(row, 'strong', 'quota-percentage', quotaWindow ? remainingLabel(quotaWindow.remainingPercent) : '未提供');
       if (!compact && remaining !== null) {
         const bar = document.createElement('progress'); bar.max = 100; bar.value = remaining;
         bar.setAttribute('aria-label', `${slot.label}剩余额度`); row.append(bar);

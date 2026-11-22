@@ -5,7 +5,7 @@ import { mkdir, mkdtemp } from 'node:fs/promises';
 import { electronArgs } from './electron-args';
 import { settingsPage } from './settings-page';
 
-test('reset cards keep authoritative count, local cutoff detail and compact persona layout', async () => {
+test('reset cards keep authoritative count, local cutoff detail and compact persona layout', async ({}, info) => {
   await mkdir('.tmp', { recursive: true });
   const profile = await mkdtemp(path.resolve('.tmp/smoke-resets-'));
   const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1', DESKTOPPLAY_TEST_NO_ONBOARDING: '1' };
@@ -45,6 +45,17 @@ test('reset cards keep authoritative count, local cutoff detail and compact pers
       await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
       await expect(pet.locator('.quota-reset-count')).toHaveText('重置卡 8 张');
       await expect(pet.locator('.quota-reset-deadline')).toContainText('2031/06/01');
+      await expect(pet.getByRole('meter')).toHaveCount(2);
+      const countdown = pet.locator('.quota-countdown');
+      await expect(countdown).toHaveText(['6天 23小时 59分钟后重置', '重置时间未知']);
+      const fitsCountdown = () => countdown.evaluateAll(elements => elements.every(el => {
+        const cell = el.closest('.quota-window')!.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const text = range.getBoundingClientRect();
+        return range.getClientRects().length === 1 && text.left >= cell.left - 1 && text.right <= cell.right + 1;
+      }));
+      expect(await fitsCountdown()).toBe(true);
       const fits = await pet.locator('.quota-reset-credits').evaluate(el => {
         const rect = el.getBoundingClientRect(), parent = el.closest('.bubble-content')!.getBoundingClientRect();
         return rect.left >= parent.left && rect.right <= parent.right + 1 && rect.bottom <= parent.bottom + 1 && el.scrollWidth <= el.clientWidth + 1;
@@ -56,7 +67,19 @@ test('reset cards keep authoritative count, local cutoff detail and compact pers
       });
       expect(resetSpacing).toBeGreaterThanOrEqual(11.9);
       expect(await pet.locator('.bubble-content').evaluate(el => el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight + 1)).toBe(true);
-      await pet.screenshot({ path: `test-results/reset-cards-${appearance}.png`, omitBackground: true });
+      await pet.screenshot({ path: info.outputPath(`reset-cards-${appearance}.png`), omitBackground: true });
+      const bucket = base.codex.buckets[0];
+      const { secondary, primary } = bucket;
+      bucket.secondary = null;
+      await publish();
+      await expect(countdown).toHaveText(['6天 23小时 59分钟后重置']);
+      expect(await fitsCountdown()).toBe(true);
+      bucket.primary = { ...primary!, resetsAt: '2020-01-01T00:00:00.000Z' };
+      await publish();
+      await expect(countdown).toHaveText(['已到重置时间 · 待刷新']);
+      expect(await fitsCountdown()).toBe(true);
+      bucket.primary = primary;
+      bucket.secondary = secondary;
       await pet.locator('.bubble-close').dispatchEvent('click');
     }
     base.codex.status = 'error'; await publish();

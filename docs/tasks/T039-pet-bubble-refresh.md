@@ -2,13 +2,14 @@
 
 - 日期：2026-11-22（Asia/Shanghai）。
 - 需求：[R041](../REQUIREMENTS.md#r041设置窗口与桌宠气泡前端重设计t034t041)。
-- 负责人：待定（开工前确认）。
-- 分支：`feat/T039-pet-bubble-refresh`（建议）；目标合并分支：`main`。
+- 负责人：Codex。
+- 分支：`feat/T039-pet-bubble-refresh`；目标合并分支：`main`。
 - 工作目录：`D:\desktop1\DesktopPlay`。
-- 基准提交：待核实 `feat/T038-persona-studio` 的结果提交。
+- 基准提交：`05d6deb`（`feat/T038-persona-studio` 的本地结果），远端 `main` 核实为 `0d20d93`。
 - 结果提交：未提交。
-- 已有未提交修改：开工前核实工作区状态。
-- 状态：**待开发**。
+- 已有未提交修改：已将 T038 的实现、验证与交接文档保存在 T038 分支。T039 从干净工作区开始。
+- 本次未提交修改：桌宠气泡渲染、样式、受影响测试与交接文档。
+- 状态：**已实现并通过本地验证，待审查**。
 
 ## 依赖
 
@@ -18,7 +19,7 @@
 
 在不改变 192 DIP 气泡高度、命中区域、倒挂镜像与优先级队列语义的前提下，全面升级桌宠气泡的信息层级、操作入口与提醒辨识度。详细规格见 [UI_REDESIGN.md](../UI_REDESIGN.md#6-桌宠气泡升级规格)。
 
-### 计划改动清单
+### 实现
 
 - 更新 `src/renderer/pet.ts`、`src/renderer/bubble-pages.ts` 及对应样式：
   - 页码由 `1/5` 改为页码点 `● ○ ○`（保留 `aria-label="第 X 页，共 Y 页"`；超过 7 页自动退回文本）。
@@ -29,12 +30,15 @@
   - DeepSeek 用量页峰谷信息改为胶囊样式。
   - 对话提醒气泡左上角显示来源标签（Codex／ChatGPT／DSH／Gemini）；等待回应使用琥珀色描边与外圈高亮，完成提醒沿用人设色。
   - 气泡配色改由 CSS 变量驱动，保留原有 `gpt-theme`／`dragon-theme`／`gemini-theme` 作为默认回退。
-- 补充页码点与 `aria-label` 单元测试，以及气泡“更多”浮层、Gemini 订阅方案等隔离 smoke。
+- 浮层可用键盘打开，Tab 在操作区内循环，Esc 返回入口。简洁模式下保留模式切换和设置入口，原有挽留和软件更新专用按钮继续有效。
+- Gemini 方案徽标放在标题栏，为三项额度与重置时间保留正文宽高。默认对话提醒字号适配固定高度，较长自定义文案仍可滚动阅读。
+- 补充页码点与 `aria-label` 单测及浮层、订阅方案、最长倒计时和角色镜像的 Electron 回归。
 
 ## 兼容边界
 
 - 气泡尺寸（192 DIP 高）、`pet-layout.ts` 命中区域、倒挂／镜像规则、优先级队列、常驻／定时关闭与简洁模式过滤语义一律不变。
-- `BubbleStyle` 用户显式覆盖优先于主题变量。
+- `BubbleStyle` 颜色按字段生效，显式覆盖优先于等待提醒高亮、调色盘变量与人设默认色。基础样式为出厂值时允许主题注入 `--theme-pet-bubble-bg`、`--theme-pet-bubble-ink`、`--theme-pet-bubble-border`、`--theme-pet-bubble-ring`。这些变量只用于渲染，现有配置与 IPC 无需迁移。
+- Gemini 使用现有 `GeminiQuotaState.planName`，额度来源未返回方案名时省略徽标。简洁模式继续只显示剩余额度。
 - 不改动未解决的原生鼠标间歇偏移问题，也不得令其恶化。
 
 ## 验收条件
@@ -49,12 +53,17 @@
 
 | 检查 | 适用 | 结果 |
 | --- | --- | --- |
-| `npm.cmd run typecheck` | — | 未运行 |
-| `npm.cmd test` | — | 未运行 |
-| `npm.cmd run build` | — | 未运行 |
-| 气泡相关 smoke 与倒挂／镜像／简洁模式截图核对 | — | 未运行 |
+| `npm.cmd run typecheck` | T039 工作区 | 通过 |
+| `npm.cmd test` | T039 工作区 | 30 个文件、334 项通过，含页码点、无障碍标签和超过 7 页的回退 |
+| `npm.cmd run build` | T039 工作区 | 通过 |
+| `npm.cmd run test:smoke -- --grep 'comic bubble pages\|native layout\|global mode switches\|settings exposes\|Gemini skins\|reset cards\|completion bubbles persist\|version routing\|phrase controls\|bubble editor preserves\|studio keeps\|T023 reminder' --output .tmp/T039-smoke/verified` | Electron 开发构建、隔离配置 | 12 项通过。首轮 Gemini 徽标占用正文导致末行超出，移到标题栏后通过。GPT 以两种造型核对单／双窗口下的最长倒计时、未知与已到期状态及重置卡 |
+| 目视核对截图 | `.tmp/T039-smoke/verified/` | 通过。覆盖 DeepSeek 峰谷胶囊、GPT 原版与白龙、Gemini 方案标签、简洁模式、等待与完成提醒、倒挂与浮层 |
+| 真实账户和已知原生鼠标间歇偏移专项复测 | — | 未运行。隔离测试覆盖镜像后的菜单点击及等待队列与按下状态的交互 |
+
+## 临时文件滚动清理
+
+已确认路径在仓库内、无 Git 跟踪项和重解析点，删除 `.tmp/T037-smoke/`、`test-results/T037-reminders-1060x800.png` 和 `test-results/T037-guide-760x560.png`。T038、T039 验证产物和正式任务记录仍保留。
 
 ## 下一步
 
-1. 从 T038 分支的结果提交创建 `feat/T039-pet-bubble-refresh`。
-2. 核实 Gemini 订阅方案字段在现有额度数据结构中的来源，若缺失则明确展示兜底规则后再动工。
+审查 T039 工作区。开展 [T040](T040-super-palette.md) 时从 T039 的结果提交创建独立分支，并接入渲染层预留的主题变量。

@@ -217,7 +217,7 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
   } finally { await application?.close(); }
 });
 
-test('comic bubble pages, retention and appearances work without opening settings', async () => {
+test('comic bubble pages, retention and appearances work without opening settings', async ({}, info) => {
   await mkdir('.tmp', { recursive: true });
   const profile = await mkdtemp(path.resolve('.tmp/smoke-switch-'));
   const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1', DESKTOPPLAY_TEST_NO_ONBOARDING: '1' };
@@ -225,10 +225,33 @@ test('comic bubble pages, retention and appearances work without opening setting
   const application = await electron.launch({ executablePath: electronPath as unknown as string, args: electronArgs, cwd: process.cwd(), env });
   try {
     const pet = await application.firstWindow();
+    await pet.evaluate(() => window.desktopPlay.updateSettings({ bubbleDurationSeconds: 60 }));
+    const more = pet.locator('.bubble-more');
+    const openMore = () => more.click();
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
-    await expect(pet.locator('.bubble-page')).toHaveText('1/5');
+    await expect(pet.locator('.bubble-page')).toHaveText('● ○ ○ ○ ○');
+    await expect(pet.locator('.bubble-page')).toHaveAccessibleName('第 1 页，共 5 页');
+    await pet.screenshot({ path: info.outputPath('deepseek-usage.png'), omitBackground: true });
+    const bodyBounds = await pet.locator('.bubble-content').boundingBox();
+    await more.press('Enter');
+    const overlay = pet.getByRole('dialog', { name: '更多操作' });
+    await expect(overlay).toBeVisible();
+    await expect(pet.locator('.bubble-menu-close')).toBeFocused();
+    await pet.keyboard.press('Tab');
+    await expect(pet.locator('.bubble-switch')).toBeFocused();
+    expect(await pet.locator('.bubble-content').boundingBox()).toEqual(bodyBounds);
+    const popupBounds = (await overlay.boundingBox())!, bubbleBounds = (await pet.locator('.pet-bubble').boundingBox())!;
+    expect(popupBounds.x).toBeGreaterThanOrEqual(bubbleBounds.x);
+    expect(popupBounds.y).toBeGreaterThanOrEqual(bubbleBounds.y);
+    expect(popupBounds.x + popupBounds.width).toBeLessThanOrEqual(bubbleBounds.x + bubbleBounds.width);
+    expect(popupBounds.y + popupBounds.height).toBeLessThanOrEqual(bubbleBounds.y + bubbleBounds.height);
+    await pet.screenshot({ path: info.outputPath('deepseek-more.png'), omitBackground: true });
+    await pet.keyboard.press('Escape');
+    await expect(more).toBeFocused();
+    await expect(overlay).toBeHidden();
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
     await expect(pet.locator('.bubble-label')).toHaveText('用量小报告');
+    await openMore();
     await pet.locator('.bubble-switch').click();
     await expect(pet.locator('.bubble-label')).toHaveText('换角色挽留');
     await expect(pet.locator('.bubble-message')).toHaveText('我还想陪着你，再留一会儿，好吗？');
@@ -236,6 +259,7 @@ test('comic bubble pages, retention and appearances work without opening setting
     await expect(pet.locator('.bubble-label')).toHaveText('用量小报告');
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
     await expect(pet.locator('.bubble-message')).toHaveText('今天也要照顾好自己呀。');
+    await openMore();
     await pet.locator('.bubble-switch').click();
     await expect(pet.locator('.bubble-confirm')).toBeVisible();
     await expect(pet.locator('.bubble-message')).toHaveText('我还想陪着你，再留一会儿，好吗？');
@@ -243,23 +267,27 @@ test('comic bubble pages, retention and appearances work without opening setting
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
     await expect(pet.locator('.bubble-confirm')).toBeVisible();
     await pet.locator('.bubble-cancel').click();
-    await expect(pet.locator('.bubble-page')).toHaveText('3/5');
+    await expect(pet.locator('.bubble-page')).toHaveAccessibleName('第 3 页，共 5 页');
     await expect(pet.locator('.bubble-message')).toHaveText('今天也要照顾好自己呀。');
+    await openMore();
     await pet.locator('.bubble-switch').click();
     await pet.locator('.bubble-confirm').click();
     await expect(pet.locator('.pet-image')).toHaveAttribute('src', './assets/gpt.png');
-    await expect(pet.locator('.bubble-page')).toHaveText('1/5');
+    await expect(pet.locator('.bubble-page')).toHaveAccessibleName('第 1 页，共 5 页');
+    await openMore();
     await pet.locator('.bubble-appearance').click();
     await expect(pet.locator('.pet-image')).toHaveAttribute('src', './assets/gpt-dragon-v2.png');
+    await openMore();
     await pet.locator('.bubble-appearance').click();
     await expect(pet.locator('.pet-image')).toHaveAttribute('src', './assets/gpt.png');
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
     await pet.locator('.bubble-refresh').click();
-    await expect(pet.locator('.bubble-page')).toHaveText('2/5');
+    await expect(pet.locator('.bubble-page')).toHaveAccessibleName('第 2 页，共 5 页');
     await pet.locator('.bubble-close').click();
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
-    await expect(pet.locator('.bubble-page')).toHaveText('1/5');
+    await expect(pet.locator('.bubble-page')).toHaveAccessibleName('第 1 页，共 5 页');
     expect(application.windows()).toHaveLength(1);
+    await openMore();
     await pet.locator('.bubble-settings').click();
     await expect.poll(() => application.windows().some(page => page.url().includes('view=settings'))).toBe(true);
     const settings = application.windows().find(page => page.url().includes('view=settings'))!;
@@ -270,7 +298,7 @@ test('comic bubble pages, retention and appearances work without opening setting
   } finally { await application.close(); }
 });
 
-test('native layout follows the character anchor and keeps upside-down text upright', async () => {
+test('native layout follows the character anchor and keeps upside-down text upright', async ({}, info) => {
   const profile = await mkdtemp(path.resolve('.tmp/smoke-orientation-'));
   const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1', DESKTOPPLAY_TEST_NO_ONBOARDING: '1' };
   delete env.ELECTRON_RUN_AS_NODE;
@@ -278,7 +306,7 @@ test('native layout follows the character anchor and keeps upside-down text upri
   try {
     const pet = await application.firstWindow();
     await pet.locator('.pet-character').waitFor();
-    await pet.evaluate(() => window.desktopPlay.updateSettings({ snapToEdges: false, soundEnabled: false }));
+    await pet.evaluate(() => window.desktopPlay.updateSettings({ snapToEdges: false, soundEnabled: false, bubbleDurationSeconds: 60 }));
     const area = await application.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea);
     const moveCharacter = async (x: number, y: number) => {
       const state = await pet.evaluate(() => window.desktopPlay.getState());
@@ -298,13 +326,18 @@ test('native layout follows the character anchor and keeps upside-down text upri
     expect(boxes.bubble.y).toBeGreaterThan(boxes.character.y);
     expect(boxes.bubble.right).toBeLessThanOrEqual(boxes.viewport.width);
     expect(boxes.bubble.bottom).toBeLessThanOrEqual(boxes.viewport.height);
-    await pet.screenshot({ path: 'test-results/pet-inverted.png', omitBackground: true });
+    await pet.screenshot({ path: info.outputPath('pet-inverted.png'), omitBackground: true });
+    await pet.locator('.bubble-more').click();
+    await expect(pet.getByRole('dialog', { name: '更多操作' })).toBeVisible();
+    await pet.screenshot({ path: info.outputPath('pet-inverted-more.png'), omitBackground: true });
+    await pet.locator('.bubble-menu-close').click();
     await moveCharacter(area.x + area.width - 300, area.y + area.height - 260);
     await expect.poll(async () => await pet.evaluate(() => window.desktopPlay.getState())).toMatchObject({ flipped: false, verticalFlipped: false, bubblePlacement: 'above' });
     const layout = await pet.evaluate(() => ({ character: document.querySelector('.pet-character')!.getBoundingClientRect().toJSON(), bubble: document.querySelector('.pet-bubble')!.getBoundingClientRect().toJSON() }));
     expect(layout.bubble.x).toBeLessThan(layout.character.x);
     expect(layout.bubble.y).toBeLessThan(layout.character.y);
     // All tooltip/buttons remain in the native hit rectangle after an orientation change.
+    await pet.locator('.bubble-more').click();
     await pet.locator('.bubble-switch').click();
     await expect(pet.locator('.bubble-confirm')).toBeVisible();
   } finally { await application.close(); }

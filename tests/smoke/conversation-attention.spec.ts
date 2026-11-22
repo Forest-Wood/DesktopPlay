@@ -31,8 +31,8 @@ test('phrase controls preserve drafts, reject insufficient candidates and persis
     await app.close(); app = (await launch(fixture.profile)).app; pet = await app.firstWindow(); await expect(pet.locator('.pet-character')).toBeVisible();
     const saved = await pet.evaluate(async () => (await window.desktopPlay.getState()).settings.phraseDisplayByPersona.whale); expect(saved).toEqual({ count: 2, mode: 'sequential', selectedIndices: [0, 2] });
     const click = () => pet.evaluate(() => (document.querySelector('.pet-character') as HTMLElement).click());
-    await click(); await click(); await click(); await expect(pet.locator('.bubble-message')).toHaveText('First'); await click(); await expect(pet.locator('.bubble-message')).toHaveText('Third revised'); await click(); await expect(pet.locator('.bubble-page')).toHaveText('1/4');
+    await click(); await click(); await click(); await expect(pet.locator('.bubble-message')).toHaveText('First'); await click(); await expect(pet.locator('.bubble-message')).toHaveText('Third revised'); await click(); await expect(pet.locator('.bubble-page')).toHaveAccessibleName('第 1 页，共 4 页');
     await pet.evaluate(async () => { const { settings } = await window.desktopPlay.getState(); settings.phraseDisplayByPersona.whale.count = 0; await window.desktopPlay.updateSettings({ phraseDisplayByPersona: settings.phraseDisplayByPersona }); });
-    await expect(pet.locator('.bubble-page')).toHaveText('1/2');
+    await expect(pet.locator('.bubble-page')).toHaveAccessibleName('第 1 页，共 2 页');
   } finally { await app.close(); }
 });

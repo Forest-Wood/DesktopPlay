@@ -12,7 +12,7 @@ async function launch(profile?: string) {
   return { profile, app: await electron.launch({ executablePath: electronPath as unknown as string, args: electronArgs, env }) };
 }
 
-test('global mode switches cleanly, persists across restart, controls whale period and suppresses extra notices in simple mode', async () => {
+test('global mode switches cleanly, persists across restart, controls whale period and suppresses extra notices in simple mode', async ({}, info) => {
   const fixture = await launch(); let app = fixture.app;
   try {
     let pet = await app.firstWindow(); await expect(pet.locator('.pet-character')).toBeVisible();
@@ -22,11 +22,16 @@ test('global mode switches cleanly, persists across restart, controls whale peri
     await clickPet();
     await expect(pet.locator('.pet-period')).toBeVisible();
     await expect(pet.locator('.pet-period-status')).toContainText('API 时段');
-    await pet.locator('.bubble-mode').dispatchEvent('click');
+    await pet.locator('.bubble-more').click();
+    await pet.locator('.bubble-mode').click();
     await expect(pet.locator('.bubble-mode')).toHaveText('完整模式');
     await expect(pet.locator('.pet-period')).toBeHidden();
     await expect(pet.locator('.pet-spent-group')).toBeHidden();
+    await pet.locator('.bubble-more').click();
     await expect(pet.locator('.bubble-switch')).toBeHidden();
+    await expect(pet.locator('.bubble-appearance')).toBeHidden();
+    await expect(pet.locator('.bubble-settings')).toBeVisible();
+    await pet.locator('.bubble-menu-close').click();
     await app.evaluate(async ({ BrowserWindow }) => {
       const w = BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('view=pet'))!;
       const state = await w.webContents.executeJavaScript('window.desktopPlay.getState()');
@@ -39,6 +44,8 @@ test('global mode switches cleanly, persists across restart, controls whale peri
       BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('view=pet'))!.webContents.send('desktopplay:conversation-notice', notice);
     }, { id: 'simple-question', kind: 'question', source: 'codex', occurredAt: new Date().toISOString() } as ConversationNotice);
     await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'attention-codex');
+    await expect(pet.locator('.bubble-source')).toHaveText('Codex');
+    await pet.screenshot({ path: info.outputPath('codex-attention.png'), omitBackground: true });
     await pet.locator('.bubble-close').dispatchEvent('click');
     // Simple mode renders only remaining quota for GPT and suppresses click audio.
     await pet.evaluate(async () => { (window as any).played = 0; await window.desktopPlay.updateSettings({ soundEnabled: true, volume: 1 }); await window.desktopPlay.selectPet('gpt'); });
@@ -52,11 +59,12 @@ test('global mode switches cleanly, persists across restart, controls whale peri
     await expect(pet.locator('.quota-percentage')).toHaveText(['80%', '80%']);
     await expect(pet.locator('.quota-countdown')).toHaveCount(0);
     await expect(pet.locator('.quota-plan-badge')).toHaveCount(0);
+    await pet.screenshot({ path: info.outputPath('gpt-simple.png'), omitBackground: true });
     expect(await pet.evaluate(() => (window as any).played)).toBe(0);
     expect(await pet.evaluate(async () => (await window.desktopPlay.getState()).settings.bubbleProfilesByPersona)).toEqual(original);
     await app.close(); app = (await launch(fixture.profile)).app; pet = await app.firstWindow();
     expect(await pet.evaluate(async () => (await window.desktopPlay.getState()).settings.petMode)).toBe('simple');
-    await clickPet(); await pet.locator('.bubble-mode').dispatchEvent('click');
+    await clickPet(); await pet.locator('.bubble-more').click(); await pet.locator('.bubble-mode').click();
     await expect(pet.locator('.bubble-mode')).toHaveText('简洁模式');
     await clickPet(); await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'summary');
   } finally { await app.close(); }

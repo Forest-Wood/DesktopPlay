@@ -67,7 +67,8 @@ test('version routing, safe development mode, typed IPC, progress/cancel, drafts
     await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('view=pet'))!.showInactive());
     await expect(pet.locator('.pet-bubble')).toBeHidden();
     const now = Date.now(); await pet.clock.install({ time: now }); await pet.clock.pauseAt(now + 1000);
-    await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 }); await pet.locator('.bubble-switch').dispatchEvent('click');
+    await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
+    await pet.locator('.bubble-more').dispatchEvent('click'); await pet.locator('.bubble-switch').dispatchEvent('click');
     await emit('update-available', { version: '0.5.6' }); await pet.clock.runFor(5000); await expect(pet.locator('.bubble-confirm')).toBeVisible();
     await pet.locator('.bubble-cancel').dispatchEvent('click'); await pet.clock.runFor(3000); await expect(pet.locator('.bubble-label')).toHaveText('软件更新');
     await pet.evaluate(() => window.desktopPlay.updateSettings({ bubbleDurationSeconds: 2, bubbleHoverDelaySeconds: 1 }));

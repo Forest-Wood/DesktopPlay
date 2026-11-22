@@ -69,6 +69,7 @@ test('bubble editor preserves role/source drafts, previews actual styles, persis
     await expect(settings.locator('#bubble-time-override')).toBeHidden(); await expect(settings.locator('#bubble-time-fields')).toBeHidden();
     await settings.locator('#bubble-preview-placement').selectOption('below');
     await expect(settings.locator('#bubble-preview-pet .bubble-label')).toHaveText('白龙 DSH 专属提醒');
+    await expect(settings.locator('#bubble-preview-pet .bubble-message')).toHaveCSS('color', 'rgb(101, 67, 33)');
     expect(await settings.locator('#bubble-preview-pet .bubble-content').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
     await expect(settings.locator('#bubble-preview-pet .bubble-message b')).toHaveCount(0);
     await settings.locator('#bubble-preview-pet').screenshot({ path: 'test-results/T010-preview-dragon-below.png', omitBackground: true });

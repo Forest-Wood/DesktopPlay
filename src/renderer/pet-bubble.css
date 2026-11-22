@@ -1,0 +1,124 @@
+.pet-canvas {
+  --persona-bubble-bg: var(--whale-bubble-bg);
+  --persona-bubble-ink: var(--whale-bubble-ink);
+  --persona-bubble-border: var(--persona-whale);
+  --persona-bubble-ring: var(--whale-bubble-ring);
+}
+.pet-canvas.gpt-theme {
+  --persona-bubble-bg: var(--gpt-bubble-bg);
+  --persona-bubble-ink: var(--gpt-bubble-ink);
+  --persona-bubble-border: var(--persona-gpt);
+  --persona-bubble-ring: var(--gpt-bubble-ring);
+}
+.pet-canvas.dragon-theme {
+  --persona-bubble-bg: var(--dragon-bubble-bg);
+  --persona-bubble-ink: var(--dragon-bubble-ink);
+  --persona-bubble-border: var(--persona-dragon);
+  --persona-bubble-ring: var(--dragon-bubble-ring);
+}
+.pet-canvas.gemini-theme {
+  --persona-bubble-bg: var(--gemini-bubble-bg);
+  --persona-bubble-ink: var(--gemini-bubble-ink);
+  --persona-bubble-border: var(--persona-gemini);
+  --persona-bubble-ring: var(--gemini-bubble-ring);
+}
+.pet-canvas .pet-bubble {
+  --bubble-bg-source: var(--persona-bubble-bg);
+  --bubble-bg: var(--bubble-bg-source);
+  --bubble-ink: var(--persona-bubble-ink);
+  --bubble-border: var(--persona-bubble-border);
+  --bubble-ring: var(--persona-bubble-ring);
+}
+.pet-canvas .pet-bubble[data-theme-bubble] {
+  --bubble-bg-source: var(--theme-pet-bubble-bg, var(--persona-bubble-bg));
+  --bubble-ink: var(--theme-pet-bubble-ink, var(--persona-bubble-ink));
+  --bubble-border: var(--theme-pet-bubble-border, var(--persona-bubble-border));
+  --bubble-ring: var(--theme-pet-bubble-ring, var(--persona-bubble-ring));
+}
+.pet-canvas .pet-bubble[data-notice="attention"] {
+  --bubble-border: var(--pet-attention-border);
+  --bubble-ring: var(--pet-attention-ring);
+}
+.pet-bubble:is([data-notice="attention"], [data-notice="completion"]) .bubble-message {
+  font-size: calc(19px * var(--bubble-font-scale, 1));
+  line-height: 1.3;
+}
+
+.pet-bubble .bubble-page { flex: 0 0 auto; white-space: nowrap; }
+.pet-bubble .bubble-source,
+.pet-bubble .gemini-plan-badge,
+.pet-bubble .pet-period-status {
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: color-mix(in srgb, var(--bubble-border) 14%, transparent);
+  color: var(--bubble-ink);
+  font-size: 9px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+.pet-bubble .bubble-source { flex: 0 0 auto; white-space: nowrap; }
+.pet-bubble .gemini-plan-badge { max-width: 65px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pet-bubble .pet-period-next { margin-top: 2px; font-size: 9px; }
+.pet-bubble .bubble-footer button { padding-inline: 8px; }
+
+.pet-bubble .bubble-menu-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  align-content: center;
+  padding: 8px 13px;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--bubble-bg) 72%, transparent);
+  backdrop-filter: blur(7px);
+  color: var(--bubble-ink);
+  user-select: none;
+  cursor: default;
+}
+.bubble-menu-panel {
+  display: grid;
+  gap: 3px;
+  padding: 7px;
+  border: 1px solid color-mix(in srgb, var(--bubble-border) 40%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bubble-bg) 58%, var(--surface));
+  box-shadow: 0 3px 9px var(--pet-bubble-shadow);
+}
+.bubble-menu-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 20px;
+  padding-inline-start: 7px;
+  font-size: 10px;
+}
+.bubble-menu-panel button {
+  border-radius: 6px;
+  color: var(--bubble-ink);
+  background: transparent;
+  text-align: start;
+}
+.bubble-menu-panel > button {
+  min-height: 24px;
+  padding: 4px 7px;
+  font-size: 11px;
+}
+.bubble-menu-close { padding: 0 5px; font-size: 16px; line-height: 1.2; }
+.bubble-menu-panel button:hover { background: var(--bubble-ring); }
+.bubble-menu-panel button:focus-visible { outline: 2px solid var(--bubble-border); outline-offset: -2px; }
+
+.quota-compact .quota-window .ui-ring {
+  width: 37px;
+  background: conic-gradient(var(--bubble-border) var(--meter-value), var(--bubble-ring) 0);
+  margin: 1px 0;
+}
+.quota-compact .quota-window .ui-ring > span {
+  width: calc(100% - 6px);
+  background: var(--bubble-bg);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: -.15px;
+}
+.quota-compact .quota-window > .quota-percentage { font-size: 14px; line-height: 37px; }

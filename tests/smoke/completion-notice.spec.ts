@@ -143,6 +143,7 @@ test('completion bubbles persist through timing/hover, merge deferred events, us
     await pet.evaluate(() => window.desktopPlay.updateSettings({ bubbleDurationSeconds: 3, bubbleHoverDelaySeconds: 0 }));
 
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
+    await pet.locator('.bubble-more').dispatchEvent('click');
     await pet.locator('.bubble-switch').dispatchEvent('click');
     await emit('pending-one'); await emit('pending-two', 'chatgpt-work'); await pet.clock.runFor(150);
     await expect(pet.locator('.bubble-confirm')).toBeVisible();
@@ -154,7 +155,8 @@ test('completion bubbles persist through timing/hover, merge deferred events, us
     await expect(pet.locator('.bubble-label')).toHaveText('ChatGPT Work 结束提醒');
     await expect(pet.locator('.bubble-message')).toHaveText('ChatGPT Work 的这一轮结束啦，快去看看吧～');
     await pet.locator('.bubble-close').dispatchEvent('click');
-    await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 }); await pet.locator('.bubble-switch').dispatchEvent('click');
+    await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
+    await pet.locator('.bubble-more').dispatchEvent('click'); await pet.locator('.bubble-switch').dispatchEvent('click');
     await emit('switch-persona'); await pet.clock.runFor(150); await pet.locator('.bubble-confirm').dispatchEvent('click');
     await expect(pet.locator('.bubble-message')).toHaveText('Codex 这轮输出完成了，来看看结果吧。');
 
@@ -164,7 +166,8 @@ test('completion bubbles persist through timing/hover, merge deferred events, us
     await emit('dragging'); await pet.clock.runFor(150); await expect(bubble).toBeHidden();
     await pet.mouse.up(); await expect(pet.locator('.bubble-label')).toHaveText('Codex 完成提醒');
 
-    await pet.locator('.bubble-switch').dispatchEvent('click'); await emit('hidden-pending'); await pet.clock.runFor(150);
+    await pet.locator('.bubble-more').dispatchEvent('click'); await pet.locator('.bubble-switch').dispatchEvent('click');
+    await emit('hidden-pending'); await pet.clock.runFor(150);
     await pet.evaluate(() => window.desktopPlay.hidePet());
     await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].showInactive());
     await pet.clock.runFor(5000); await expect(bubble).toBeHidden();
