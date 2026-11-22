@@ -1,18 +1,26 @@
-import type { AppSettings, AppState, BubbleProfiles, BubbleScenario, BubbleStyle, DesktopApi, PetPersona, SoundSlot } from '../shared/types';
-import { COMPLETION_SOURCES, DEFAULT_BUBBLE_PROFILES, PERSONAS, SCENARIO_LABELS, SCENARIOS, petPersona, resolveBubble } from '../shared/bubble-settings';
+import type { AppSettings, AppState, BubbleProfiles, BubbleScenario, BubbleStyle, CompletionSource, DesktopApi, PetPersona, SoundSlot } from '../shared/types';
+import { COMPLETION_SOURCES, DEFAULT_BUBBLE_PROFILES, SCENARIO_LABELS, SCENARIOS, petPersona, resolveBubble } from '../shared/bubble-settings';
 import { demoGeminiQuota } from '../shared/gemini';
 import { GEMINI_PETS, DEFAULT_PET, GPT_PET, GPT_DRAGON_PET } from '../shared/defaults';
+import { PET_HEIGHT, PET_WIDTH } from '../shared/pet-layout';
 import { mountPet } from './pet';
 import { PersonaSoundPlayer } from './sounds';
+
+type Scenario = BubbleScenario | 'base';
+const SCENARIO_GROUPS: [string, Scenario[]][] = [
+  ['基础样式', ['base']],
+  ['数据页', ['usage', 'summary', 'phrases', 'retention']],
+  ['系统提示', ['low-balance', 'daily-budget', 'update']],
+  ['对话提醒', SCENARIOS.filter(id => id.startsWith('completion-') || id.startsWith('attention-'))],
+];
 
 export function mountBubbleEditor(root: HTMLElement, api: DesktopApi, initial: AppState, changed: () => void, notify: (text: string, error?: boolean) => void, acceptState: (state: AppState) => void) {
   let profiles = structuredClone(initial.settings.bubbleProfilesByPersona), persona = petPersona(initial), kind: BubbleScenario | 'base' = 'base';
   let state = initial, disposed = false, busy = false;
   const q = <T extends HTMLElement = HTMLElement>(selector: string) => root.querySelector<T>(selector)!;
-  root.innerHTML = `<p class="hint">各角色独立保存；自定义 GPT 沿用原版 GPT。先调整基础设置，再为不同提示单独覆盖。金额、额度和系统状态由程序生成。</p>
-    <div class="persona-tabs" role="group" aria-label="气泡桌宠">${PERSONAS.map((id, i) => `<button type="button" data-bubble-persona="${id}">${['小鲸鱼', '原版 GPT', '白龙', 'Gemini'][i]}</button>`).join('')}</div>
-    <label class="field-label" for="bubble-scenario">提示类型</label><select id="bubble-scenario"><option value="base">基础设置（所有气泡）</option>${SCENARIOS.map(id => `<option value="${id}">${SCENARIO_LABELS[id]}</option>`).join('')}</select>
-    <div class="bubble-editor-grid"><div class="bubble-editor-fields">
+  root.innerHTML = `<select id="bubble-scenario" class="sr-only" tabindex="-1" aria-hidden="true"><option value="base">基础设置（所有气泡）</option>${SCENARIOS.map(id => `<option value="${id}">${SCENARIO_LABELS[id]}</option>`).join('')}</select>
+    <div class="bubble-editor-grid"><nav class="bubble-scenes" aria-label="气泡场景">${SCENARIO_GROUPS.map(([label, ids]) => `<div class="bubble-scene-group" role="group" aria-label="${label}">${ids[0] === 'base' ? '' : `<h3>${label}</h3>`}${ids.map(id => `<button type="button" data-bubble-scene="${id}" aria-pressed="false">${id === 'base' ? label : SCENARIO_LABELS[id]}<span class="bubble-override" hidden>已覆盖基础样式或时间</span></button>`).join('')}</div>`).join('')}</nav>
+    <div class="bubble-editor-fields"><h3 id="bubble-editor-title"></h3>
       <div id="bubble-copy-fields"><label id="bubble-enabled-row" class="toggle-label"><span>显示此类气泡</span><input id="bubble-enabled" type="checkbox"></label>
       <label class="field-label" for="bubble-title">提示标题 · 最多 40 字符</label><input id="bubble-title" maxlength="40">
       <label class="field-label" for="bubble-copy">提示短句 · 最多 200 字符</label><textarea id="bubble-copy" maxlength="200" rows="3"></textarea><p class="hint">数据类气泡保留真实数据，在数据之外显示这段短句。陪伴短句列表继续在“陪伴短句”编辑。</p></div>
@@ -28,12 +36,17 @@ export function mountBubbleEditor(root: HTMLElement, api: DesktopApi, initial: A
       <label for="bubble-sound-volume">完成音效音量 <output id="bubble-sound-volume-value"></output></label><input id="bubble-sound-volume" type="range" min="0" max="1" step="0.05"><p id="bubble-sound-name" class="hint"></p>
       <div class="button-row">${[['choose', '更换音频'], ['preview', '试听'], ['stop', '停止'], ['reset', '恢复内置音效']].map(([action, label]) => `<button type="button" class="secondary-button" id="bubble-sound-${action}">${label}</button>`).join('')}</div><p id="bubble-sound-warning" class="sound-warning" role="status"></p><p class="hint">文件更换与恢复立即生效；开关、音量与文案保存后生效。试听使用草稿音量。</p></section>
       <div class="button-row"><button id="bubble-reset" class="text-button" type="button">恢复当前项默认</button><button id="bubble-inherit" class="text-button" type="button">取消当前分类覆盖</button></div>
-    </div><div class="bubble-editor-preview"><strong>实际气泡预览 · 示例数据</strong><label for="bubble-preview-placement">气泡位置</label><select id="bubble-preview-placement"><option value="above">上方</option><option value="below">下方／倒挂</option></select><div id="bubble-preview-pet" inert></div><p class="hint">预览使用与桌宠相同的渲染和排版。编辑不会切换桌面上的角色。</p></div></div>`;
+    </div><div class="bubble-editor-preview"><div class="bubble-preview-header"><strong>实时预览 <small>示例数据</small></strong><select id="bubble-preview-placement" aria-label="气泡位置"><option value="above">上方</option><option value="below">下方／倒挂</option></select></div><div id="bubble-preview-pet" inert></div></div></div>`;
   for (const field of root.querySelectorAll('input, textarea, select')) field.setAttribute('form', 'settings-form');
+  const scenes = root.querySelectorAll<HTMLButtonElement>('[data-bubble-scene]');
   const audio = new PersonaSoundPlayer(api, (_slot, text) => { if (!disposed) q('#bubble-sound-warning').textContent = text; }, undefined, COMPLETION_SOURCES.map(source => `completion-${source}` as const));
-  const fakeState = (): AppState => ({ ...state, petVisible: true, settings: { ...state.settings, bubbleProfilesByPersona: structuredClone(profiles), scale: .68, phrasesByPersona: { ...state.settings.phrasesByPersona, [persona]: ['工作一会儿，记得照顾自己。'] } },
+  const stage = q('.bubble-editor-preview');
+  const previewHeader = q('.bubble-preview-header');
+  const content = root.closest('.settings-content')!;
+  let previewScale = .68;
+  const fakeState = (): AppState => ({ ...state, petVisible: true, settings: { ...state.settings, bubbleProfilesByPersona: structuredClone(profiles), scale: previewScale, phrasesByPersona: { ...state.settings.phrasesByPersona, [persona]: ['工作一会儿，记得照顾自己。'] } },
     geminiQuota: demoGeminiQuota(), activePet: persona === 'gemini' ? 'gemini' : persona === 'whale' ? 'deepseek' : 'gpt', gptAppearance: persona === 'dragon' ? 'dragon' : 'classic', pet: persona === 'gemini' ? GEMINI_PETS[state.geminiAppearance] : persona === 'whale' ? DEFAULT_PET : persona === 'dragon' ? GPT_DRAGON_PET : GPT_PET,
-    effectiveScale: .68, flipped: false, verticalFlipped: q<HTMLSelectElement>('#bubble-preview-placement').value === 'below', bubblePlacement: q<HTMLSelectElement>('#bubble-preview-placement').value === 'below' ? 'below' : 'above',
+    effectiveScale: previewScale, flipped: false, verticalFlipped: q<HTMLSelectElement>('#bubble-preview-placement').value === 'below', bubblePlacement: q<HTMLSelectElement>('#bubble-preview-placement').value === 'below' ? 'below' : 'above',
     status: 'ready', error: null, warning: null, alert: null, balance: { currency: 'CNY', total: '28.36', granted: '0', toppedUp: '28.36', isAvailable: true, observedAt: new Date().toISOString() },
     ledger: { today: { date: '2026-10-21', currency: 'CNY', spent: '1.24', increased: '0', startedAt: '' }, history: [] },
     codex: { resetCredits: null, planType: 'pro', status: 'ready', source: 'codex-app-server', available: true, updatedAt: new Date().toISOString(), error: null, buckets: [{ id: 'example', name: '示例额度', planType: 'pro', primary: { usedPercent: 24, remainingPercent: 76, windowMinutes: 300, resetsAt: new Date(Date.now() + 7200000).toISOString() }, secondary: { usedPercent: 42, remainingPercent: 58, windowMinutes: 10080, resetsAt: new Date(Date.now() + 604800000).toISOString() }, creditsRemaining: null, unlimitedCredits: false }] },
@@ -41,6 +54,14 @@ export function mountBubbleEditor(root: HTMLElement, api: DesktopApi, initial: A
   const previewApi: DesktopApi = { ...api, onConversationNotice: () => () => {}, onCodexCompletion: () => () => {}, onPetHidden: () => () => {}, onUpdateAvailable: () => () => {}, setBubbleVisible: () => {}, setInteractive: () => {} };
   const preview = mountPet(q('#bubble-preview-pet'), previewApi, fakeState(), true);
   const updatePreview = () => { preview.update(fakeState()); preview.preview(kind === 'base' ? 'completion-deepseek-harness' : kind); };
+  const observer = new ResizeObserver(() => {
+    if (!stage.clientWidth) return;
+    const previewHeight = Math.max(150, content.clientHeight - previewHeader.offsetHeight - 28);
+    const nextScale = Math.min(.68, stage.clientWidth / PET_WIDTH, previewHeight / PET_HEIGHT);
+    if (nextScale !== previewScale) { previewScale = nextScale; updatePreview(); }
+  });
+  observer.observe(stage);
+  observer.observe(content);
   const soundSlot = () => kind as SoundSlot;
   const renderAudio = () => {
     const completion = kind.startsWith('completion-'); q('#bubble-completion-audio').hidden = !completion;
@@ -54,7 +75,15 @@ export function mountBubbleEditor(root: HTMLElement, api: DesktopApi, initial: A
   };
   const render = () => {
     const base = profiles[persona], config = kind === 'base' ? base : resolveBubble(profiles, persona, kind), rule = kind === 'base' ? null : base.rules[kind];
-    for (const button of root.querySelectorAll<HTMLButtonElement>('[data-bubble-persona]')) button.setAttribute('aria-pressed', String(button.dataset.bubblePersona === persona));
+    for (const button of scenes) {
+      const scenario = button.dataset.bubbleScene as Scenario;
+      const override = scenario === 'base' ? null : base.rules[scenario];
+      button.setAttribute('aria-pressed', String(scenario === kind));
+      const overridden = !!override && (Object.keys(override.style).length > 0 || Object.keys(override.timing).length > 0);
+      button.dataset.override = String(overridden);
+      button.querySelector<HTMLElement>('.bubble-override')!.hidden = !overridden;
+    }
+    q('#bubble-editor-title').textContent = kind === 'base' ? '基础样式' : SCENARIO_LABELS[kind];
     q<HTMLSelectElement>('#bubble-scenario').value = kind;
     q('#bubble-copy-fields').hidden = !rule;
     q('#bubble-enabled-row').hidden = !kind.startsWith('completion-') && !kind.startsWith('attention-') && !['low-balance', 'daily-budget', 'update'].includes(kind);
@@ -106,7 +135,14 @@ export function mountBubbleEditor(root: HTMLElement, api: DesktopApi, initial: A
   });
   q('#bubble-scenario').addEventListener('change', () => { audio.stop(); kind = q<HTMLSelectElement>('#bubble-scenario').value as typeof kind; render(); });
   q('#bubble-preview-placement').addEventListener('change', updatePreview);
-  for (const button of root.querySelectorAll<HTMLButtonElement>('[data-bubble-persona]')) button.addEventListener('click', () => { audio.stop(); persona = button.dataset.bubblePersona as PetPersona; audio.sync(persona, state.sounds); render(); });
+  const select = (scenario: Scenario, nextPersona = persona) => {
+    audio.stop();
+    kind = scenario;
+    persona = nextPersona;
+    audio.sync(persona, state.sounds);
+    render();
+  };
+  for (const button of scenes) button.addEventListener('click', () => select(button.dataset.bubbleScene as Scenario));
   q('#bubble-reset').addEventListener('click', () => {
     if (kind === 'base') { profiles[persona].style = structuredClone(DEFAULT_BUBBLE_PROFILES[persona].style); profiles[persona].timing = { ...DEFAULT_BUBBLE_PROFILES[persona].timing }; }
     else profiles[persona].rules[kind] = structuredClone(DEFAULT_BUBBLE_PROFILES[persona].rules[kind]);
@@ -124,10 +160,18 @@ export function mountBubbleEditor(root: HTMLElement, api: DesktopApi, initial: A
   audio.sync(persona, state.sounds); render();
   return {
     getProfiles: (): BubbleProfiles => structuredClone(profiles),
+    getCompletionVolume: (persona: PetPersona, source: CompletionSource) => profiles[persona].rules[`completion-${source}`].volume,
     fill: (settings: AppSettings) => { profiles = structuredClone(settings.bubbleProfilesByPersona); render(); },
-    update: (next: AppState) => { state = next; audio.sync(persona, state.sounds); renderAudio(); },
-    select: (scenario: BubbleScenario, nextPersona?: PetPersona) => { audio.stop(); kind = scenario; if (nextPersona) persona = nextPersona; audio.sync(persona, state.sounds); render(); },
+    update: (next: AppState) => {
+      const appearanceChanged = next.geminiAppearance !== state.geminiAppearance || next.settings.petMode !== state.settings.petMode;
+      state = next;
+      audio.sync(persona, state.sounds);
+      renderAudio();
+      if (appearanceChanged) updatePreview();
+    },
+    select,
+    setPersona: (nextPersona: PetPersona) => select(kind, nextPersona),
     stopAudio: () => audio.stop(),
-    dispose: () => { disposed = true; audio.dispose(); preview.dispose(); },
+    dispose: () => { disposed = true; observer.disconnect(); audio.dispose(); preview.dispose(); },
   };
 }

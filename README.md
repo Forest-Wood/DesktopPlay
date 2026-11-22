@@ -14,33 +14,36 @@ DesktopPet 是 Windows 桌宠。小鲸鱼显示 DeepSeek 余额，GPT 小伙伴�
 
 ## 桌宠与功能
 
-- 紧凑的漫画气泡、清晰的大字额度、按压弹性动画和音效；DeepSeek 使用蓝紫配色，GPT 原版使用薄荷绿，白龙使用淡紫配色。
-- 点击桌宠依次查看用量、用量总结和陪伴短句，默认 3 秒后收起；“气泡与文案”按桌宠设置时间、文案、颜色、字体及透明度，并可为各类提示单独覆盖。翻页不触发网络请求。气泡自动避开屏幕顶部。
+- 紧凑的漫画气泡、清晰的大字额度、按压弹性动画和音效；支持页码点、收敛后的“刷新 / 更多”上层浮层菜单，以及 GPT 迷你环形进度、Gemini 订阅方案标签和 DeepSeek 峰谷胶囊。
+- 点击桌宠依次查看用量、用量总结和陪伴短句，默认 3 秒后收起；设置窗口采用“首页总览、伙伴、账户、提醒中心、人设工作室、系统”六项导航，并支持导航草稿圆点与“放弃修改”。完整规范见 [DESIGN.md](DESIGN.md)。
+- “系统 → 外观与调色盘”提供松绿、薄荷、海盐蓝、星光紫、樱粉、暖杏、墨灰和跟随角色八套预设，支持主色 HEX／从当前角色取色、分区覆盖、CSS 轻纹理、强度调节与 WCAG AA 对比度保护，设置窗口与桌宠气泡可分开应用。
 - 桌宠左右自动朝屏幕中央；靠近屏幕工作区顶部时人物上下倒挂，文字和控件保持正向。支持拖动、四边吸附、透明区域穿透、置顶与托盘管理。
-- 导入 PNG、WebP、GIF，调整大小、短句和音量；小屏幕自动限制实际尺寸。
+- 导入 PNG、WebP、GIF，调整大小、可编辑伙伴昵称、短句和音量；小屏幕自动限制实际尺寸。
 - DeepSeek 余额自动刷新、今日已观测消费、余额增加记录、低余额和每日预算提醒。
 - 本地加密保存 API Key，开机启动默认关闭。
-- “关于 → 版本”检查、下载及重启更新，支持安装版和免安装版；默认启动 30 秒后、每 6 小时自动检查，可关闭自动检查。
+- “系统 → 版本与更新”检查、下载及重启更新，支持安装版和免安装版（含增量／差分更新与进度／ETA）；默认启动 30 秒后、每 6 小时自动检查，可关闭自动检查。
 - 设置或右键菜单切换 DeepSeek、GPT、Gemini 角色并记住选择；GPT 的原版、白龙和自定义图片作为独立造型保存，切换造型不影响 Codex 额度。
 - GPT 小伙伴显示 Codex 剩余百分比、额度窗口、重置时间及倒计时，支持自动和手动刷新。
-- Gemini 的经典和手绘造型共用台词、声音和气泡。简洁模式同时显示 Argon 周额度、Gemini 周额度和 Gemini 5 小时额度。完整模式及「账户与用量 → Gemini」还显示重置时间；关闭客户端后可通过已登录的 `agy` 1.1.11 或更新版本刷新。
-- 在「提醒与声音 → 对话提醒 → Gemini」中默认开启本机摘要只读监听，桌面 App、VS Code 与 IDE 无需配置 hook 即可接收任务完成与等待回应提醒；如需补充 `agy CLI` 完成提醒或区分错误／取消中止，可按需展开启用 Antigravity 完成 hook。各端状态见同一页面。
-- 小鲸鱼、原版 GPT、白龙和 Gemini 分别设置按下／松开音效；支持导入音频、试听和恢复内置音效。
-- 在“关于 → 卸载与数据”卸载当前安装版或当前运行的免安装版，并选择是否清理共享的本地数据。
+- Gemini 的经典和手绘造型共用台词、声音和气泡。简洁模式同时显示 Argon 周额度、Gemini 周额度和 Gemini 5 小时额度。完整模式及「账户 → Gemini」还显示重置时间与订阅方案；关闭客户端后可通过已登录的 `agy` 1.1.11 或更新版本刷新。
+- 在「提醒中心 → 对话提醒」中以统一来源矩阵管理 Gemini · Antigravity、Codex、ChatGPT App 与 DeepSeek Harness 的完成／等待开关、实时健康状态与展开式接入向导；Gemini 默认开启本机摘要只读监听，桌面 App、VS Code 与 IDE 无需配置 hook 即可接收任务完成与等待回应提醒。
+- 在「人设工作室」集中编辑 DeepSeek、GPT（原版与白龙）和 Gemini 的气泡、陪伴短句与 6 槽位音效；支持导入音频、试听和恢复内置音效。
+- 在“系统 → 卸载”卸载当前安装版或当前运行的免安装版，并选择是否清理共享的本地数据。
 
-![漫画对白气泡](docs/screenshots/v030-deepseek-usage.png)
+![首页总览设置界面（演示数据）](docs/previews/T041/settings-home.png)
 
-![白色设置界面](docs/previews/v0.5.1/settings-white.png)
+![提醒中心来源矩阵（演示数据）](docs/previews/T041/settings-reminders.png)
 
-![GPT Plus 额度气泡，完整倒计时保持单行（演示数据）](docs/previews/v0.5.1/gpt-classic-countdown.png)
+![人设工作室与实时预览（演示数据）](docs/previews/T041/settings-studio.png)
 
-![GPT 白龙用量页（演示数据）](docs/screenshots/v040-dragon-bottom.png)
+![外观与超级调色盘（演示数据）](docs/previews/T041/settings-palette.png)
 
-![GPT 白龙倒挂，文字保持正向](docs/screenshots/v040-dragon-inverted.png)
+![DeepSeek 桌宠用量气泡（演示数据）](docs/previews/T041/pet-deepseek.png)
 
+![GPT 白龙桌宠用量气泡（演示数据）](docs/previews/T041/pet-codex.png)
 
+![Gemini 桌宠用量气泡（演示数据）](docs/previews/T041/pet-gemini.png)
 
-![GPT 白龙造型预览](docs/screenshots/gpt-dragon-v2-preview.png)
+更多正式界面预览见 [docs/previews/T041/README.md](docs/previews/T041/README.md)。
 
 ## v1.0.0 升级说明
 

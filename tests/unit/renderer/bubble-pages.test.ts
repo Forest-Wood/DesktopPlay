@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AppState } from '../../../src/shared/types';
-import { nextPage, pageCount, summaryText, usageStatus } from '../../../src/renderer/bubble-pages';
+import { nextPage, pageCount, pageIndicator, summaryText, usageStatus } from '../../../src/renderer/bubble-pages';
 
 const state = (patch: Partial<AppState> = {}) => ({ activePet: 'deepseek', status: 'ready', balance: null, ledger: { today: null, history: [] }, codex: { buckets: [], updatedAt: null, status: 'idle' }, ...patch } as AppState);
 describe('speech bubble pages and local reports', () => {
@@ -9,6 +9,11 @@ describe('speech bubble pages and local reports', () => {
     expect(pageCount(phrases)).toBe(4);
     expect([0, 1, 2, 3].map(page => nextPage(page, phrases))).toEqual([1, 2, 3, 0]);
     expect(nextPage(1, [])).toBe(0);
+  });
+  it('labels the active dot and uses text for more than seven pages', () => {
+    expect(pageIndicator(0, 2)).toEqual({ text: '● ○', label: '第 1 页，共 2 页' });
+    expect(pageIndicator(6, 7)).toEqual({ text: '○ ○ ○ ○ ○ ○ ●', label: '第 7 页，共 7 页' });
+    expect(pageIndicator(2, 8)).toEqual({ text: '3/8', label: '第 3 页，共 8 页' });
   });
   it('does not infer balances or windows when data is missing', () => {
     expect(summaryText(state())).toContain('余额未知');

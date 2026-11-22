@@ -1,4 +1,4 @@
-import { COMPLETION_SOURCES, petPersona, resolveBubble, conversationEnabled } from '../shared/bubble-settings';
+import { COMPLETION_SOURCES, DEFAULT_BUBBLE_PROFILES, petPersona, resolveBubble, conversationEnabled } from '../shared/bubble-settings';
 import { PhrasePlayback } from '../shared/phrases';
 import { applyBubbleStyle } from './bubble-style';
 import type { AppState, DesktopApi, BubbleScenario, CompletionSource, AlertNotice, ConversationNotice } from '../shared/types';
@@ -7,8 +7,16 @@ import { money } from './format';
 import { deepseekBubblePeriod } from '../shared/deepseek-time';
 import { geminiStatus, renderGeminiQuota } from './gemini-quota';
 import { localTime, quotaStatus, renderQuota } from './quota';
-import { pageCount, nextPage, summaryText, usageStatus } from './bubble-pages';
+import { pageCount, nextPage, pageIndicator, summaryText, usageStatus } from './bubble-pages';
 import { PersonaSoundPlayer } from './sounds';
+import { petNickname } from '../shared/pet-nicknames';
+import { mountBubbleMore } from './bubble-more';
+import { mountPetTheme } from './theme';
+import './pet-bubble.css';
+
+const NOTICE_SOURCES: Record<CompletionSource, string> = {
+  codex: 'Codex', 'chatgpt-work': 'ChatGPT', 'deepseek-harness': 'DSH', antigravity: 'Gemini',
+};
 
 export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, demo: boolean) {
   let completionQueue: ConversationNotice[] = [];
@@ -38,11 +46,27 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const beginRound = () => { const owner = persona(state); phrasePlayer.begin(owner, state.settings.phraseDisplayByPersona[owner]); roundPhrases = phrasePlayer.lines(state.settings.phrasesByPersona[owner]); };
   const phrases = () => roundPhrases;
   beginRound();
-  root.innerHTML = `<div class="pet-canvas"><section class="pet-bubble" aria-live="polite" hidden><div class="bubble-top"><span class="bubble-label"></span><span class="bubble-page"></span><button class="bubble-mode" type="button"></button><button class="bubble-close" type="button" aria-label="关闭气泡">×</button></div><div class="bubble-content"><div class="bubble-balances"><span>余额<strong class="pet-balance"></strong></span><span class="pet-spent-group">今日已观测<strong class="pet-spent"></strong></span><div class="pet-period"><div class="pet-period-status"></div><div class="pet-period-next"></div></div></div><div class="bubble-quota"></div><p class="bubble-message"></p></div><div class="pet-status"></div><div class="bubble-footer"><button class="bubble-refresh" type="button">刷新</button><button class="bubble-switch" type="button">换角色</button><button class="bubble-appearance" type="button">换造型</button><button class="bubble-settings" type="button">设置</button></div><div class="bubble-retention-actions" hidden><button class="bubble-confirm" type="button">继续切换</button><button class="bubble-cancel" type="button">再陪一会儿</button></div></section><button type="button" class="pet-character"><span class="pet-mirror"><img class="pet-image" draggable="false" alt=""></span>${demo ? '<span class="pet-demo">本地演示</span>' : ''}</button></div>`;
+  root.innerHTML = `<div class="pet-canvas"><section class="pet-bubble" aria-live="polite" hidden>
+    <div class="bubble-top"><span class="bubble-source" hidden></span><span class="bubble-label"></span><span class="gemini-plan-badge" hidden></span><span class="bubble-page" role="img" hidden></span><button class="bubble-close" type="button" aria-label="关闭气泡">×</button></div>
+    <div class="bubble-content"><div class="bubble-balances"><span>余额<strong class="pet-balance"></strong></span><span class="pet-spent-group">今日已观测<strong class="pet-spent"></strong></span><div class="pet-period"><div class="pet-period-status"></div><div class="pet-period-next"></div></div></div><div class="bubble-quota"></div><p class="bubble-message"></p></div>
+    <div class="pet-status"></div>
+    <div class="bubble-footer"><button class="bubble-refresh" type="button">↻ 刷新</button><button class="bubble-update" type="button" hidden>查看更新</button><button class="bubble-more" type="button" aria-haspopup="dialog" aria-controls="pet-bubble-actions" aria-expanded="false"><span aria-hidden="true">⋯</span> 更多</button></div>
+    <div class="bubble-retention-actions" hidden><button class="bubble-confirm" type="button">继续切换</button><button class="bubble-cancel" type="button">再陪一会儿</button></div>
+    <div id="pet-bubble-actions" class="bubble-menu-overlay" role="dialog" aria-modal="true" aria-labelledby="pet-bubble-actions-title" hidden>
+      <div class="bubble-menu-panel">
+        <div class="bubble-menu-heading"><strong id="pet-bubble-actions-title">更多操作</strong><button class="bubble-menu-close" type="button" aria-label="返回气泡">×</button></div>
+        <button class="bubble-switch" type="button">换角色</button>
+        <button class="bubble-appearance" type="button">换造型</button>
+        <button class="bubble-mode" type="button"></button>
+        <button class="bubble-settings" type="button">打开设置</button>
+      </div>
+    </div></section><button type="button" class="pet-character"><span class="pet-mirror"><img class="pet-image" draggable="false" alt=""></span>${demo ? '<span class="pet-demo">本地演示</span>' : ''}</button></div>`;
   const query = <T extends HTMLElement = HTMLElement>(selector: string) => root.querySelector<T>(selector)!;
   const canvas = query('.pet-canvas'), character = query<HTMLButtonElement>('.pet-character'), image = query<HTMLImageElement>('.pet-image');
+  const updateTheme = mountPetTheme(canvas);
   const bubble = query('.pet-bubble'), message = query('.bubble-message'), quota = query('.bubble-quota'), status = query('.pet-status');
   const refresh = query<HTMLButtonElement>('.bubble-refresh'), confirm = query<HTMLButtonElement>('.bubble-confirm');
+  const more = mountBubbleMore(bubble);
   let soundWarning = '';
   const sounds = new PersonaSoundPlayer(api, (_slot, text) => { soundWarning = text; status.textContent = text; status.title = text; });
   const completionSounds = new PersonaSoundPlayer(api, (_slot, text) => { soundWarning = text; status.textContent = text; }, undefined, COMPLETION_SOURCES.map(source => `completion-${source}` as const));
@@ -50,7 +74,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   const setInteractive = (value: boolean) => { if (interactive !== value) { interactive = value; api.setInteractive(value); } };
   const endCompletion = () => { completionActive = false; activeConversation = null; playback++; completionSounds.stop(); };
   const flushNotices = () => { flushCompletion(); if (!completionActive && !completionQueue.length) { flushAlert(); flushUpdate(); } };
-  const close = () => { clearTimeout(timer); endCompletion(); visible = false; retention = false; hovered = false; notice = ''; bubble.hidden = true; api.setBubbleVisible(false); queueMicrotask(flushNotices); };
+  const close = () => { clearTimeout(timer); endCompletion(); more.close(false); visible = false; retention = false; hovered = false; notice = ''; bubble.hidden = true; api.setBubbleVisible(false); queueMicrotask(flushNotices); };
   const persistent = () => visible && !retention && (noticeKind === 'completion' || noticeKind === 'attention') && !!notice;
   const schedule = (duration = rule().timing.durationSeconds * 1000) => {
     clearTimeout(timer);
@@ -58,12 +82,31 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     if (persistent()) { if (rule().dismissal.mode === 'timed') timer = setTimeout(close, rule().dismissal.seconds * 1000); }
     else if (!(hovered && rule().timing.hoverDelaySeconds > 0)) timer = setTimeout(close, duration);
   };
+  const updateActionState = () => {
+    const serviceStatus = state.activePet === 'gemini' ? state.geminiQuota.status : state.activePet === 'gpt' ? state.codex.status : state.status;
+    refresh.disabled = refreshing || serviceStatus === 'loading';
+    refresh.textContent = refresh.disabled ? '刷新中' : '↻ 刷新';
+    for (const button of [confirm, query<HTMLButtonElement>('.bubble-cancel'), query<HTMLButtonElement>('.bubble-appearance'),
+      query<HTMLButtonElement>('.bubble-switch'), query<HTMLButtonElement>('.bubble-mode')]) button.disabled = switching;
+  };
   const render = () => {
     const isGemini = state.activePet === 'gemini', isGpt = state.activePet === 'gpt', usesQuota = isGpt || isGemini, total = simple() ? 1 : pageCount(phrases());
     if (page >= total) page = 0;
     const usage = page === 0 && !retention && !notice;
-    const config = rule(); applyBubbleStyle(bubble, config.style); bubble.dataset.scenario = scenario();
+    const kind = scenario(), owner = persona(state), profile = state.settings.bubbleProfilesByPersona[owner];
+    const config = rule(kind);
+    applyBubbleStyle(bubble, config.style, profile.style, DEFAULT_BUBBLE_PROFILES[owner].style, profile.rules[kind].style);
+    bubble.dataset.scenario = kind;
+    const source = query('.bubble-source');
+    source.hidden = !persistent();
+    source.textContent = source.hidden ? '' : NOTICE_SOURCES[completionSource];
+    bubble.dataset.notice = source.hidden ? '' : noticeKind;
     query('.bubble-label').textContent = simple() && usage ? '剩余额度' : config.title;
+    const plan = query('.gemini-plan-badge');
+    const planName = usage && isGemini && !simple() ? state.geminiQuota.planName?.trim() ?? '' : '';
+    plan.hidden = !planName;
+    plan.textContent = planName;
+    plan.title = planName;
     query('.bubble-mode').textContent = simple() ? '完整模式' : '简洁模式';
     query('.bubble-mode').setAttribute('aria-label', simple() ? '切换到完整模式' : '切换到简洁模式');
     bubble.classList.toggle('simple-mode', simple());
@@ -76,7 +119,16 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
       query('.pet-period-next').textContent = period.next;
       periodElement.title = period.title;
     }
-    query('.bubble-page').textContent = simple() || retention || notice ? '' : `${page + 1}/${total}`;
+    const counter = query('.bubble-page');
+    counter.hidden = simple() || retention || Boolean(notice);
+    if (!counter.hidden) {
+      const indicator = pageIndicator(page, total);
+      counter.textContent = indicator.text;
+      counter.setAttribute('aria-label', indicator.label);
+    } else {
+      counter.textContent = '';
+      counter.removeAttribute('aria-label');
+    }
     query('.bubble-balances').hidden = !usage || usesQuota; quota.hidden = !usage || !usesQuota;
     const fixed = retention ? '' : notice ? noticeKind === 'completion' ? '' : noticeKind === 'attention' ? completionSource === 'antigravity' ? activeConversation?.kind === 'approval' ? 'Gemini 有操作等你批准' : 'Gemini 有问题等你回答' : activeConversation?.kind === 'approval' ? '有操作需要你审批。' : '有问题需要你回答。' : notice : page === 1 ? summaryText(state) : page >= 2 ? phrases()[page - 2] ?? '' : '';
     message.hidden = usage && (simple() || !config.message);
@@ -102,13 +154,9 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     query('.bubble-appearance').hidden = simple() || !usesQuota || updateNotice;
     query('.bubble-refresh').hidden = updateNotice; query('.bubble-switch').hidden = simple() || updateNotice;
     query('.bubble-update').hidden = !updateNotice;
-    refresh.disabled = refreshing || (isGemini ? state.geminiQuota.status === 'loading' : isGpt ? state.codex.status === 'loading' : state.status === 'loading');
-    refresh.textContent = refresh.disabled ? '刷新中' : '刷新'; confirm.disabled = switching;
-    query<HTMLButtonElement>('.bubble-cancel').disabled = switching;
-    query<HTMLButtonElement>('.bubble-appearance').disabled = switching;
-    query<HTMLButtonElement>('.bubble-switch').disabled = switching;
+    updateActionState();
   };
-  const show = () => { visible = true; bubble.hidden = false; api.setBubbleVisible(true); render(); schedule(); };
+  const show = () => { more.close(); visible = true; bubble.hidden = false; api.setBubbleVisible(true); render(); schedule(); };
   const flushUpdate = () => {
     if (simple()) { pendingUpdate = null; return; }
     if (!pendingUpdate || disposed || hidden || visible || drag || retention || switching || completionQueue.length || completionActive || pendingAlert) return;
@@ -153,6 +201,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     const timingChanged = JSON.stringify(rule().dismissal) !== JSON.stringify(resolveBubble(next.settings.bubbleProfilesByPersona, persona(next), scenario()).dismissal) || (!persistent() && JSON.stringify(state.settings.bubbleProfilesByPersona) !== JSON.stringify(next.settings.bubbleProfilesByPersona));
     if (changedPet || state.sounds[persona(state)].press.revision !== next.sounds[persona(next)].press.revision || state.sounds[persona(state)].release.revision !== next.sounds[persona(next)].release.revision) soundWarning = '';
     state = next; hidden = !state.petVisible;
+    updateTheme(state);
     if (hidden) {
       clearCompletionPending();
       close();
@@ -161,6 +210,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     }
     sounds.sync(persona(state), state.sounds); completionSounds.sync(persona(state), state.sounds);
     if (modeChanged) {
+      more.close();
       page = 0; retention = false; pendingAlert = null; pendingUpdate = null;
       if (!completionActive) notice = '';
       if (simple()) { sounds.stop(); soundWarning = ''; }
@@ -176,7 +226,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     image.style.left = `${layout.image.x}px`; image.style.top = `${layout.image.y}px`; image.style.width = `${layout.image.width}px`; image.style.height = `${layout.image.height}px`;
     canvas.classList.toggle('flipped', state.flipped); canvas.classList.toggle('vertical-flipped', state.verticalFlipped); canvas.classList.toggle('bubble-below', state.bubblePlacement === 'below');
     canvas.classList.toggle('gpt-theme', state.activePet === 'gpt'); canvas.classList.toggle('dragon-theme', state.activePet === 'gpt' && state.gptAppearance === 'dragon'); canvas.classList.toggle('gemini-theme', state.activePet === 'gemini'); image.src = state.pet.url;
-    character.setAttribute('aria-label', `${state.pet.name}，${simple() ? '点击查看剩余额度' : '点击切换用量、小报告和陪伴短句'}，拖动调整位置，右键打开菜单`);
+    character.setAttribute('aria-label', `${petNickname(state)}，${simple() ? '点击查看剩余额度' : '点击切换用量、小报告和陪伴短句'}，拖动调整位置，右键打开菜单`);
     render();
     if (state.alert && state.alert.id !== lastAlertId) { lastAlertId = state.alert.id; if (!hidden && !simple()) pendingAlert = state.alert; }
     flushAlert();
@@ -189,7 +239,7 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
     if (kind === 'refresh') refreshing = true; else switching = true; render();
     try { const next = await action(); if (!disposed && ticket === operation && revision === started) update(next); if (!disposed && ticket === operation && !hidden && (kind === 'switch' || (kind === 'appearance' && !visible))) { retention = false; page = 0; if (!completionActive) notice = ''; show(); } }
     catch (error) { if (!disposed && ticket === operation) { status.textContent = error instanceof Error ? error.message : '操作失败，请重试。'; status.title = status.textContent; } }
-    finally { if (!disposed && ticket === operation) { refreshing = false; switching = false; refresh.disabled = state.activePet === 'gemini' ? state.geminiQuota.status === 'loading' : state.activePet === 'gpt' ? state.codex.status === 'loading' : state.status === 'loading'; refresh.textContent = refresh.disabled ? '刷新中' : '刷新'; confirm.disabled = false; query<HTMLButtonElement>('.bubble-cancel').disabled = false; query<HTMLButtonElement>('.bubble-appearance').disabled = false; query<HTMLButtonElement>('.bubble-switch').disabled = false; flushNotices(); } }
+    finally { if (!disposed && ticket === operation) { refreshing = false; switching = false; updateActionState(); flushNotices(); } }
   };
   const clicked = () => { if (retention || persistent()) return; endCompletion(); if (!visible) { page = 0; beginRound(); } else { page = simple() ? 0 : nextPage(page, phrases()); if (page === 0) beginRound(); } notice = ''; show(); if (page >= 2) phrasePlayer.viewed(page - 2); };
   character.addEventListener('pointerdown', event => { if (event.button !== 0) return; event.preventDefault(); drag = { id: event.pointerId, x: event.screenX, y: event.screenY, moved: false }; character.setPointerCapture(event.pointerId); character.classList.add('pressed'); setInteractive(true); play('press'); api.startDrag(); });
@@ -199,19 +249,17 @@ export function mountPet(root: HTMLElement, api: DesktopApi, initial: AppState, 
   character.addEventListener('click', event => { if (event.detail === 0) { play('press'); clicked(); play('release'); } });
   const menu = (event: Event) => { event.preventDefault(); void api.showMenu().catch(() => { status.textContent = '无法打开菜单，请重试。'; }); };
   character.addEventListener('contextmenu', menu); character.addEventListener('keydown', event => { if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) menu(event); });
-  query('.bubble-mode').addEventListener('click', () => { void run(() => api.updateSettings({ petMode: simple() ? 'full' : 'simple' }), 'mode'); });
+  query('.bubble-mode').addEventListener('click', () => { more.close(); void run(() => api.updateSettings({ petMode: simple() ? 'full' : 'simple' }), 'mode'); });
   query('.bubble-close').addEventListener('click', close);
-  bubble.addEventListener('click', event => { if (persistent() && !(event.target instanceof Element && event.target.closest('button, a, input, select, textarea'))) close(); });
+  bubble.addEventListener('click', event => { if (persistent() && !(event.target instanceof Element && event.target.closest('button, a, input, select, textarea, .bubble-menu-overlay'))) close(); });
   bubble.addEventListener('keydown', event => { if (persistent() && event.target === bubble && ['Enter', ' '].includes(event.key)) { event.preventDefault(); close(); } });
   refresh.addEventListener('click', () => { void run(() => state.activePet === 'gemini' ? api.refreshGeminiQuota() : state.activePet === 'gpt' ? api.refreshCodexQuota() : api.refreshBalance(), 'refresh'); });
-  query('.bubble-switch').addEventListener('click', () => { retention = true; clearTimeout(timer); render(); query('.bubble-content').scrollTop = 0; });
+  query('.bubble-switch').addEventListener('click', () => { more.close(false); retention = true; clearTimeout(timer); render(); query('.bubble-content').scrollTop = 0; confirm.focus({ preventScroll: true }); });
   confirm.addEventListener('click', () => { const target = state.activePet === 'gpt' ? 'gemini' : state.activePet === 'gemini' ? 'deepseek' : 'gpt'; void run(() => api.selectPet(target), 'switch'); });
-  query('.bubble-cancel').addEventListener('click', () => { retention = false; render(); schedule(); flushNotices(); });
-  query('.bubble-appearance').addEventListener('click', () => { void run(() => state.activePet === 'gemini' ? api.selectGeminiAppearance(state.geminiAppearance === 'classic' ? 'sketch' : 'classic') : api.selectGptAppearance(state.gptAppearance === 'dragon' ? 'classic' : 'dragon'), 'appearance'); });
-  query('.bubble-settings').addEventListener('click', () => { void api.openSettings().catch(() => { status.textContent = '无法打开设置，请重试。'; }); });
-  const updateButton = document.createElement('button'); updateButton.type = 'button'; updateButton.className = 'bubble-update'; updateButton.textContent = '查看更新'; updateButton.hidden = true;
-  query('.bubble-footer').prepend(updateButton);
-  updateButton.addEventListener('click', () => { close(); void api.openSettings('version').catch(() => { status.textContent = '无法打开版本页，请从托盘重试。'; }); });
+  query('.bubble-cancel').addEventListener('click', () => { retention = false; render(); more.focusTrigger(); schedule(); flushNotices(); });
+  query('.bubble-appearance').addEventListener('click', () => { more.close(); void run(() => state.activePet === 'gemini' ? api.selectGeminiAppearance(state.geminiAppearance === 'classic' ? 'sketch' : 'classic') : api.selectGptAppearance(state.gptAppearance === 'dragon' ? 'classic' : 'dragon'), 'appearance'); });
+  query('.bubble-settings').addEventListener('click', () => { more.close(); void api.openSettings().catch(() => { status.textContent = '无法打开设置，请重试。'; }); });
+  query('.bubble-update').addEventListener('click', () => { close(); void api.openSettings('version').catch(() => { status.textContent = '无法打开版本页，请从托盘重试。'; }); });
   bubble.addEventListener('pointerenter', () => { hovered = true; if (!persistent() && rule().timing.hoverDelaySeconds > 0) clearTimeout(timer); });
   bubble.addEventListener('pointerleave', () => { hovered = false; if (!persistent() && rule().timing.hoverDelaySeconds > 0) schedule(rule().timing.hoverDelaySeconds * 1000); });
   const pointerMove = (event: PointerEvent) => { if (!drag) setInteractive(Boolean(event.target instanceof Element && event.target.closest('.pet-character, .pet-bubble'))); };

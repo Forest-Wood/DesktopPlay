@@ -4,6 +4,7 @@ import { appendFile, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { zstdCompressSync, constants } from 'node:zlib';
 import { electronArgs } from './electron-args';
+import { selectStudioPersona, settingsPage } from './settings-page';
 import type { CompletionSource } from '../../src/shared/types';
 
 const personas = ['whale', 'gpt', 'dragon'] as const;
@@ -55,12 +56,12 @@ test('bubble editor preserves role/source drafts, previews actual styles, persis
     const pet = await app.firstWindow(); await pet.evaluate(() => window.desktopPlay.openSettings());
     let settings = app.windows().find(page => page !== pet) ?? await app.waitForEvent('window');
     const errors: string[] = []; settings.on('pageerror', error => errors.push(error.message));
-    await settings.locator('[data-category="bubbles"]').click(); await settings.locator('#tab-bubbles').click();
+    await settingsPage(settings, 'bubbles');
     for (const persona of personas) {
-      await settings.locator(`[data-bubble-persona="${persona}"]`).click();
+      await selectStudioPersona(settings, persona);
       for (const source of sources) { await settings.locator('#bubble-scenario').selectOption(`completion-${source}`); await settings.locator('#bubble-copy').fill(`${persona} ${source} <b>独立文案</b>`); }
     }
-    await settings.locator('[data-bubble-persona="dragon"]').click(); await settings.locator('#bubble-scenario').selectOption('completion-deepseek-harness');
+    await selectStudioPersona(settings, 'dragon'); await settings.locator('#bubble-scenario').selectOption('completion-deepseek-harness');
     await settings.locator('#bubble-copy').fill('长文案'.repeat(66) + '完成');
     await settings.locator('#bubble-title').fill('白龙 DSH 专属提醒'); await settings.locator('#bubble-sound-enabled').check(); await settings.locator('#bubble-sound-volume').fill('0.65');
     await settings.locator('#bubble-style-override').check(); await settings.locator('#bubble-color-background').fill('#ffeedd'); await settings.locator('#bubble-color-ink').fill('#654321');
@@ -68,18 +69,22 @@ test('bubble editor preserves role/source drafts, previews actual styles, persis
     await expect(settings.locator('#bubble-time-override')).toBeHidden(); await expect(settings.locator('#bubble-time-fields')).toBeHidden();
     await settings.locator('#bubble-preview-placement').selectOption('below');
     await expect(settings.locator('#bubble-preview-pet .bubble-label')).toHaveText('白龙 DSH 专属提醒');
+    await expect(settings.locator('#bubble-preview-pet .bubble-message')).toHaveCSS('color', 'rgb(101, 67, 33)');
     expect(await settings.locator('#bubble-preview-pet .bubble-content').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
     await expect(settings.locator('#bubble-preview-pet .bubble-message b')).toHaveCount(0);
     await settings.locator('#bubble-preview-pet').screenshot({ path: 'test-results/T010-preview-dragon-below.png', omitBackground: true });
     const audio = path.resolve('public/assets/completion.wav'); await app.evaluate(({ dialog }, audio) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [audio] }); }, audio);
     await settings.locator('#bubble-sound-choose').click(); await expect(settings.locator('#bubble-sound-name')).toContainText('自定义');
-    await settings.locator('[data-category="reminders"]').click(); await settings.locator('#tab-completion').click();
+    await settingsPage(settings, 'completion');
     await expect(settings.locator('input[name="chatgptCompletionEnabled"]')).toBeChecked(); await settings.locator('input[name="chatgptCompletionEnabled"]').uncheck();
     await app.evaluate(({ dialog }, directory) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [directory] }); }, f.sessions);
-    await settings.locator('.integration-card[data-source="deepseek-harness"] .integration-details > summary').click();
+    await settings.locator('.integration-card[data-source="deepseek-harness"] [data-reminder-guide]').click();
     await settings.locator('#dsh-choose-directory').click(); await expect(settings.locator('#dsh-directory')).toHaveValue(f.sessions);
-    await settings.locator('[data-edit-completion="deepseek-harness"]').click(); await expect(settings.locator('#bubble-title')).toHaveValue('白龙 DSH 专属提醒');
-    await settings.locator('#save-settings').click(); await expect(settings.locator('#operation-status')).toContainText('设置已保存');
+    await settings.locator('[data-edit-completion="deepseek-harness"]').click();
+    await expect(settings.locator('[data-studio-role="whale"]')).toHaveAttribute('aria-pressed', 'true');
+    await selectStudioPersona(settings, 'dragon');
+    await expect(settings.locator('#bubble-title')).toHaveValue('白龙 DSH 专属提醒');
+    await settings.locator('#save-settings').click(); await expect(settings.locator('#save-hint')).toHaveText('设置已保存');
     const saved = await settings.evaluate(() => window.desktopPlay.getState());
     for (const persona of personas) for (const source of sources) if (!(persona === 'dragon' && source === 'deepseek-harness')) expect(saved.settings.bubbleProfilesByPersona[persona].rules[`completion-${source}`].message).toBe(`${persona} ${source} <b>独立文案</b>`);
     expect(saved.settings.bubbleProfilesByPersona.dragon.rules['completion-deepseek-harness']).toMatchObject({ soundEnabled: true, volume: .65, timing: {}, style: { fontScale: 1.25, backgroundOpacity: .6 } });

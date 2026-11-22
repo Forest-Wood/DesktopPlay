@@ -1,9 +1,9 @@
 import { test, expect, _electron as electron } from '@playwright/test';
-import type { Page } from '@playwright/test';
 import electronPath from 'electron';
 import path from 'node:path';
 import { appendFile, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { electronArgs } from './electron-args';
+import { selectStudioPersona, settingsPage } from './settings-page';
 import { codexHistoryFixture } from '../fixtures/codex-history';
 
 const metadata = (id: string) => `${JSON.stringify({ type: 'session_meta', payload: { id, source: 'vscode' } })}\n`;
@@ -12,9 +12,6 @@ async function launch(profile: string, home: string) {
   const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1', DESKTOPPLAY_TEST_NO_ONBOARDING: '1', DESKTOPPLAY_TEST_CODEX_HOME: home };
   delete env.ELECTRON_RUN_AS_NODE;
   return electron.launch({ executablePath: electronPath as unknown as string, args: electronArgs, env });
-}
-async function page(settings: Page, category: string, tab: string) {
-  await settings.locator(`[data-category="${category}"]`).click(); await settings.locator(`#tab-${tab}`).click();
 }
 async function profile() {
   await mkdir('.tmp', { recursive: true });
@@ -65,31 +62,31 @@ test('local events use editable persona text, preserve drafts and focus, respect
     await pet.evaluate(() => { window.desktopPlay.onCodexCompletion(() => { document.body.dataset.completionCount = String(Number(document.body.dataset.completionCount ?? 0) + 1); }); });
     await pet.evaluate(() => window.desktopPlay.openSettings());
     const settings = application.windows().find(win => win !== pet) ?? await application.waitForEvent('window');
-    await page(settings, 'reminders', 'completion');
+    await settingsPage(settings, 'completion');
     await expect(settings.locator('#completion-enabled')).toBeChecked();
     const custom = { whale: '小鲸鱼：GPT 已完成', gpt: '<b>GPT 输出完成</b>', dragon: '白龙已经替你等到答复了。' };
     const defaults = ['Codex 已经回复完啦，快去看看吧～', 'Codex 这轮输出完成了，来看看结果吧。', 'Codex 的答复已送达，我替你守候着。'];
-    await page(settings, 'bubbles', 'bubbles'); await settings.locator('#bubble-scenario').selectOption('completion-codex');
+    await settingsPage(settings, 'bubbles'); await settings.locator('#bubble-scenario').selectOption('completion-codex');
     for (const [index, persona] of (['whale', 'gpt', 'dragon'] as const).entries()) {
-      await settings.locator(`[data-bubble-persona="${persona}"]`).click();
+      await selectStudioPersona(settings, persona);
       await expect(settings.locator('#bubble-copy')).toHaveValue(defaults[index]);
       await settings.locator('#bubble-copy').fill(custom[persona]);
     }
     await settings.locator('#bubble-reset').click();
     await expect(settings.locator('#bubble-copy')).toHaveValue(defaults[2]);
     await settings.locator('#bubble-copy').fill(custom.dragon);
-    await page(settings, 'account', 'codex'); await page(settings, 'bubbles', 'bubbles');
+    await settingsPage(settings, 'codex'); await settingsPage(settings, 'bubbles');
     for (const persona of ['whale', 'gpt', 'dragon'] as const) {
-      await settings.locator(`[data-bubble-persona="${persona}"]`).click();
+      await selectStudioPersona(settings, persona);
       await expect(settings.locator('#bubble-copy')).toHaveValue(custom[persona]);
     }
     expect((await settings.evaluate(() => window.desktopPlay.getState())).settings.bubbleProfilesByPersona.whale.rules['completion-codex'].message).toBe(defaults[0]);
-    await page(settings, 'reminders', 'completion');
+    await settingsPage(settings, 'completion');
 
     const chosen = path.join(f.directory, 'chosen-codex'); await mkdir(path.join(chosen, 'sessions'), { recursive: true });
     const chosenFile = path.join(chosen, 'sessions', 'desktop.jsonl'); await writeFile(chosenFile, metadata('chosen-client') + finished('before-choice'));
     await application.evaluate(({ dialog }, directory) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [directory] }); }, chosen);
-    await settings.locator('.integration-card[data-source="codex"] .integration-details > summary').click();
+    await settings.locator('.integration-card[data-source="codex"] [data-reminder-guide]').click();
     await settings.locator('#completion-choose-directory').click();
     await expect(settings.locator('#completion-directory')).toHaveValue(chosen);
     expect((await settings.evaluate(() => window.desktopPlay.getState())).settings.codexCompletionDirectory).toBeNull();
@@ -146,6 +143,7 @@ test('completion bubbles persist through timing/hover, merge deferred events, us
     await pet.evaluate(() => window.desktopPlay.updateSettings({ bubbleDurationSeconds: 3, bubbleHoverDelaySeconds: 0 }));
 
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
+    await pet.locator('.bubble-more').dispatchEvent('click');
     await pet.locator('.bubble-switch').dispatchEvent('click');
     await emit('pending-one'); await emit('pending-two', 'chatgpt-work'); await pet.clock.runFor(150);
     await expect(pet.locator('.bubble-confirm')).toBeVisible();
@@ -157,7 +155,8 @@ test('completion bubbles persist through timing/hover, merge deferred events, us
     await expect(pet.locator('.bubble-label')).toHaveText('ChatGPT Work 结束提醒');
     await expect(pet.locator('.bubble-message')).toHaveText('ChatGPT Work 的这一轮结束啦，快去看看吧～');
     await pet.locator('.bubble-close').dispatchEvent('click');
-    await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 }); await pet.locator('.bubble-switch').dispatchEvent('click');
+    await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
+    await pet.locator('.bubble-more').dispatchEvent('click'); await pet.locator('.bubble-switch').dispatchEvent('click');
     await emit('switch-persona'); await pet.clock.runFor(150); await pet.locator('.bubble-confirm').dispatchEvent('click');
     await expect(pet.locator('.bubble-message')).toHaveText('Codex 这轮输出完成了，来看看结果吧。');
 
@@ -167,7 +166,8 @@ test('completion bubbles persist through timing/hover, merge deferred events, us
     await emit('dragging'); await pet.clock.runFor(150); await expect(bubble).toBeHidden();
     await pet.mouse.up(); await expect(pet.locator('.bubble-label')).toHaveText('Codex 完成提醒');
 
-    await pet.locator('.bubble-switch').dispatchEvent('click'); await emit('hidden-pending'); await pet.clock.runFor(150);
+    await pet.locator('.bubble-more').dispatchEvent('click'); await pet.locator('.bubble-switch').dispatchEvent('click');
+    await emit('hidden-pending'); await pet.clock.runFor(150);
     await pet.evaluate(() => window.desktopPlay.hidePet());
     await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].showInactive());
     await pet.clock.runFor(5000); await expect(bubble).toBeHidden();

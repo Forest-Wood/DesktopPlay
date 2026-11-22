@@ -5,11 +5,8 @@ import path from 'node:path';
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { fitScale } from '../../src/main/geometry';
 import { electronArgs } from './electron-args';
+import { selectStudioPersona, settingsPage } from './settings-page';
 
-async function settingsPage(page: Page, category: string, tab: string) {
-  await page.locator(`[data-category="${category}"]`).click();
-  await page.locator(`#tab-${tab}`).click();
-}
 
 function soundFixture(seed: number): Buffer {
   const rate = 8000, samples = rate * 6, bytes = Buffer.alloc(44 + samples * 2);
@@ -32,7 +29,7 @@ test('custom audio import/preview/reset and uninstall safeguards', async () => {
     const settings = application.windows().find(page => page.url().includes('view=settings'))!;
     const pet = application.windows().find(page => page.url().includes('view=pet'))!;
     const errors: string[] = []; for (const page of [settings, pet]) page.on('pageerror', error => errors.push(error.message));
-    await settingsPage(settings, 'reminders', 'sound');
+    await settingsPage(settings, 'sound');
     await settings.locator('input[name="soundEnabled"]').uncheck();
     await settings.locator('#volume').fill('0.45');
     const filename = path.join(profile, 'whale-press.wav'); await writeFile(filename, soundFixture(1));
@@ -66,7 +63,7 @@ test('custom audio import/preview/reset and uninstall safeguards', async () => {
       dialog.showMessageBox = async () => ({ response: 0, checkboxChecked: false });
     });
     expect(await settings.evaluate(() => window.desktopPlay.requestUninstall(false))).toEqual({ started: false });
-    await settingsPage(settings, 'about', 'uninstall');
+    await settingsPage(settings, 'uninstall');
     await expect(settings.locator('#uninstall-data')).toHaveText(profile);
     expect(errors).toEqual([]);
   } finally { await application.close(); }
@@ -91,25 +88,25 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
     await expect(pet.locator('.pet-image')).toBeVisible();
     expect(await settings.evaluate(() => typeof (window as unknown as { require?: unknown }).require)).toBe('undefined');
     expect(await settings.evaluate(() => window.desktopPlay.getState())).toMatchObject({ hasApiKey: false, status: 'unconfigured' });
-    await settingsPage(settings, 'pet', 'appearance');
+    await settingsPage(settings, 'behavior');
     await settings.locator('#scale').fill('1.25');
-    await settingsPage(settings, 'reminders', 'sound');
+    await settingsPage(settings, 'sound');
     await settings.locator('input[name="soundEnabled"]').uncheck();
-    await settingsPage(settings, 'bubbles', 'bubbles');
+    await settingsPage(settings, 'bubbles');
     await settings.locator('#bubble-profile-duration').fill('7');
     await settings.locator('#bubble-profile-hover').fill('4');
-    await settingsPage(settings, 'reminders', 'reminders');
+    await settingsPage(settings, 'reminders');
     await settings.locator('#low-balance').fill('10.12345678');
-    await settingsPage(settings, 'pet', 'appearance');
+    await settingsPage(settings, 'behavior');
     await expect(settings.locator('#scale')).toHaveValue('1.25');
-    await settingsPage(settings, 'bubbles', 'bubbles');
+    await settingsPage(settings, 'bubbles');
     await expect(settings.locator('#bubble-profile-duration')).toHaveValue('7');
     await expect(settings.locator('#bubble-profile-hover')).toHaveValue('4');
     expect((await settings.evaluate(() => window.desktopPlay.getState())).settings).toMatchObject({ bubbleDurationSeconds: 3, bubbleHoverDelaySeconds: 0 });
-    await settingsPage(settings, 'pet', 'appearance');
+    await settingsPage(settings, 'appearance');
     expect((await settings.evaluate(() => window.desktopPlay.getState())).settings.scale).toBe(1);
     await settings.getByRole('button', { name: '保存设置', exact: true }).click();
-    await expect(settings.locator('#operation-status')).toContainText('设置已保存');
+    await expect(settings.locator('#save-hint')).toHaveText('设置已保存');
     await expect.poll(async () => (await settings.evaluate(() => window.desktopPlay.getState())).settings.scale).toBe(1.25);
     const windows = await application.evaluate(({ BrowserWindow, screen }) => BrowserWindow.getAllWindows().map(w => ({ isPet: w.webContents.getURL().includes('view=pet'), bounds: w.getBounds(), area: screen.getDisplayMatching(w.getBounds()).workArea, alwaysOnTop: w.isAlwaysOnTop() })));
     const petWindow = windows.find(w => w.isPet)!;
@@ -123,7 +120,7 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
 
     const imported = path.resolve('public/assets/whale.png');
     await application.evaluate(({ dialog }, filename) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filename] }); }, imported);
-    await settingsPage(settings, 'pet', 'appearance');
+    await settingsPage(settings, 'appearance');
     await settings.locator('#choose-pet').click();
     await expect.poll(async () => (await settings.evaluate(() => window.desktopPlay.getState())).pet.isCustom).toBe(true);
     expect(await settings.locator('#pet-preview-image').evaluate((img: HTMLImageElement) => img.src.startsWith('data:image/png;base64,'))).toBe(true);
@@ -150,7 +147,7 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
     await expect(pet.locator('.pet-bubble')).toBeVisible();
     await pet.screenshot({ path: 'test-results/gpt-pet.png', omitBackground: true });
-    await settingsPage(settings, 'account', 'codex');
+    await settingsPage(settings, 'codex');
     await pet.locator('.bubble-close').click();
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
     const quotaState = await settings.evaluate(() => window.desktopPlay.getState());
@@ -169,14 +166,14 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
       await expect(settings.locator('.quota-stale')).toBeVisible();
     }
     await application.evaluate(({ BrowserWindow }, state) => { for (const win of BrowserWindow.getAllWindows()) win.webContents.send('desktopplay:state', state); }, quotaState);
-    await settingsPage(settings, 'pet', 'companionship');
-    for (const persona of ['whale', 'gpt', 'dragon', 'gemini']) {
-      await settings.locator(`[data-persona="${persona}"]`).click();
+    await settingsPage(settings, 'companionship');
+    for (const persona of ['whale', 'gpt', 'dragon', 'gemini'] as const) {
+      await selectStudioPersona(settings, persona);
       await settings.locator('#phrases').fill(`smoke-${persona}`);
       await settings.locator('#phrase-count').fill('1');
     }
-    await settingsPage(settings, 'about', 'guide');
-    await settingsPage(settings, 'pet', 'companionship');
+    await settingsPage(settings, 'guide');
+    await settingsPage(settings, 'companionship');
     await expect(settings.locator('#phrases')).toHaveValue('smoke-gemini');
     await settings.getByRole('button', { name: '保存设置', exact: true }).click();
     await expect.poll(async () => (await settings.evaluate(() => window.desktopPlay.getState())).settings.phrasesByPersona).toEqual({ whale: ['smoke-whale'], gpt: ['smoke-gpt'], dragon: ['smoke-dragon'], gemini: ['smoke-gemini'] });
@@ -186,15 +183,13 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
       for (let click = 0; click < 3; click++) await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
       await expect(pet.locator('.bubble-message')).toHaveText(`smoke-${appearance === 'dragon' ? 'dragon' : 'gpt'}`);
     }
-    for (const [category, tabs] of Object.entries({ pet: ['appearance', 'behavior', 'companionship'], account: ['overview', 'codex', 'gemini', 'records'], reminders: ['completion', 'reminders', 'sound'], bubbles: ['bubbles'], about: ['version', 'guide', 'licenses', 'uninstall'] })) {
-      for (const tab of tabs) {
-        await settingsPage(settings, category, tab);
-        await expect(settings.locator(`#${tab}`)).toBeVisible();
-        await expect(settings.locator('[role="tabpanel"]:visible')).toHaveCount(1);
-        expect(await settings.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true);
-      }
+    for (const tab of ['appearance', 'behavior', 'overview', 'codex', 'gemini', 'records', 'completion', 'reminders', 'bubbles', 'companionship', 'sound', 'version', 'guide', 'licenses', 'uninstall'] as const) {
+      await settingsPage(settings, tab);
+      await expect(settings.locator(`#${tab}`)).toBeVisible();
+      await expect(settings.locator('[role="tabpanel"]:visible')).toHaveCount(1);
+      expect(await settings.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true);
     }
-    await settingsPage(settings, 'account', 'codex');
+    await settingsPage(settings, 'codex');
     await settings.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
     const pageBackground = () => settings.evaluate(() => ({ color: getComputedStyle(document.body).backgroundColor, image: getComputedStyle(document.body).backgroundImage, scheme: getComputedStyle(document.body).colorScheme }));
     await expect.poll(pageBackground).toEqual({ color: 'rgb(255, 255, 255)', image: 'none', scheme: 'light' });
@@ -211,6 +206,8 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
     await expect.poll(() => application!.windows().length).toBe(2);
     await expect.poll(() => application!.windows().some(page => page.url().includes('view=settings'))).toBe(true);
     const restarted = application.windows().find(page => page.url().includes('view=settings'))!;
+    await expect(restarted.locator('#home')).toBeVisible();
+    await settingsPage(restarted, 'codex');
     await expect(restarted.locator('#codex-status')).toBeVisible();
     expect((await restarted.evaluate(() => window.desktopPlay.getState())).settings).toMatchObject({ scale: 1.25, soundEnabled: false, lowBalanceThreshold: '10.12345678', bubbleProfilesByPersona: { whale: { timing: { durationSeconds: 7, hoverDelaySeconds: 4 } }, gpt: { timing: { durationSeconds: 3, hoverDelaySeconds: 0 } } } });
     expect((await restarted.evaluate(() => window.desktopPlay.getState())).activePet).toBe('gpt');
@@ -220,7 +217,7 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
   } finally { await application?.close(); }
 });
 
-test('comic bubble pages, retention and appearances work without opening settings', async () => {
+test('comic bubble pages, retention and appearances work without opening settings', async ({}, info) => {
   await mkdir('.tmp', { recursive: true });
   const profile = await mkdtemp(path.resolve('.tmp/smoke-switch-'));
   const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1', DESKTOPPLAY_TEST_NO_ONBOARDING: '1' };
@@ -228,10 +225,33 @@ test('comic bubble pages, retention and appearances work without opening setting
   const application = await electron.launch({ executablePath: electronPath as unknown as string, args: electronArgs, cwd: process.cwd(), env });
   try {
     const pet = await application.firstWindow();
+    await pet.evaluate(() => window.desktopPlay.updateSettings({ bubbleDurationSeconds: 60 }));
+    const more = pet.locator('.bubble-more');
+    const openMore = () => more.click();
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
-    await expect(pet.locator('.bubble-page')).toHaveText('1/5');
+    await expect(pet.locator('.bubble-page')).toHaveText('● ○ ○ ○ ○');
+    await expect(pet.locator('.bubble-page')).toHaveAccessibleName('第 1 页，共 5 页');
+    await pet.screenshot({ path: info.outputPath('deepseek-usage.png'), omitBackground: true });
+    const bodyBounds = await pet.locator('.bubble-content').boundingBox();
+    await more.press('Enter');
+    const overlay = pet.getByRole('dialog', { name: '更多操作' });
+    await expect(overlay).toBeVisible();
+    await expect(pet.locator('.bubble-menu-close')).toBeFocused();
+    await pet.keyboard.press('Tab');
+    await expect(pet.locator('.bubble-switch')).toBeFocused();
+    expect(await pet.locator('.bubble-content').boundingBox()).toEqual(bodyBounds);
+    const popupBounds = (await overlay.boundingBox())!, bubbleBounds = (await pet.locator('.pet-bubble').boundingBox())!;
+    expect(popupBounds.x).toBeGreaterThanOrEqual(bubbleBounds.x);
+    expect(popupBounds.y).toBeGreaterThanOrEqual(bubbleBounds.y);
+    expect(popupBounds.x + popupBounds.width).toBeLessThanOrEqual(bubbleBounds.x + bubbleBounds.width);
+    expect(popupBounds.y + popupBounds.height).toBeLessThanOrEqual(bubbleBounds.y + bubbleBounds.height);
+    await pet.screenshot({ path: info.outputPath('deepseek-more.png'), omitBackground: true });
+    await pet.keyboard.press('Escape');
+    await expect(more).toBeFocused();
+    await expect(overlay).toBeHidden();
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
     await expect(pet.locator('.bubble-label')).toHaveText('用量小报告');
+    await openMore();
     await pet.locator('.bubble-switch').click();
     await expect(pet.locator('.bubble-label')).toHaveText('换角色挽留');
     await expect(pet.locator('.bubble-message')).toHaveText('我还想陪着你，再留一会儿，好吗？');
@@ -239,6 +259,7 @@ test('comic bubble pages, retention and appearances work without opening setting
     await expect(pet.locator('.bubble-label')).toHaveText('用量小报告');
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
     await expect(pet.locator('.bubble-message')).toHaveText('今天也要照顾好自己呀。');
+    await openMore();
     await pet.locator('.bubble-switch').click();
     await expect(pet.locator('.bubble-confirm')).toBeVisible();
     await expect(pet.locator('.bubble-message')).toHaveText('我还想陪着你，再留一会儿，好吗？');
@@ -246,34 +267,38 @@ test('comic bubble pages, retention and appearances work without opening setting
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
     await expect(pet.locator('.bubble-confirm')).toBeVisible();
     await pet.locator('.bubble-cancel').click();
-    await expect(pet.locator('.bubble-page')).toHaveText('3/5');
+    await expect(pet.locator('.bubble-page')).toHaveAccessibleName('第 3 页，共 5 页');
     await expect(pet.locator('.bubble-message')).toHaveText('今天也要照顾好自己呀。');
+    await openMore();
     await pet.locator('.bubble-switch').click();
     await pet.locator('.bubble-confirm').click();
     await expect(pet.locator('.pet-image')).toHaveAttribute('src', './assets/gpt.png');
-    await expect(pet.locator('.bubble-page')).toHaveText('1/5');
+    await expect(pet.locator('.bubble-page')).toHaveAccessibleName('第 1 页，共 5 页');
+    await openMore();
     await pet.locator('.bubble-appearance').click();
     await expect(pet.locator('.pet-image')).toHaveAttribute('src', './assets/gpt-dragon-v2.png');
+    await openMore();
     await pet.locator('.bubble-appearance').click();
     await expect(pet.locator('.pet-image')).toHaveAttribute('src', './assets/gpt.png');
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
     await pet.locator('.bubble-refresh').click();
-    await expect(pet.locator('.bubble-page')).toHaveText('2/5');
+    await expect(pet.locator('.bubble-page')).toHaveAccessibleName('第 2 页，共 5 页');
     await pet.locator('.bubble-close').click();
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
-    await expect(pet.locator('.bubble-page')).toHaveText('1/5');
+    await expect(pet.locator('.bubble-page')).toHaveAccessibleName('第 1 页，共 5 页');
     expect(application.windows()).toHaveLength(1);
+    await openMore();
     await pet.locator('.bubble-settings').click();
     await expect.poll(() => application.windows().some(page => page.url().includes('view=settings'))).toBe(true);
     const settings = application.windows().find(page => page.url().includes('view=settings'))!;
     await expect(settings.locator('#codex-status')).toHaveText('未连接 Codex');
-    await settingsPage(settings, 'pet', 'appearance');
+    await settingsPage(settings, 'appearance');
     await settings.locator('#select-deepseek').click();
     await expect(pet.locator('.pet-image')).toHaveAttribute('src', './assets/whale.png');
   } finally { await application.close(); }
 });
 
-test('native layout follows the character anchor and keeps upside-down text upright', async () => {
+test('native layout follows the character anchor and keeps upside-down text upright', async ({}, info) => {
   const profile = await mkdtemp(path.resolve('.tmp/smoke-orientation-'));
   const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1', DESKTOPPLAY_TEST_NO_ONBOARDING: '1' };
   delete env.ELECTRON_RUN_AS_NODE;
@@ -281,7 +306,7 @@ test('native layout follows the character anchor and keeps upside-down text upri
   try {
     const pet = await application.firstWindow();
     await pet.locator('.pet-character').waitFor();
-    await pet.evaluate(() => window.desktopPlay.updateSettings({ snapToEdges: false, soundEnabled: false }));
+    await pet.evaluate(() => window.desktopPlay.updateSettings({ snapToEdges: false, soundEnabled: false, bubbleDurationSeconds: 60 }));
     const area = await application.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea);
     const moveCharacter = async (x: number, y: number) => {
       const state = await pet.evaluate(() => window.desktopPlay.getState());
@@ -301,13 +326,18 @@ test('native layout follows the character anchor and keeps upside-down text upri
     expect(boxes.bubble.y).toBeGreaterThan(boxes.character.y);
     expect(boxes.bubble.right).toBeLessThanOrEqual(boxes.viewport.width);
     expect(boxes.bubble.bottom).toBeLessThanOrEqual(boxes.viewport.height);
-    await pet.screenshot({ path: 'test-results/pet-inverted.png', omitBackground: true });
+    await pet.screenshot({ path: info.outputPath('pet-inverted.png'), omitBackground: true });
+    await pet.locator('.bubble-more').click();
+    await expect(pet.getByRole('dialog', { name: '更多操作' })).toBeVisible();
+    await pet.screenshot({ path: info.outputPath('pet-inverted-more.png'), omitBackground: true });
+    await pet.locator('.bubble-menu-close').click();
     await moveCharacter(area.x + area.width - 300, area.y + area.height - 260);
     await expect.poll(async () => await pet.evaluate(() => window.desktopPlay.getState())).toMatchObject({ flipped: false, verticalFlipped: false, bubblePlacement: 'above' });
     const layout = await pet.evaluate(() => ({ character: document.querySelector('.pet-character')!.getBoundingClientRect().toJSON(), bubble: document.querySelector('.pet-bubble')!.getBoundingClientRect().toJSON() }));
     expect(layout.bubble.x).toBeLessThan(layout.character.x);
     expect(layout.bubble.y).toBeLessThan(layout.character.y);
     // All tooltip/buttons remain in the native hit rectangle after an orientation change.
+    await pet.locator('.bubble-more').click();
     await pet.locator('.bubble-switch').click();
     await expect(pet.locator('.bubble-confirm')).toBeVisible();
   } finally { await application.close(); }

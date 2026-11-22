@@ -1,6 +1,8 @@
 import { dateInZone, systemTimeZone } from '../../shared/deepseek-time';
 import { COMPLETION_SOURCES, PERSONAS, validateBubbleProfiles } from '../../shared/bubble-settings';
 import { phraseDisplays, validatePhraseDisplays } from '../../shared/phrases';
+import { normalizePetNicknames } from '../../shared/pet-nicknames';
+import { normalizeTheme } from '../../shared/theme';
 import { createHash, randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -36,6 +38,12 @@ function settings(patch: unknown, base = DEFAULT_SETTINGS): AppSettings {
       if (typeof value !== 'boolean') throw new Error('开关设置无效');
     } else if (key === 'petMode') {
       if (value !== 'simple' && value !== 'full') throw new Error('桌宠模式无效');
+    } else if (key === 'petNicknames') {
+      result.petNicknames = normalizePetNicknames(value);
+      continue;
+    } else if (key === 'theme') {
+      result.theme = normalizeTheme(value);
+      continue;
     } else if (key === 'scale' || key === 'volume') {
       if (typeof value !== 'number' || !Number.isFinite(value) || value < (key === 'scale' ? 0.5 : 0) || value > (key === 'scale' ? 2 : 1)) throw new Error('数值设置无效');
     } else if (key === 'bubbleDurationSeconds' || key === 'bubbleHoverDelaySeconds') {

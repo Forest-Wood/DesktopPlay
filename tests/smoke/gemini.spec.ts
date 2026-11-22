@@ -6,18 +6,20 @@ import { DatabaseSync } from 'node:sqlite';
 import { waitingSummary } from '../fixtures/gemini-summary';
 import { spawn } from 'node:child_process';
 import { electronArgs } from './electron-args';
+import { settingsPage } from './settings-page';
 
-test('Gemini skins, quota rows, Stop relay and saved profile', async () => {
+test('Gemini skins, quota rows, Stop relay and saved profile', async ({}, info) => {
   await mkdir('.tmp', { recursive: true });
   const profile = await mkdtemp(path.resolve('.tmp/T024-smoke-'));
   const home = path.join(profile, 'gemini-test-home');
   await mkdir(path.join(home, 'config'), { recursive: true });
   await writeFile(path.join(home, 'config/hooks.json'), '{"existing":{"enabled":false}}');
   const quota = path.join(home, 'quota.json');
-  await writeFile(quota, JSON.stringify({ groups: [{ buckets: [
+  const quotaFixture = { groups: [{ buckets: [
     { id: 'gemini-5h', remaining_fraction: .37 }, { id: 'gemini-argon-wtu-weekly', remaining_fraction: 0 },
     { id: 'gemini-weekly', remaining_fraction: .62 },
-  ] }] }));
+  ] }] };
+  await writeFile(quota, JSON.stringify({ ...quotaFixture, planName: 'AI Pro' }));
   const env = { ...process.env, DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1', DESKTOPPLAY_TEST_NO_ONBOARDING: '1' };
   delete (env as NodeJS.ProcessEnv).ELECTRON_RUN_AS_NODE;
   const launch = () => electron.launch({ executablePath: electronPath as unknown as string, args: electronArgs, env });
@@ -26,7 +28,7 @@ test('Gemini skins, quota rows, Stop relay and saved profile', async () => {
     const pet = await app.firstWindow();
     await pet.evaluate(() => window.desktopPlay.openSettings());
     const settings = app.windows().find(w => w !== pet) ?? await app.waitForEvent('window');
-    await settings.locator('[data-category="pet"]').click();
+    await settingsPage(settings, 'appearance');
     await settings.locator('#select-gemini').click();
     await expect(settings.locator('#app')).toHaveClass(/gemini-theme/);
     await expect(pet.locator('.pet-canvas')).toHaveClass(/gemini-theme/);
@@ -36,20 +38,25 @@ test('Gemini skins, quota rows, Stop relay and saved profile', async () => {
     await settings.locator('#gemini-sketch').click();
     await expect(pet.locator('.pet-image')).toHaveAttribute('src', /gemini-sketch.png/);
     await settings.screenshot({ path: path.join(profile, 'gemini-appearance.png') });
-    await settings.locator('[data-category="account"]').click(); await settings.locator('#tab-gemini').click();
+    await settingsPage(settings, 'gemini');
     await expect(settings.locator('#gemini-status-chip')).toHaveText('已连接 Antigravity');
     await expect(settings.locator('#gemini-quotas strong')).toHaveText(['0%', '62%', '37%']);
     await expect(settings.locator('#gemini-quotas progress')).toHaveCount(3);
     await settings.screenshot({ path: path.join(profile, 'gemini-settings.png') });
     await pet.locator('.pet-character').dispatchEvent('click');
     const rows = pet.locator('.gemini-quota-row');
+    const plan = pet.locator('.gemini-plan-badge');
+    await expect(plan).toHaveText('AI Pro');
     expect(await rows.last().evaluate(el => el.getBoundingClientRect().bottom <= el.closest('.bubble-content')!.getBoundingClientRect().bottom + 1)).toBe(true);
-    await pet.screenshot({ path: path.join(profile, 'gemini-full.png') });
+    await pet.screenshot({ path: info.outputPath('gemini-full.png'), omitBackground: true });
+    await writeFile(quota, JSON.stringify(quotaFixture));
+    await pet.evaluate(() => window.desktopPlay.refreshGeminiQuota());
+    await expect(plan).toBeHidden();
     await pet.evaluate(() => window.desktopPlay.updateSettings({petMode:'simple'}));
     await expect(rows.locator('span')).toHaveText(['Argon 周额度', 'Gemini 周额度', 'Gemini 5 小时额度']);
     await expect(rows.locator('strong')).toHaveText(['0%', '62%', '37%']);
     expect(await rows.last().evaluate(el => el.getBoundingClientRect().bottom <= el.closest('.bubble-content')!.getBoundingClientRect().bottom + 1)).toBe(true);
-    await pet.screenshot({ path: path.join(profile, 'gemini-simple.png') });
+    await pet.screenshot({ path: info.outputPath('gemini-simple.png'), omitBackground: true });
     await pet.evaluate(() => { window.desktopPlay.onConversationNotice(n => { if (n.source === 'antigravity') document.body.dataset.geminiNotices = String(Number(document.body.dataset.geminiNotices ?? 0) + 1); }); });
     const summaryDir = path.join(home, 'antigravity');
     await mkdir(summaryDir, { recursive: true });
@@ -66,6 +73,8 @@ test('Gemini skins, quota rows, Stop relay and saved profile', async () => {
       // Default config (geminiHookEnabled=false): App/VS Code completion via conversation_summaries.db shows bubble.
       upsert.run('db-complete', 4, now, 'CASCADE_RUN_STATUS_IDLE', '', 0, 0, 0, now, -1, null);
       await expect(pet.locator('.pet-bubble')).toHaveAttribute('data-scenario', 'completion-antigravity');
+      await expect(pet.locator('.bubble-source')).toHaveText('Gemini');
+      await pet.screenshot({ path: info.outputPath('gemini-completion.png'), omitBackground: true });
       await expect(pet.locator('body')).toHaveAttribute('data-gemini-notices', '1');
       await pet.locator('.bubble-message').dispatchEvent('click');
       await pet.evaluate(() => window.desktopPlay.updateSettings({ geminiHookEnabled: true }));

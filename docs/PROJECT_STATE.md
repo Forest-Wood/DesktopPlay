@@ -1,9 +1,17 @@
 # DesktopPet 当前项目状态
 
-更新日期：2026-11-19（Asia/Shanghai）。入口：[协作指南](../AGENTS.md)、[需求登记](REQUIREMENTS.md)、[界面设计](../DESIGN.md)。
+更新日期：2026-11-22（Asia/Shanghai）。入口：[协作指南](../AGENTS.md)、[需求登记](REQUIREMENTS.md)、[界面设计](../DESIGN.md)。
 
 ## 当前任务
 
+- [T041／R041／R042](tasks/T041-ui-redesign-handoff.md)（2026-11-22，`docs/T041-ui-redesign-handoff`，基准 `46d5a0b`，**未提交，待审查**）：前端重设计文档与正式预览收尾完成。已将 T035–T040 规范迁入 [DESIGN.md](../DESIGN.md)，在隔离 Electron 下采集 8 张演示截图至 [docs/previews/T041/](previews/T041/README.md) 并更新 [README.md](../README.md)，精简 [UI_REDESIGN.md](UI_REDESIGN.md) 为交接索引，同步 [REQUIREMENTS.md](REQUIREMENTS.md) 状态。验证：8 张截图采集与脱敏目视审查、文档链接核对与 `git diff --check` 通过；未运行代码构建／单测（纯文档任务）。已按 `T(N-2)` 规则清理 `.tmp/T039-smoke`。
+- [T040／R042](tasks/T040-super-palette.md) 已在 `feat/T040-super-palette` 保存本地结果 `46d5a0b`（基准 `2654ca9`），实现超级调色盘、对比度保护、角色取色与设置／气泡分开生效。类型检查、构建、340 项单测、5 项相关 Electron 冒烟、两种尺寸截图与 T039 小鲸鱼气泡像素对比通过，待审查。
+- [T039／R041](tasks/T039-pet-bubble-refresh.md) 已在 `feat/T039-pet-bubble-refresh` 保存本地结果 `2654ca9`。气泡页码、浮层菜单、角色用量和提醒辨识已通过类型检查、构建、334 项单测、12 项相关 Electron 冒烟及截图核对，待审查。
+- [T038／R041](tasks/T038-persona-studio.md) 已在 `feat/T038-persona-studio` 保存本地结果 `05d6deb`。人设工作室、伙伴昵称及账户与系统页视觉更新已通过类型检查、构建、333 项单测、12 项相关 Electron 冒烟和两个尺寸的预览核对，待审查。
+- [T037／R041](tasks/T037-reminder-center.md) 已在 `feat/T037-reminder-center` 保存本地结果 `545a9a6`。提醒矩阵、接入向导、按当前人设试听和编辑、页底余额提醒已通过构建、331 项单测和相关 Electron 回归，待审查。
+- [T036／R041](tasks/T036-home-overview.md) 已在 `feat/T036-home-overview` 保存本地结果 `faea785`。三账户总览、提醒健康卡、当前伙伴和快捷操作已通过 327 项单测、8 项相关 Electron 冒烟、Edge 演示与截图核对，待审查。
+- [T035／R041](tasks/T035-ui-foundation.md) 已在 `feat/T035-settings-foundation` 保存本地结果 `ef88296`，提供六项导航、共享视觉变量、DOM 组件和草稿交互。322 项单测、19 项 Electron 冒烟及两个尺寸的截图核对通过，待审查。
+- [T034／R041／R042](tasks/T034-ui-redesign-plan.md) 规划已在原分支本地提交 `b07b82e`，基准为远端 `main` 的 `0d20d93`。规格、原型与未开始阶段见 [UI_REDESIGN.md](UI_REDESIGN.md) 和 [T034 原型](previews/T034/ui-mockup.html)。
 - [T033／R040](tasks/T033-release-v210.md) 已发布 [v2.1.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.1.0)。[PR #38](https://github.com/Forest-Wood/DesktopPlay/pull/38) 合入主线，标签 `v2.1.0` 指向 `07f774b`。[发布工作流 44549546635](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44549546635) 通过单测、Windows x64 打包、更新运行时与全部六项附件摘要（含 NSIS 与免安装版 `.blockmap`）及公告校验。
 - [T032／R039](tasks/T032-incremental-update.md) 已通过 [PR #37](https://github.com/Forest-Wood/DesktopPlay/pull/37) 合入主线 `5b6f13a`，随 v2.1.0 分发：实现 NSIS（`electron-updater` `.blockmap`）与 Portable（流式 Rabin CDC + `64 KiB` Range 合并 + 本地 `programPath` 扫描 + 完整 SHA-256 校验）增量／差分更新、自动回退整包、增量进度与回退 ETA 重置及 6 项 Release 资产校验；并在 `AGENTS.md` 补充前序未提交任务先原分支本地提交再切新分支的隔离规则。
 - [T031／R038](tasks/T031-prune-overdefensive-tests.md) 已通过 [PR #36](https://github.com/Forest-Wood/DesktopPlay/pull/36) 合入主线 `9adeb77`：精简 `tests/` 中过度防御与跨层重复测试，将 `update-helper-fixtures.ps1` 的 2 分钟等待超时改为 `-IncludeSlowTimeout` 显式开关，并将“避免过度防御性测试”原则写入 `AGENTS.md` 与 PR 模板。
@@ -22,7 +30,7 @@
 
 ## 有效限制与后续
 
-- 清理记录和既有视觉测试证据见 T022／T023 交接。自 T029 起执行临时测试文件滚动清理规则：完成任务 `T(N)` 时删除 `T(N-2)` 的非跟踪临时测试目录／产物（例如完成 T099 时删除 T097），保留最新两轮产物与所有跟踪文件／正式文档；本次准备 T033 已清理 T031 临时产物。
+- 临时文件按 `T(N-2)` 规则清理。T041 已清理 T039 的非跟踪测试目录（`.tmp/T039-smoke`）；保留 T040 与 T041 临时产物。T037 当时定位的 T035 临时产物仍保留，见 [T037 临时文件滚动清理](tasks/T037-reminder-center.md#临时文件滚动清理)。
 
 - 2026-11-12 GPT 额度只读排查（工作区 HEAD `cc318be`，保留全部既有 T022 未提交修改）：运行中安装版为 `D:\DesktopPet` v1.1.0，进程启动于 11-09，现存 VS Code Codex 扩展目录创建于 11-11。通过当前 `codex-quota.ts` 的发现及只读请求函数实测额度读取、解析成功，未记录账户身份或凭据。安装包代码与源代码均只在初始化发现程序，刷新失败不重新发现；旧扩展路径失效为高概率原因，未直接读取运行中缓存路径。建议完全退出并重开桌宠验证；尚未重启、未确认 UI 恢复、未修改业务代码或真实配置。诊断临时构建已在后续目录复核时确认不存在。若后续修复自动重新发现，另建任务分支；本次仅新增此排查记录，不归入 T022 实现结果。
 
@@ -31,4 +39,4 @@
 - 原生鼠标间歇偏移仍无根因结论，见 T010／T014／T022；T022 当前实现及基准对照均复现按住时位置偏移，不能用早期单次通过认定已解决。
 - 受限 Electron 存在启动超时／AppContainer 环境限制；隔离测试可在沙箱外运行，保持应用 Electron 沙箱启用。测试不得使用真实账户、账本或修改真实客户端设置。
 - appId、`%APPDATA%\DesktopPlay` 及安装／portable 共用数据保持兼容。等待与完成提示默认点击前常驻，可按场景设置定时关闭，隐藏／退出清空，不补历史。
-- 下一独立任务编号 T034／R041。
+- 下一独立任务编号：T042／R043（T035–T041 已预留给 R041／R042 的实现与收尾）。

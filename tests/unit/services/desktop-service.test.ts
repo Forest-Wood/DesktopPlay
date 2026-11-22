@@ -4,6 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { DesktopService } from '../../../src/main/services/desktop-service';
 import { DEFAULT_COMPLETION_MESSAGES, DEFAULT_PHRASES_BY_PERSONA } from '../../../src/shared/defaults';
+import { EMPTY_PET_NICKNAMES, petNickname, personaNickname } from '../../../src/shared/pet-nicknames';
+import { DEFAULT_THEME } from '../../../src/shared/theme';
 
 const secrets = { isEncryptionAvailable: () => true, encryptString: (s: string) => Buffer.from(`encrypted:${s}`), decryptString: (b: Buffer) => { const s = b.toString(); if (!s.startsWith('encrypted:')) throw new Error(); return s.slice(10); } };
 function reply(total: string, currency = 'CNY') { return new Response(JSON.stringify({ is_available: true, balance_infos: [{ currency, total_balance: total, granted_balance: '0', topped_up_balance: total }] }), { status: 200 }); }
@@ -17,6 +19,67 @@ async function fixture(responses: string[] = ['100'], options: { dataDir?: strin
   services.push(service); await service.init(); return { service, dataDir, fetchFn };
 }
 async function configured(values: string[], options: Parameters<typeof fixture>[1] = {}) { const result = await fixture(values, options); await result.service.setApiKey('test-key'); await result.service.refresh(); return result; }
+
+describe('T040 theme storage', () => {
+  it('fills missing legacy theme settings, persists customization, and rejects an invalid patch atomically', async () => {
+    const { service, dataDir } = await fixture();
+    await service.updateSettings({ volume: .25 });
+    service.dispose();
+    const file = path.join(dataDir, 'desktopplay.json');
+    const legacy = JSON.parse(await fs.readFile(file, 'utf8'));
+    delete legacy.settings.theme;
+    await fs.writeFile(file, JSON.stringify(legacy));
+    const restored = (await fixture([], { dataDir })).service;
+    expect(restored.getState().settings).toMatchObject({ theme: DEFAULT_THEME, volume: .25 });
+
+    const theme = { ...DEFAULT_THEME, preset: 'custom', accent: '#A26C4B', overrides: { sidebar: '#DDCFC5' }, applyToPet: true } as const;
+    await restored.updateSettings({ theme });
+    const before = await fs.readFile(file, 'utf8');
+    await expect(restored.updateSettings({ volume: .9, theme: { ...theme, intensity: .2 } })).rejects.toThrow();
+    expect(restored.getState().settings.volume).toBe(.25);
+    expect(await fs.readFile(file, 'utf8')).toBe(before);
+    restored.dispose();
+
+    const restarted = (await fixture([], { dataDir })).service;
+    expect(restarted.getState().settings.theme).toEqual({ ...theme, accent: '#a26c4b', overrides: { sidebar: '#ddcfc5' } });
+    expect(JSON.parse(await fs.readFile(file, 'utf8')).version).toBe(1);
+  });
+});
+
+describe('T038 partner nicknames', () => {
+  it('loads pre-nickname settings and saves independent names with default fallback', async () => {
+    const { service, dataDir } = await fixture();
+    await service.updateSettings({ volume: .23 });
+    service.dispose();
+    const file = path.join(dataDir, 'desktopplay.json');
+    const legacy = JSON.parse(await fs.readFile(file, 'utf8'));
+    delete legacy.settings.petNicknames;
+    await fs.writeFile(file, JSON.stringify(legacy));
+
+    const restored = (await fixture([], { dataDir })).service;
+    expect(restored.getState().settings).toMatchObject({ volume: .23, petNicknames: EMPTY_PET_NICKNAMES });
+    const nicknames = { whale: '  澄海  ', gpt: '团子', dragon: ' ', gemini: '星星🌟' };
+    await restored.updateSettings({ petNicknames: nicknames });
+    restored.dispose();
+
+    const restarted = (await fixture([], { dataDir })).service.getState();
+    expect(restarted.settings.petNicknames).toEqual({ whale: '澄海', gpt: '团子', dragon: '', gemini: '星星🌟' });
+    expect(personaNickname(restarted.settings, 'dragon')).toBe('白龙');
+    expect(petNickname({ ...restarted, activePet: 'gpt', gptAppearance: 'custom' })).toBe('团子');
+  });
+
+  it('rejects malformed nickname updates without writing the other settings in the patch', async () => {
+    const { service, dataDir } = await fixture();
+    await service.updateSettings({ volume: .23 });
+    const file = path.join(dataDir, 'desktopplay.json');
+    const before = await fs.readFile(file, 'utf8');
+    for (const patch of [{ whale: '澄海' }, { ...EMPTY_PET_NICKNAMES, whale: '鲸'.repeat(25) }, { ...EMPTY_PET_NICKNAMES, whale: '澄\n海' }]) {
+      await expect(service.updateSettings({ volume: .7, petNicknames: patch as typeof EMPTY_PET_NICKNAMES })).rejects.toThrow('昵称');
+    }
+    expect(service.getState().settings).toMatchObject({ volume: .23, petNicknames: EMPTY_PET_NICKNAMES });
+    expect(await fs.readFile(file, 'utf8')).toBe(before);
+  });
+});
 
 describe('persona phrase storage', () => {
   it('restores completion defaults into legacy data and persists independent text, directory and switch', async () => {

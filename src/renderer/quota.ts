@@ -1,4 +1,5 @@
 import type { CodexQuotaBucket, CodexQuotaState, CodexQuotaWindow, CodexResetCredit } from '../shared/types';
+import { ring } from './ui/components';
 import './quota.css';
 
 export function planLabel(plan: string | null): string {
@@ -81,6 +82,10 @@ export function quotaStatus(quota: CodexQuotaState, demo: boolean): string {
   return { idle: '尚未读取', ready: '已连接 Codex', unavailable: '未连接 Codex', error: '读取失败', loading: '正在读取' }[quota.status];
 }
 
+export function mainQuotaBucket(quota: CodexQuotaState) {
+  return quota.buckets.find(bucket => bucket.id.toLowerCase() === 'codex') ?? quota.buckets[0];
+}
+
 export function renderQuota(root: HTMLElement, quota: CodexQuotaState, compact: boolean, demo: boolean, simple = false): void {
   root.replaceChildren();
   root.classList.toggle('quota-compact', compact);
@@ -94,7 +99,7 @@ export function renderQuota(root: HTMLElement, quota: CodexQuotaState, compact: 
   if (!quota.buckets.length) {
     add(root, 'p', 'quota-empty', quota.status === 'loading' ? '正在读取额度与重置时间…' : '额度未知 · 请先登录本机 Codex。');
   }
-  const main = quota.buckets.find(bucket => bucket.id.toLowerCase() === 'codex') ?? quota.buckets[0];
+  const main = mainQuotaBucket(quota);
   for (const bucket of main ? [main, ...quota.buckets.filter(bucket => bucket !== main)] : []) {
     const card = add(root, 'article', 'quota-bucket');
     add(card, 'h3', 'quota-bucket-name', bucket.name);
@@ -110,7 +115,11 @@ export function renderQuota(root: HTMLElement, quota: CodexQuotaState, compact: 
       add(title, 'span', '', slot.label);
       add(title, 'span', '', '剩余');
       const remaining = quotaWindow && Number.isFinite(quotaWindow.remainingPercent) ? Math.max(0, Math.min(100, quotaWindow.remainingPercent)) : null;
-      add(row, 'strong', 'quota-percentage', quotaWindow ? remainingLabel(quotaWindow.remainingPercent) : '未提供');
+      if (compact && remaining !== null) {
+        const meter = ring(`${slot.label}剩余额度`, Number(remaining.toFixed(1)));
+        meter.querySelector('span')!.className = 'quota-percentage';
+        row.append(meter);
+      } else add(row, 'strong', 'quota-percentage', quotaWindow ? remainingLabel(quotaWindow.remainingPercent) : '未提供');
       if (!compact && remaining !== null) {
         const bar = document.createElement('progress'); bar.max = 100; bar.value = remaining;
         bar.setAttribute('aria-label', `${slot.label}剩余额度`); row.append(bar);

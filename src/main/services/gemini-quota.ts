@@ -8,7 +8,7 @@ import type { GeminiQuotaState } from '../../shared/types';
 
 const exec = promisify(execFile);
 const record = (item: unknown): Record<string, unknown> => item && typeof item === 'object' && !Array.isArray(item) ? item as Record<string, unknown> : {};
-export function quotaWindows(payload: unknown): GeminiQuotaState['windows'] {
+function parseQuota(payload: unknown) {
   const root = record(payload), command = record(root.command);
   if (root.command && (root.status !== 'SUCCESS' || command.name !== 'usage')) throw new Error('agy 未返回成功的 /usage 报告。');
   const summary = record(command.data ?? root.response ?? root.summary ?? root);
@@ -37,7 +37,14 @@ export function quotaWindows(payload: unknown): GeminiQuotaState['windows'] {
   if (argonInGeminiPool && !windows['gemini-argon-wtu-weekly']) {
     windows['gemini-argon-wtu-weekly'] = { remainingPercent: null, resetsAt: null, shared: true };
   }
-  return windows;
+  // Only report a plan when the quota response includes dedicated plan metadata.
+  const planName = [summary.planName, summary.plan_name, record(summary.paidTier).displayName, record(summary.userTier).name]
+    .find((value): value is string => typeof value === 'string' && !!value.trim() && value.length <= 80 && !/[\u0000-\u001f\u007f]/.test(value))?.trim();
+  return { windows, ...(planName ? { planName } : {}) };
+}
+
+export function quotaWindows(payload: unknown): GeminiQuotaState['windows'] {
+  return parseQuota(payload).windows;
 }
 
 // Only address the loopback listener owned by the PID in the client's own discovery file.
@@ -104,9 +111,9 @@ export class GeminiQuotaService {
   }
   private async read() {
     try {
-      let windows: GeminiQuotaState['windows'];
-      try { windows = quotaWindows(await this.local()); } catch { windows = quotaWindows(await this.cli()); }
-      this.state = { windows, status: 'ready', error: null, updatedAt: new Date().toISOString() };
+      let quota: ReturnType<typeof parseQuota>;
+      try { quota = parseQuota(await this.local()); } catch { quota = parseQuota(await this.cli()); }
+      this.state = { ...quota, status: 'ready', error: null, updatedAt: new Date().toISOString() };
     } catch (error) { this.state = { ...this.state, status: 'error', error: error instanceof Error ? error.message : '请重新打开 Antigravity 后刷新。' }; }
   }
   drain() { return this.inflight ?? Promise.resolve(); }

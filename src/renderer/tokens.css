@@ -1,0 +1,89 @@
+:root {
+  --surface: #fff;
+  --surface-alt: #f5f7f3;
+  --nav: #f7f9f5;
+  --ink: #243e37;
+  --muted: #68776f;
+  --accent: #28624f;
+  --accent-strong: #2c5748;
+  --accent-soft: #f3f7f0;
+  --selected: #e8f0e9;
+  --line: #e0e7e1;
+  --stage-tint: #e9f0e7;
+  --stage-ring: #dbe7d8;
+  --texture: none;
+  --radius: 16px;
+  --focus-pet: #51afc0;
+  --pet-text: #244653;
+  --pet-muted: #758c91;
+  --control-off: #becac3;
+  --line-strong: #a7bba9;
+  --selection-border: #6c9275;
+  --accent-on-strong: #d1e2d6;
+  --warm-surface: #f6f3eb;
+  --warm-line: #eae5d9;
+  --warm-muted: #716c5e;
+  --warm-ink: #575c48;
+  --gold: #b9a573;
+  --shadow: #273d2c;
+
+  --ok: #2f8a5b;
+  --info: #3c6fb4;
+  --warn: #b7791f;
+  --err: #b4483a;
+  --off: #9aa59f;
+  --ok-soft: #edf4ee;
+  --info-soft: #e8f0f5;
+  --warn-soft: #f7eddc;
+  --warn-line: #e9d9b2;
+  --err-soft: #fae8e0;
+  --err-line: #efd6c7;
+  --info-ink: #456980;
+  --warn-ink: #8b601e;
+  --err-ink: #914f39;
+
+  /* Factory bubble palettes mirror DEFAULT_BUBBLE_PROFILES. */
+  --persona-whale: #4b5f9b;
+  --whale-bubble-bg: #edf0ff;
+  --whale-bubble-ink: #384d87;
+  --whale-bubble-ring: #dee5fc;
+  --persona-gpt: #285c50;
+  --gpt-bubble-bg: #effaf4;
+  --gpt-bubble-ink: #3f7361;
+  --gpt-bubble-ring: #d9efe4;
+  --persona-dragon: #705392;
+  --dragon-bubble-bg: #f6f0ff;
+  --dragon-bubble-ink: #624480;
+  --dragon-bubble-ring: #e9dcf8;
+  --persona-gemini: #7b579e;
+  --gemini-bubble-bg: #faf3ff;
+  --gemini-bubble-ink: #50356b;
+  --gemini-bubble-ring: #ecdcfa;
+  --pet-attention-border: #a66c1d;
+  --pet-attention-ring: #f4dfa9;
+  --pet-image-shadow: #1a404219;
+  --gpt-image-shadow: #1a403819;
+  --pet-bubble-shadow: #344b7c19;
+  --pet-bubble-muted: #68779b;
+  --whale-bubble-edge-shadow: #4b5f9b14;
+  --whale-bubble-drop-shadow: #344b7c12;
+  --gpt-bubble-edge-shadow: #285c5014;
+  --gpt-bubble-drop-shadow: #17465312;
+  --gpt-bubble-muted: #71868b;
+  --gpt-bubble-scroll: #90bda9;
+  --demo-pet-surface: #fff2cc;
+  --demo-pet-ink: #8d793e;
+  --bubble-progress: #378a76;
+  --quota-line: #d8e2de;
+  --quota-muted: #65716e;
+  --quota-surface: #fafcfb;
+}
+
+.settings-view #app {
+  --companion-tint: var(--theme-stage-tint, var(--stage-tint));
+  --companion-ring: var(--theme-stage-ring, var(--stage-ring));
+}
+.settings-view #app.gpt-theme { --stage-tint: #e4f2eb; --stage-ring: #d2e8dd; }
+.settings-view #app.dragon-theme { --stage-tint: #efebf5; --stage-ring: #e1d9ed; }
+.settings-view #app.gemini-theme { --stage-tint: #f2ecfb; --stage-ring: #dfd3f2; }
+.pet-view { --muted: var(--pet-muted); }

@@ -5,6 +5,13 @@ import { quotaIsStale } from './quota';
 export const pageCount = (phrases: string[]) => 2 + phrases.length;
 export const nextPage = (page: number, phrases: string[]) => (page + 1) % pageCount(phrases);
 
+export function pageIndicator(page: number, total: number) {
+  return {
+    text: total <= 7 ? Array.from({ length: total }, (_, index) => index === page ? '●' : '○').join(' ') : `${page + 1}/${total}`,
+    label: `第 ${page + 1} 页，共 ${total} 页`,
+  };
+}
+
 export function usageStatus(state: AppState, demo: boolean): string {
   if (demo) return '演示余额 · 非真实账户';
   if (state.status === 'loading') return state.balance ? '正在刷新 · 展示最近数据' : '正在读取余额…';

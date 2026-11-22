@@ -12,7 +12,7 @@ export function emptyGeminiQuota(): GeminiQuotaState {
 
 export function demoGeminiQuota(): GeminiQuotaState {
   const now = Date.now();
-  return { status: 'ready', error: null, updatedAt: new Date(now).toISOString(),
+  return { status: 'ready', planName: 'AI Pro', error: null, updatedAt: new Date(now).toISOString(),
     windows: Object.fromEntries(GEMINI_WINDOWS.map(([id], i) => [id, {
       remainingPercent: [37, 68, 92][i], resetsAt: new Date(now + [48, 80, 3][i] * 3600000).toISOString(), shared: false,
     }])) };
