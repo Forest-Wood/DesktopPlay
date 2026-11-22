@@ -63,8 +63,7 @@ const dshLabels = {
   unavailable: '等待 DSH 会话', error: 'DSH 会话监听异常',
 };
 
-export function mountReminders(root: HTMLElement, balancePage: HTMLElement, api: DesktopApi, initial: AppState, volume: (persona: PetPersona, source: CompletionSource) => number) {
-  const balanceCard = balancePage.firstElementChild as HTMLElement;
+export function mountReminders(root: HTMLElement, api: DesktopApi, initial: AppState, volume: (persona: PetPersona, source: CompletionSource) => number) {
   root.innerHTML = `
     <div class="section-heading"><h2 id="reminder-matrix-title">对话提醒</h2></div>
     <p class="reminder-intro">完成和等待回应可分别开关，保存后生效。</p>
@@ -165,10 +164,6 @@ export function mountReminders(root: HTMLElement, balancePage: HTMLElement, api:
   }
 
   return {
-    showBalance(inMatrix: boolean) {
-      const destination = inMatrix ? root : balancePage;
-      if (balanceCard.parentElement !== destination) destination.append(balanceCard);
-    },
     openGuide(source: CompletionSource) {
       const row = rows.find(item => item.source === source)!;
       row.setOpen(true);

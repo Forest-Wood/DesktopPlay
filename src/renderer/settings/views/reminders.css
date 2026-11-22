@@ -69,8 +69,7 @@
 .reminder-steps .ui-step-list { margin: 7px 0 0; }
 .reminder-steps .ui-step-list li { font-size: 12px; line-height: 1.6; }
 .reminder-steps .ui-status-chip { white-space: nowrap; }
-.reminder-balance { margin-top: 18px; }
-#reminders .reminder-balance { margin-top: 0; }
+.reminder-balance { margin-top: 0; }
 #reminder-audio-status:empty { display: none; }
 
 @media (max-width: 880px) {

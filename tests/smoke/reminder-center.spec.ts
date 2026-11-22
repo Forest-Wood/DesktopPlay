@@ -39,7 +39,7 @@ test('reminder matrix expands guides, saves drafts and opens the active persona 
       await expect(settings.locator('#save-settings')).toBeInViewport();
     };
     await size(1060, 800);
-    await expect(settings.locator('#completion .reminder-balance')).toBeVisible();
+    await expect(settings.locator('#completion .reminder-balance')).toHaveCount(0);
     await expect(settings.locator('#completion [data-reminder-guide][aria-expanded="true"]')).toHaveCount(0);
     await settings.screenshot({ path: 'test-results/T037-reminders-1060x800.png', scale: 'css' });
 
@@ -57,13 +57,13 @@ test('reminder matrix expands guides, saves drafts and opens the active persona 
 
     await settings.locator('#completion-enabled').uncheck();
     await settings.locator('input[name="attention-codex"]').uncheck();
-    await settings.locator('#completion #daily-budget').fill('7');
     const original = await pet.evaluate(async () => (await window.desktopPlay.getState()).settings);
     expect(original.codexCompletionEnabled).toBe(true);
     expect(original.attentionEnabledBySource.codex).toBe(true);
     expect(original.dailyBudget).toBeNull();
     await settingsPage(settings, 'reminders');
     await expect(settings.locator('#daily-budget')).toHaveCount(1);
+    await settings.locator('#reminders #daily-budget').fill('7');
     await expect(settings.locator('#reminders #daily-budget')).toHaveValue('7');
     await settings.locator('#save-settings').click();
     await expect(settings.locator('#save-hint')).toHaveText('设置已保存');

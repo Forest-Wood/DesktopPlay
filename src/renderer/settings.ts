@@ -119,7 +119,7 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   phrases.querySelector('.panel')!.insertAdjacentHTML('beforeend', '<div class="phrase-display-controls"><label class="field-label" for="phrase-count">每轮展示数量 N</label><input id="phrase-count" name="phraseCount" form="settings-form" type="number" min="0" max="20" step="1"><label class="field-label" for="phrase-mode">展示模式</label><select id="phrase-mode" name="phraseMode" form="settings-form"><option value="sequential">按顺序切换</option><option value="random">随机展示</option></select><p class="hint">0 表示关闭短句页。勾选至少 N 条候选；每轮每页展示一句。顺序模式接着上轮看过的位置继续。</p><div id="phrase-candidates" role="group" aria-label="候选短句"></div></div>');
   element('appearance').querySelector('label[for="phrases"]')!.remove();
   arrangePhrases(phrases);
-  const reminderView = mountReminders(completion, element('reminders'), api, initial,
+  const reminderView = mountReminders(completion, api, initial,
     (persona, source) => bubbleEditor.getCompletionVolume(persona, source));
   const toggles = element('appearance').querySelector('.toggle-grid')!;
   for (const name of ['alwaysOnTop', 'snapToEdges', 'launchAtLogin']) behavior.querySelector('.panel')!.append(root.querySelector(`input[name="${name}"]`)!.closest('label')!);
@@ -152,7 +152,6 @@ export function mountSettings(root: HTMLElement, api: DesktopApi, initial: AppSt
   root.querySelector('.page-footer')!.remove();
   const router = mountSettingsRouter(root, content, initial.activePet === 'gemini' ? 'gemini' : initial.activePet === 'gpt' ? 'codex' : 'overview', page => {
     studio.showPage(page);
-    reminderView.showBalance(page === 'completion');
     reminderView.stopAudio();
     renderPeriod();
     if (page === 'gemini') void api.refreshGeminiQuota().catch(() => {});
