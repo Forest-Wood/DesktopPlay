@@ -357,3 +357,11 @@ DeepSeek 展示和每日统计跟随电脑时区。旧账本保留日期及金�
 2026-11-22 用户明确授权将已合并的 PR #40（T034–T041：设置窗口 6 项导航重设计、首页总览、提醒中心矩阵、人设工作室、伙伴可编辑昵称、桌宠气泡升级与超级调色盘）发布为新版本 Release，版本号增加 `0.1.0`。按项目版本规则，含新增功能取 `minor`，以最新正式版 `v2.1.0` 为基准递增至 `v2.2.0`；同步修复 `tests/smoke/theme-palette.spec.ts` 在 Windows CI 下未禁用截图动画导致的偶发像素抖动。同步版本字段、`release-plan.json`、简短中文公告 `docs/releases/v2.2.0.md` 与交接文档，验证并通过 CI 后合入 `main`，创建并推送 `v2.2.0` 标签触发 Release 工作流完成 6 项资产草稿上传、摘要门禁校验与转正。
 
 验收：三个版本字段、标签、`release-plan.json` 与 `docs/releases/v2.2.0.md` 一致；`release:check`、构建、全量单测与 CI 通过；GitHub 正式 latest Release 为 `v2.2.0`，正文与软件更新公告一致，全部六项 Windows x64 更新资源（安装版、免安装版、`SHA256SUMS.txt`、`latest.yml`、NSIS blockmap、Portable blockmap）完整上传且校验通过。见 [T042](tasks/T042-release-v220.md)。
+
+## R044：修复倒置时气泡尖角未同步倒置（T043）
+
+状态：已实现并通过本地验证，待审查。2026-11-23 用户反馈桌宠倒置（气泡位于下方）时气泡尖角没有一起倒置。
+
+行为：移除 `src/renderer/styles.css` 中遗留的高优先级 `.pet-canvas.flipped .pet-bubble:before/:after` 规则，使气泡尖角在全部四种朝向（左／右 × 上／下）统一由 `--tail-x`、`--tail-flip`、`--tail-y` 与 `--tail-rotate` 驱动，倒置时尖角朝上指向倒挂桌宠。
+
+验收：构建与隔离 Electron 倒置冒烟测试（`desktop.spec.ts`）通过，断言倒置镜像态尖角垂直翻转（`d < 0`）且目视核对 `pet-inverted.png` 尖角朝向与描边无异常。见 [T043](tasks/T043-inverted-bubble-tail.md)。

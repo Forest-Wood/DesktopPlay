@@ -322,6 +322,13 @@ test('native layout follows the character anchor and keeps upside-down text upri
     await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
     expect(await pet.locator('.pet-mirror').evaluate(el => getComputedStyle(el).transform)).toBe('matrix(-1, 0, 0, -1, 0, 0)');
     expect(await pet.locator('.pet-bubble').evaluate(el => getComputedStyle(el).transform)).toBe('none');
+    const tailMatrix = () => pet.locator('.pet-bubble').evaluate(el => {
+      const m = new DOMMatrix(getComputedStyle(el, '::after').transform);
+      return { a: m.a, d: m.d };
+    });
+    const invertedTail = await tailMatrix();
+    expect(invertedTail.a).toBeLessThan(0);
+    expect(invertedTail.d).toBeLessThan(0);
     const boxes = await pet.evaluate(() => ({ character: document.querySelector('.pet-character')!.getBoundingClientRect().toJSON(), bubble: document.querySelector('.pet-bubble')!.getBoundingClientRect().toJSON(), viewport: { width: innerWidth, height: innerHeight } }));
     expect(boxes.bubble.y).toBeGreaterThan(boxes.character.y);
     expect(boxes.bubble.right).toBeLessThanOrEqual(boxes.viewport.width);
@@ -333,6 +340,9 @@ test('native layout follows the character anchor and keeps upside-down text upri
     await pet.locator('.bubble-menu-close').click();
     await moveCharacter(area.x + area.width - 300, area.y + area.height - 260);
     await expect.poll(async () => await pet.evaluate(() => window.desktopPlay.getState())).toMatchObject({ flipped: false, verticalFlipped: false, bubblePlacement: 'above' });
+    const uprightTail = await tailMatrix();
+    expect(uprightTail.a).toBeGreaterThan(0);
+    expect(uprightTail.d).toBeGreaterThan(0);
     const layout = await pet.evaluate(() => ({ character: document.querySelector('.pet-character')!.getBoundingClientRect().toJSON(), bubble: document.querySelector('.pet-bubble')!.getBoundingClientRect().toJSON() }));
     expect(layout.bubble.x).toBeLessThan(layout.character.x);
     expect(layout.bubble.y).toBeLessThan(layout.character.y);
