@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+<style>
+  :root{--nav:#f5f8f4;--ink:#22352f;--muted:#6b7a72;--line:#e2e9e3;--accent:#28624f;--ok:#2f8a5b;--info:#3c6fb4;--warn:#b7791f;--err:#b4483a;--off:#9aa59f;}
+  .app{color:var(--ink);font-family:"Segoe UI","Microsoft YaHei UI",system-ui,sans-serif}
+  .num{font-variant-numeric:tabular-nums}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 2px rgba(34,53,47,.04)}
+  .navbtn{display:flex;gap:10px;align-items:center;width:100%;padding:9px 12px;border-radius:10px;color:var(--muted);font-size:13px;position:relative}
+  .navbtn:hover{background:#ebf1ec}
+  .navbtn[aria-current=page]{background:#e3eee6;color:var(--accent);font-weight:600}
+  .dirty::after{content:"";position:absolute;right:12px;top:50%;width:7px;height:7px;margin-top:-3.5px;border-radius:9px;background:var(--warn)}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:9px}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 9px;border-radius:99px;background:#f1f5f2;color:var(--muted)}
+  .ring{--p:50;--c:var(--accent);width:84px;height:84px;border-radius:50%;background:conic-gradient(var(--c) calc(var(--p)*1%),#e8eee9 0);display:grid;place-items:center}
+  .ring>span{width:66px;height:66px;border-radius:50%;background:#fff;display:grid;place-items:center;font-weight:700;font-size:17px}
+  .bar{height:8px;border-radius:9px;background:#efe9f6;overflow:hidden}.bar>i{display:block;height:100%;border-radius:9px;background:#7b579e}
+  .switch{width:34px;height:20px;border-radius:20px;background:#cfd8d2;position:relative;cursor:pointer;transition:.15s;flex:none}
+  .switch::after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .switch.on{background:var(--accent)}.switch.on::after{left:16px}
+  .avatar{width:40px;height:40px;border-radius:14px;display:grid;place-items:center;font-size:20px}
+  .scen{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-radius:8px;font-size:12.5px;cursor:pointer;color:var(--ink)}
+  .scen:hover{background:#f1f5f2}.scen.sel{background:var(--pt);color:var(--pc);font-weight:600}
+  .bubble{border:2.5px solid var(--bb);background:var(--bg);color:var(--bi);border-radius:22px;box-shadow:0 0 0 6px var(--br);position:relative}
+  .bubble::after{content:"";position:absolute;bottom:-13px;right:60px;width:20px;height:20px;background:var(--bg);border-right:2.5px solid var(--bb);border-bottom:2.5px solid var(--bb);transform:rotate(45deg)}
+  .seg button{padding:6px 14px;border-radius:9px;font-size:13px;color:var(--muted)}
+  .seg button[aria-pressed=true]{background:#fff;color:var(--accent);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  tr.src:hover td{background:#f8faf8;cursor:pointer}
+</style>
+</head>
+<body class="bg-[var(--background)] m-0 p-0">
+<div class="app p-4 space-y-3">
+  <div class="flex items-center justify-between flex-wrap gap-2">
+    <div><div class="text-[11px] tracking-[.2em] text-[var(--muted-foreground)]">DESKTOPPET · 前端原型 · 虚构数据</div>
+      <div class="text-lg font-semibold text-[var(--foreground)]">设置窗口与桌宠气泡重设计</div></div>
+    <div class="seg flex gap-1 p-1 rounded-xl bg-[var(--card)] border border-[var(--border)]" id="canvasSeg">
+      <button aria-pressed="true" data-c="settings">设置窗口</button><button aria-pressed="false" data-c="bubble">桌宠气泡</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS WINDOW -->
+  <section id="c-settings" class="rounded-2xl overflow-hidden border border-[var(--border)] shadow-lg bg-white flex" style="min-height:700px">
+    <aside class="w-[208px] shrink-0 flex flex-col p-4 gap-1" style="background:var(--nav);border-right:1px solid var(--line)">
+      <div class="flex items-center gap-2 mb-4"><div class="avatar text-white" style="background:var(--accent)">≈</div><div><div class="font-bold text-[15px]">DesktopPet</div><div class="text-[11px]" style="color:var(--muted)">v2.1.0 · 已是最新</div></div></div>
+      <nav id="nav" class="space-y-1"></nav>
+      <div class="mt-auto card p-3" id="sideCompanion" style="background:linear-gradient(180deg,#effaf4,#fff)">
+        <div class="text-[11px]" style="color:var(--muted)">此刻陪着你</div>
+        <div class="flex items-center gap-2 mt-2"><div class="avatar" style="background:#d9efe4">🤖</div><div><div class="font-semibold text-[13px]">GPT 小伙伴</div><div class="text-[11px]" style="color:var(--muted)">原版 · 完整模式</div></div></div>
+      </div>
+    </aside>
+    <main class="flex-1 flex flex-col min-w-0">
+      <div id="views" class="flex-1 overflow-auto p-6" style="max-height:640px"></div>
+      <footer class="flex items-center justify-between px-6 py-3" style="border-top:1px solid var(--line)">
+        <div class="flex items-center gap-2 text-[13px]" id="saveHint"><span class="dot" style="background:var(--ok)"></span>设置已同步</div>
+        <div class="flex gap-2"><button id="discard" class="px-3 py-2 text-[13px] rounded-lg hidden" style="color:var(--muted)">放弃修改</button><button id="save" class="px-4 py-2 text-[13px] rounded-lg text-white" style="background:var(--accent)">保存设置</button></div>
+      </footer>
+    </main>
+  </section>
+
+  <!-- BUBBLE CANVAS -->
+  <section id="c-bubble" class="hidden rounded-2xl border border-[var(--border)] bg-white p-6">
+    <div class="grid gap-8" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))" id="bubbles"></div>
+  </section>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const P={whale:{n:'小鲸鱼',e:'🐳',c:'#4b5f9b',t:'#edf0ff',bi:'#384d87',br:'#dee5fc'},gpt:{n:'原版 GPT',e:'🤖',c:'#285c50',t:'#effaf4',bi:'#3f7361',br:'#d9efe4'},dragon:{n:'白龙',e:'🐉',c:'#705392',t:'#f6f0ff',bi:'#624480',br:'#e9dcf8'},gemini:{n:'Gemini',e:'✦',c:'#7b579e',t:'#faf3ff',bi:'#50356b',br:'#ecdcfa'}};
+const NAV=[['home','首页总览','⌂'],['pet','伙伴','☺'],['account','账户','▤'],['remind','提醒中心','♪'],['studio','人设工作室','✎'],['system','系统','ⓘ']];
+let view='home',dirty=false,persona='gpt',scen='completion-codex';
+const STATUS={ok:['var(--ok)','已收到事件'],info:['var(--info)','监听中'],warn:['var(--warn)','需要操作'],off:['var(--off)','已关闭']};
+const SOURCES=[
+ {id:'antigravity',n:'Gemini · Antigravity',d:'App / VS Code / IDE / agy',done:true,wait:true,way:'本机摘要监听',st:'ok',last:'2 分钟前',steps:[['自动只读监听本机会话摘要',1],['（可选）接入完成 Hook，补充 agy CLI 提醒',0]]},
+ {id:'codex',n:'Codex',d:'CLI / VS Code',done:true,wait:true,way:'会话监听 + Hook',st:'warn',last:'—',steps:[['选择 Codex 主目录（默认 ~/.codex）',1],['开启 Hook 接入并保存',1],['在 Codex 输入 /hooks 信任 DesktopPet',0],['触发一次提问 / 审批验证',0]]},
+ {id:'chatgpt-work',n:'ChatGPT App',d:'Work 完成 · 提问与审批',done:true,wait:true,way:'原生通知日志',st:'info',last:'昨天 21:04',steps:[['ChatGPT 设置中把回合结束通知设为「始终」',1],['开启「提问」「权限」通知',1]]},
+ {id:'deepseek-harness',n:'DeepSeek Harness',d:'本机 v4 会话日志',done:false,wait:false,way:'会话目录监听',st:'off',last:'—',steps:[['选择 DSH 会话目录（默认 ~/.dsh/sessions）',0]]},
+];
+const statusDot=k=>`<span class="chip"><span class="dot" style="background:${STATUS[k][0]}"></span>${STATUS[k][1]}</span>`;
+const sw=(on,attr='')=>`<span class="switch ${on?'on':''}" role="switch" aria-checked="${on}" ${attr}></span>`;
+
+function renderNav(){ $('#nav').innerHTML=NAV.map(([id,l,i])=>`<button class="navbtn ${dirty&&id==='studio'?'dirty':''}" data-v="${id}" aria-current="${view===id?'page':'false'}"><span class="w-5 text-center">${i}</span>${l}</button>`).join(''); }
+
+function card(title,chip,body,extra=''){return `<article class="card p-5 ${extra}"><div class="flex justify-between items-center mb-3"><h3 class="font-semibold text-[14px]">${title}</h3>${chip}</div>${body}</article>`}
+
+const V={
+home:()=>`
+ <div class="flex items-end justify-between flex-wrap gap-3 mb-5">
+  <div><div class="text-[12px]" style="color:var(--muted)">下午好 ✦</div><h1 class="text-[24px] font-bold">一切都在掌握中</h1>
+   <div class="text-[13px] mt-1" style="color:var(--muted)">3 个账户正常 · <a class="underline cursor-pointer" style="color:var(--warn)" data-go="remind">1 个提醒来源待完成接入</a></div></div>
+  <div class="flex gap-2"><button class="chip !py-1.5 !px-3">↻ 刷新全部</button><button class="chip !py-1.5 !px-3">◐ 简洁模式</button><button class="chip !py-1.5 !px-3" data-go="system">⇪ 检查更新</button></div>
+ </div>
+ <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">
+  ${card('🐳 DeepSeek',statusDot('ok'),`
+   <div class="text-[12px]" style="color:var(--muted)">账户余额</div><div class="num text-[32px] font-bold" style="color:#4b5f9b">¥28.36</div>
+   <div class="flex items-end justify-between mt-2"><div><div class="text-[12px]" style="color:var(--muted)">今日已观测</div><div class="num font-semibold">¥1.24</div></div>
+   <div class="flex items-end gap-[3px] h-10">${[30,55,20,70,45,60,35].map((h,i)=>`<i style="width:8px;height:${h}%;border-radius:3px;background:${i==6?'#4b5f9b':'#dee5fc'}"></i>`).join('')}</div></div>
+   <div class="chip mt-3" style="background:#edf0ff;color:#384d87">● 低谷时段 · 08:30 切换高峰</div>`,'cursor-pointer')}
+  ${card('🤖 Codex',`<span class="chip" style="background:#e3eee6;color:var(--accent)">Plus</span>`,`
+   <div class="flex justify-around"><div class="text-center"><div class="ring" style="--p:76"><span class="num">76%</span></div><div class="text-[12px] mt-1" style="color:var(--muted)">每周 · 6天23时</div></div>
+   <div class="text-center"><div class="ring" style="--p:99"><span class="num">99%</span></div><div class="text-[12px] mt-1" style="color:var(--muted)">5H · 4时59分</div></div></div>
+   <div class="text-[12px] mt-3" style="color:var(--muted)">重置卡 2 张 · 最近 12/01 到期</div>`,'cursor-pointer')}
+  ${card('✦ Gemini',statusDot('ok'),`
+   ${[['Argon 周额度',62,'周一 08:00'],['Gemini 周额度',81,'周一 08:00'],['Gemini 5 小时',44,'2时13分']].map(([l,v,r])=>`<div class="mb-3"><div class="flex justify-between text-[12px] mb-1"><span>${l}</span><span class="num font-semibold">${v}%</span></div><div class="bar"><i style="width:${v}%"></i></div><div class="text-[11px] mt-0.5" style="color:var(--muted)">${r} 重置</div></div>`).join('')}`,'cursor-pointer')}
+ </div>
+ <h2 class="font-semibold text-[14px] mt-6 mb-3">对话提醒</h2>
+ <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+  ${SOURCES.map(s=>`<button class="card p-3 text-left hover:shadow" data-go="remind"><div class="flex justify-between"><span class="font-semibold text-[13px]">${s.n}</span><span class="dot" style="background:${STATUS[s.st][0]}"></span></div>
+   <div class="text-[12px] mt-1" style="color:var(--muted)">完成 ${s.done?'●':'○'} · 等待 ${s.wait?'●':'○'}</div><div class="text-[11px] mt-1" style="color:${STATUS[s.st][0]}">${STATUS[s.st][1]} · ${s.last}</div></button>`).join('')}
+ </div>`,
+remind:()=>`
+ <h1 class="text-[22px] font-bold">提醒中心</h1><p class="text-[13px] mb-4" style="color:var(--muted)">每个来源一行；点击行展开接入向导。所有开关保存后生效。</p>
+ <div class="card overflow-hidden"><table class="w-full text-[13px]"><thead><tr class="text-left text-[12px]" style="color:var(--muted);background:#f8faf8">
+  <th class="p-3">来源</th><th>完成</th><th>等待回应</th><th>接入方式</th><th>状态</th><th>完成音效</th></tr></thead><tbody>
+  ${SOURCES.map((s,i)=>`<tr class="src" data-row="${i}" style="border-top:1px solid var(--line)"><td class="p-3"><div class="font-semibold">${s.n}</div><div class="text-[11px]" style="color:var(--muted)">${s.d}</div></td>
+   <td>${sw(s.done,'data-dirty')}</td><td>${sw(s.wait,'data-dirty')}</td><td class="text-[12px]">${s.way}</td><td>${statusDot(s.st)}</td><td><button class="chip">♪ 试听</button></td></tr>
+   <tr class="hidden" id="wiz-${i}"><td colspan="6" class="px-5 pb-4" style="background:#fbfcfb"><ol class="flex flex-wrap gap-3 pt-3">${s.steps.map(([t,d],k)=>`<li class="flex items-center gap-2 text-[12px] card px-3 py-2"><span class="w-5 h-5 rounded-full grid place-items-center text-white text-[11px]" style="background:${d?'var(--ok)':'var(--off)'}">${d?'✓':k+1}</span>${t}</li>`).join('')}</ol></td></tr>`).join('')}
+ </tbody></table></div>
+ ${card('余额提醒','<span class="chip">所有角色可接收</span>',`<div class="grid grid-cols-2 gap-4 text-[13px]"><label>余额低于<input class="mt-1 w-full border rounded-lg px-3 py-2" style="border-color:var(--line)" placeholder="不填写则关闭" value="10.00" data-dirty></label><label>今日观测消费达到<input class="mt-1 w-full border rounded-lg px-3 py-2" style="border-color:var(--line)" placeholder="不填写则关闭" data-dirty></label></div>`,'mt-4')}`,
+studio:()=>{const p=P[persona];return `
+ <h1 class="text-[22px] font-bold">人设工作室</h1><p class="text-[13px] mb-4" style="color:var(--muted)">选择一位伙伴，集中调整它的气泡、短句与音效。</p>
+ <div class="flex gap-3 mb-4">${Object.entries(P).map(([k,v])=>`<button data-p="${k}" class="flex items-center gap-2 pr-4 pl-1 py-1 rounded-2xl" style="border:2px solid ${k===persona?v.c:'var(--line)'};background:${k===persona?v.t:'#fff'}"><span class="avatar !w-9 !h-9" style="background:${v.br}">${v.e}</span><span class="text-[13px] ${k===persona?'font-semibold':''}" style="color:${k===persona?v.c:'var(--ink)'}">${v.n}</span></button>`).join('')}</div>
+ <div class="seg inline-flex gap-1 p-1 rounded-xl mb-4" style="background:#f1f5f2"><button aria-pressed="true">气泡</button><button aria-pressed="false">短句</button><button aria-pressed="false">音效</button></div>
+ <div class="grid gap-4" style="grid-template-columns:190px 1fr 260px;--pt:${p.t};--pc:${p.c}">
+  <div class="card p-2 text-[11px]" style="color:var(--muted)">${[['基础',[['base','基础样式']]],['数据页',[['usage','用量页'],['summary','用量小报告'],['phrases','陪伴短句'],['retention','换角色挽留']]],['系统提示',[['low','低余额'],['budget','每日预算'],['update','软件更新']]],['对话提醒',[['completion-codex','Codex 完成',1],['attention-codex','Codex 等待'],['completion-antigravity','Gemini 完成'],['attention-antigravity','Gemini 等待',1],['completion-chatgpt-work','ChatGPT 结束'],['completion-deepseek-harness','DSH 完成']]]].map(([g,items])=>`<div class="px-2 pt-2 pb-1 font-semibold">${g}</div>${items.map(([id,l,o])=>`<div class="scen ${scen===id?'sel':''}" data-s="${id}"><span>${l}</span>${o?'<span class="dot" style="background:var(--warn)" title="有自定义覆盖"></span>':''}</div>`).join('')}`).join('')}</div>
+  <div class="card p-5 space-y-4 text-[13px]">
+   <div class="flex justify-between items-center"><span>显示此类气泡</span>${sw(true,'data-dirty')}</div>
+   <label class="block">提示标题<input id="fTitle" data-dirty class="mt-1 w-full border rounded-lg px-3 py-2" style="border-color:var(--line)" value="Codex 完成提醒"></label>
+   <label class="block">提示短句<textarea id="fMsg" data-dirty rows="2" class="mt-1 w-full border rounded-lg px-3 py-2" style="border-color:var(--line)">Codex 这轮输出完成了，来看看结果吧。</textarea></label>
+   <div><div class="mb-1">关闭方式</div><div class="seg inline-flex gap-1 p-1 rounded-xl" style="background:#f1f5f2"><button aria-pressed="true">点击关闭</button><button aria-pressed="false">定时 5 秒</button></div></div>
+   <div><div class="mb-2">气泡配色</div><div class="flex gap-3">${['background','border','ink'].map((k,i)=>`<label class="text-[12px] flex items-center gap-2" style="color:var(--muted)"><input type="color" data-col="${k}" data-dirty value="${[p.t,p.c,p.bi][i]}" class="w-8 h-8 rounded">${['背景','边框','文字'][i]}</label>`).join('')}</div></div>
+   <div class="flex justify-between items-center pt-2" style="border-top:1px solid var(--line)"><span>完成音效 · 内置轻提示音</span><span class="flex gap-2 items-center"><button class="chip">♪ 试听</button>${sw(false,'data-dirty')}</span></div>
+  </div>
+  <div class="card p-4 sticky top-0 self-start" style="background:#f8faf8"><div class="text-[12px] font-semibold mb-3" style="color:var(--muted)">实时预览 · 示例数据</div>
+   <div id="pv" class="bubble p-4" style="--bg:${p.t};--bb:${p.c};--bi:${p.bi};--br:${p.br}"><div class="flex items-center gap-2 text-[12px] mb-1"><span class="chip !bg-white/70" style="color:${p.c}">Codex</span><b id="pvT">Codex 完成提醒</b></div><div id="pvM" class="text-[13px] leading-5">Codex 这轮输出完成了，来看看结果吧。</div><div class="text-[11px] mt-2 opacity-70">点击气泡收起 · 前往原客户端查看</div></div>
+   <div class="text-right text-[34px] mt-5 pr-8">${p.e}</div></div>
+ </div>`},
+};
+const placeholder=(t,d)=>`<h1 class="text-[22px] font-bold">${t}</h1><p class="text-[13px] mt-1" style="color:var(--muted)">${d}</p><div class="card p-8 mt-5 text-center text-[13px]" style="color:var(--muted)">原型略 · 详见方案文档对应章节</div>`;
+V.pet=()=>placeholder('伙伴','角色大卡片、造型缩略条、可视化模式卡与桌面行为（方案 4-B）');
+V.account=()=>placeholder('账户','DeepSeek / Codex / Gemini 详情与消费记录图表（方案 4-C）');
+V.system=()=>placeholder('系统','版本卡（进度 / ETA / 公告）、使用说明、许可证、危险操作区卸载（方案 4-F）');
+
+function render(){renderNav();$('#views').innerHTML=V[view]();}
+function markDirty(){dirty=true;$('#saveHint').innerHTML='<span class="dot" style="background:var(--warn)"></span>有未保存的修改';$('#discard').classList.remove('hidden');renderNav();}
+document.addEventListener('click',e=>{
+ const t=e.target.closest('[data-v],[data-go],[data-p],[data-s],.switch,[data-row],#save,#discard,#canvasSeg button,.seg button');if(!t)return;
+ if(t.matches('#canvasSeg button')){document.querySelectorAll('#canvasSeg button').forEach(b=>b.setAttribute('aria-pressed',b===t));$('#c-settings').classList.toggle('hidden',t.dataset.c!=='settings');$('#c-bubble').classList.toggle('hidden',t.dataset.c!=='bubble');return;}
+ if(t.matches('.seg button')){t.parentElement.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b===t));return;}
+ if(t.classList.contains('switch')){e.stopPropagation();t.classList.toggle('on');t.setAttribute('aria-checked',t.classList.contains('on'));markDirty();return;}
+ if(t.dataset.v||t.dataset.go){view=t.dataset.v||t.dataset.go;render();return;}
+ if(t.dataset.p){persona=t.dataset.p;render();return;}
+ if(t.dataset.s){scen=t.dataset.s;render();return;}
+ if(t.dataset.row){$('#wiz-'+t.dataset.row).classList.toggle('hidden');return;}
+ if(t.id==='save'||t.id==='discard'){dirty=false;$('#saveHint').innerHTML=`<span class="dot" style="background:var(--ok)"></span>${t.id==='save'?'设置已保存':'已放弃修改'}`;$('#discard').classList.add('hidden');render();}
+});
+document.addEventListener('input',e=>{const t=e.target;if(!t.matches('[data-dirty]'))return;markDirty();
+ if(t.id==='fTitle')$('#pvT').textContent=t.value; if(t.id==='fMsg')$('#pvM').textContent=t.value;
+ if(t.dataset.col){const m={background:'--bg',border:'--bb',ink:'--bi'};$('#pv').style.setProperty(m[t.dataset.col],t.value);}});
+
+// Bubble canvas
+const B=(p,label,body,extra='')=>{const v=P[p];return `<div><div class="text-[12px] font-semibold mb-3" style="color:var(--muted)">${label}</div><div class="bubble p-4" style="--bg:${v.t};--bb:${extra==='warn'?'#b7791f':v.c};--bi:${v.bi};--br:${extra==='warn'?'#f6e7c8':v.br}">${body}</div><div class="text-right text-[40px] mt-4 pr-8">${v.e}</div></div>`};
+const top=(t,dots,src)=>`<div class="flex items-center justify-between text-[12px] mb-2"><span class="flex items-center gap-2">${src||''}<b>${t}</b></span><span class="flex items-center gap-2">${dots?`<span class="tracking-[3px] opacity-70">${dots}</span>`:''}<span class="opacity-60">✕</span></span></div>`;
+const foot=`<div class="flex justify-between mt-3"><button class="chip !bg-white/70">↻ 刷新</button><button class="chip !bg-white/70">⋯ 更多</button></div>`;
+$('#bubbles').innerHTML=[
+ B('gpt','GPT · 用量页（迷你环形进度 + 页码点）',top('GPT 用量','●○○○')+`<div class="flex gap-4 items-center"><div class="ring !w-[70px] !h-[70px]" style="--p:76;--c:#285c50"><span class="!w-[54px] !h-[54px] num !text-[15px]">76%</span></div><div class="ring !w-[70px] !h-[70px]" style="--p:99;--c:#285c50"><span class="!w-[54px] !h-[54px] num !text-[15px]">99%</span></div><div class="text-[11px] leading-5">每周 · 6天23时<br>5H · 4时59分<br><span class="chip !bg-white/70 mt-1">Plus</span></div></div>`+foot),
+ B('whale','小鲸鱼 · 用量页（保留大余额 + 峰谷）',top('DeepSeek 用量','●○○')+`<div class="num text-[34px] font-bold">¥28.36</div><div class="text-[12px]">今日已观测 <b class="num">¥1.24</b></div><div class="chip !bg-white/70 mt-2">● 低谷 · 08:30 切换高峰</div>`+foot),
+ B('gemini','Gemini · 对话完成（来源标签）',top('任务完成啦','',`<span class="chip !bg-white/80" style="color:#7b579e">✦ Gemini</span>`)+`<div class="text-[13px]">Gemini 的任务完成啦，来看看吧。</div><div class="text-[11px] mt-2 opacity-70">点击气泡收起 · 前往原客户端查看</div>`),
+ B('dragon','白龙 · 等待回应（琥珀描边区分）',top('需要你的回应','',`<span class="chip !bg-white/80" style="color:#b7791f">⏳ Codex</span>`)+`<div class="text-[13px]">有操作需要你审批。<br>有一份决定等你回应，我会在这里守候。</div><div class="text-[11px] mt-2 opacity-70">点击气泡收起 · 请在原客户端回应</div>`,'warn'),
+].join('');
+render();
+</script>
+</body>
+</html>

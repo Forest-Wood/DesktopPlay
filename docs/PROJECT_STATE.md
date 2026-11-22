@@ -1,9 +1,10 @@
 # DesktopPet 当前项目状态
 
-更新日期：2026-11-19（Asia/Shanghai）。入口：[协作指南](../AGENTS.md)、[需求登记](REQUIREMENTS.md)、[界面设计](../DESIGN.md)。
+更新日期：2026-11-22（Asia/Shanghai）。入口：[协作指南](../AGENTS.md)、[需求登记](REQUIREMENTS.md)、[界面设计](../DESIGN.md)。
 
 ## 当前任务
 
+- [T034／R041／R042](tasks/T034-ui-redesign-plan.md)（2026-11-20，2026-11-22 补充预览反馈与后续任务单，分支 `docs/T034-ui-redesign-plan`，基准 `0d20d93`，**未提交**）：前端重设计与超级调色盘规划，只写文档，不改代码。规格见 [UI_REDESIGN.md](UI_REDESIGN.md)，原型见 [previews/T034/ui-mockup.html](previews/T034/ui-mockup.html)。后续 7 步待开发任务单已建立：[T035](tasks/T035-ui-foundation.md)（基础与导航）→ [T036](tasks/T036-home-overview.md)（首页）→ [T037](tasks/T037-reminder-center.md)（提醒中心）→ [T038](tasks/T038-persona-studio.md)（人设工作室与伙伴可编辑昵称）→ [T039](tasks/T039-pet-bubble-refresh.md)（桌宠气泡）→ [T040](tasks/T040-super-palette.md)（超级调色盘）→ [T041](tasks/T041-ui-redesign-handoff.md)（文档收尾）。验证：文档链接与 `git diff --check`，未运行代码检查。已清理 T032 的临时产物。
 - [T033／R040](tasks/T033-release-v210.md) 已发布 [v2.1.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.1.0)。[PR #38](https://github.com/Forest-Wood/DesktopPlay/pull/38) 合入主线，标签 `v2.1.0` 指向 `07f774b`。[发布工作流 44549546635](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44549546635) 通过单测、Windows x64 打包、更新运行时与全部六项附件摘要（含 NSIS 与免安装版 `.blockmap`）及公告校验。
 - [T032／R039](tasks/T032-incremental-update.md) 已通过 [PR #37](https://github.com/Forest-Wood/DesktopPlay/pull/37) 合入主线 `5b6f13a`，随 v2.1.0 分发：实现 NSIS（`electron-updater` `.blockmap`）与 Portable（流式 Rabin CDC + `64 KiB` Range 合并 + 本地 `programPath` 扫描 + 完整 SHA-256 校验）增量／差分更新、自动回退整包、增量进度与回退 ETA 重置及 6 项 Release 资产校验；并在 `AGENTS.md` 补充前序未提交任务先原分支本地提交再切新分支的隔离规则。
 - [T031／R038](tasks/T031-prune-overdefensive-tests.md) 已通过 [PR #36](https://github.com/Forest-Wood/DesktopPlay/pull/36) 合入主线 `9adeb77`：精简 `tests/` 中过度防御与跨层重复测试，将 `update-helper-fixtures.ps1` 的 2 分钟等待超时改为 `-IncludeSlowTimeout` 显式开关，并将“避免过度防御性测试”原则写入 `AGENTS.md` 与 PR 模板。
@@ -31,4 +32,4 @@
 - 原生鼠标间歇偏移仍无根因结论，见 T010／T014／T022；T022 当前实现及基准对照均复现按住时位置偏移，不能用早期单次通过认定已解决。
 - 受限 Electron 存在启动超时／AppContainer 环境限制；隔离测试可在沙箱外运行，保持应用 Electron 沙箱启用。测试不得使用真实账户、账本或修改真实客户端设置。
 - appId、`%APPDATA%\DesktopPlay` 及安装／portable 共用数据保持兼容。等待与完成提示默认点击前常驻，可按场景设置定时关闭，隐藏／退出清空，不补历史。
-- 下一独立任务编号 T034／R041。
+- 下一独立任务编号：T042／R043（T035–T041 已预留给 R041／R042 的实现与收尾）。
