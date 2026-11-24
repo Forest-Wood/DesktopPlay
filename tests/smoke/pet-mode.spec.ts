@@ -57,6 +57,7 @@ test('global mode switches cleanly, persists across restart, controls whale peri
     });
     await clickPet();
     await expect(pet.locator('.quota-percentage')).toHaveText(['80%', '80%']);
+    await expect(pet.getByRole('meter')).toHaveCount(0);
     await expect(pet.locator('.quota-countdown')).toHaveCount(0);
     await expect(pet.locator('.quota-plan-badge')).toHaveCount(0);
     await pet.screenshot({ path: info.outputPath('gpt-simple.png'), omitBackground: true });

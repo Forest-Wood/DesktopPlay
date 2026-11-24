@@ -340,7 +340,7 @@ DeepSeek 展示和每日统计跟随电脑时区。旧账本保留日期及金�
 2. 提醒中心使用来源矩阵展示完成开关、等待开关、接入方式、状态和音效，并提供可展开的接入向导；健康色只由现有状态推导。
 3. 人设工作室顶部人设条合并为 DeepSeek（原小鲸鱼）、GPT（内含原版 GPT 与白龙档案）、Gemini 三项，在同一个人设下集中编辑气泡（分组场景列表、固定实时预览）、短句和音效；伙伴页角色名统一为 DeepSeek／GPT／Gemini，“小鲸鱼”、“原版 GPT”、“白龙”、“Gemini 星猫”改为可自定义修改的昵称（`AppSettings.petNicknames`，空值回退默认昵称，提供默认值、主进程校验与旧配置兼容）。
 4. 有未保存草稿时，在导航上显示圆点，并支持放弃修改。
-5. 桌宠气泡：页码改为圆点；底部收敛为"刷新"和"⋯ 更多"（点击"更多"在气泡上方以磨砂浮层遮盖展示，不挤占气泡内文字排版）；GPT 额度改用迷你环形进度；Gemini 气泡增加订阅方案展示；对话提醒显示来源标签，等待回应使用琥珀色区分。气泡尺寸、命中区域、倒挂与优先级语义保持不变。
+5. 桌宠气泡：页码改为圆点；底部收敛为"刷新"和"⋯ 更多"（点击"更多"在气泡上方以磨砂浮层遮盖展示，不挤占气泡内文字排版）；GPT 额度使用数字百分比（见 [R046](#r046gpt-气泡额度改用数字百分比t045)）；Gemini 气泡增加订阅方案展示；对话提醒显示来源标签，等待回应使用琥珀色区分。气泡尺寸、命中区域、倒挂与优先级语义保持不变。
 
 验收：已按 [UI_REDESIGN.md](UI_REDESIGN.md) 与对应任务单（[T035](tasks/T035-ui-foundation.md)–[T041](tasks/T041-ui-redesign-handoff.md)）逐项完成本地验证与视觉核对，正式规范已迁入 [DESIGN.md](../DESIGN.md)，正式实拍预览见 [docs/previews/T041/README.md](previews/T041/README.md)。详见 [T034](tasks/T034-ui-redesign-plan.md) 与 [T041](tasks/T041-ui-redesign-handoff.md)。
 
@@ -365,3 +365,9 @@ DeepSeek 展示和每日统计跟随电脑时区。旧账本保留日期及金�
 行为：移除 `src/renderer/styles.css` 中遗留的高优先级 `.pet-canvas.flipped .pet-bubble:before/:after` 规则，使气泡尖角在全部四种朝向（左／右 × 上／下）统一由 `--tail-x`、`--tail-flip`、`--tail-y` 与 `--tail-rotate` 驱动，倒置时尖角朝上指向倒挂桌宠。
 
 验收：构建与隔离 Electron 倒置冒烟测试（`desktop.spec.ts`）通过，断言倒置镜像态尖角垂直翻转（`d < 0`）且目视核对 `pet-inverted.png` 尖角朝向与描边无异常。见 [T043](tasks/T043-inverted-bubble-tail.md)。
+
+## R046：GPT 气泡额度改用数字百分比（T045）
+
+原版 GPT 和白龙的气泡在完整与简洁模式都以大字百分比显示剩余额度。完整模式显示原有的重置倒计时和重置卡摘要，设置首页与账户页沿用各自的额度图表。
+
+验收包括两种模式的百分比、气泡内无环形图、账户页进度条及完整模式的倒计时布局。见 [T045](tasks/T045-gpt-quota-numbers.md)。
