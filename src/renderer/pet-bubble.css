@@ -108,17 +108,3 @@
 .bubble-menu-close { padding: 0 5px; font-size: 16px; line-height: 1.2; }
 .bubble-menu-panel button:hover { background: var(--bubble-ring); }
 .bubble-menu-panel button:focus-visible { outline: 2px solid var(--bubble-border); outline-offset: -2px; }
-
-.quota-compact .quota-window .ui-ring {
-  width: 37px;
-  background: conic-gradient(var(--bubble-border) var(--meter-value), var(--bubble-ring) 0);
-  margin: 1px 0;
-}
-.quota-compact .quota-window .ui-ring > span {
-  width: calc(100% - 6px);
-  background: var(--bubble-bg);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: -.15px;
-}
-.quota-compact .quota-window > .quota-percentage { font-size: 14px; line-height: 37px; }

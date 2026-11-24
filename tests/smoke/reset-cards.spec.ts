@@ -30,13 +30,14 @@ test('reset cards keep authoritative count, local cutoff detail and compact pers
     const publish = () => application.evaluate(({ BrowserWindow }, state) => { for (const win of BrowserWindow.getAllWindows()) win.webContents.send('desktopplay:state', state); }, base);
     await publish();
     await expect(settings.locator('#codex .quota-reset-count')).toHaveText('重置卡 8 张');
+    await expect(settings.locator('#codex-quotas').getByRole('progressbar')).toHaveCount(2);
     await expect(settings.locator('#codex .quota-reset-row')).toHaveCount(4);
     await expect(settings.locator('#codex .quota-reset-row').first()).toContainText('2031/06/01');
     await expect(settings.locator('#codex .quota-reset-row').first()).toContainText('GMT');
     await expect(settings.locator('#codex .quota-reset-list')).toContainText('无到期限制');
     await expect(settings.locator('#codex .quota-reset-list')).toContainText('截止时间未提供');
     await expect(settings.locator('#codex .quota-reset-credits')).toContainText('明细不完整');
-    await settings.screenshot({ path: 'test-results/reset-cards-settings-details.png' });
+    await settings.screenshot({ path: info.outputPath('reset-cards-settings-details.png') });
     for (const appearance of ['classic', 'dragon'] as const) {
       await pet.evaluate(appearance => window.desktopPlay.selectGptAppearance(appearance), appearance);
       base.gptAppearance = appearance;
@@ -45,7 +46,8 @@ test('reset cards keep authoritative count, local cutoff detail and compact pers
       await pet.locator('.pet-character').dispatchEvent('click', { detail: 0 });
       await expect(pet.locator('.quota-reset-count')).toHaveText('重置卡 8 张');
       await expect(pet.locator('.quota-reset-deadline')).toContainText('2031/06/01');
-      await expect(pet.getByRole('meter')).toHaveCount(2);
+      await expect(pet.locator('.quota-percentage')).toHaveText(['76.6%', '99.9%']);
+      await expect(pet.getByRole('meter')).toHaveCount(0);
       const countdown = pet.locator('.quota-countdown');
       await expect(countdown).toHaveText(['6天 23小时 59分钟后重置', '重置时间未知']);
       const fitsCountdown = () => countdown.evaluateAll(elements => elements.every(el => {
@@ -90,6 +92,6 @@ test('reset cards keep authoritative count, local cutoff detail and compact pers
     await expect(settings.locator('#codex .quota-reset-credits')).toContainText('接口仅提供张数');
     base.codex.resetCredits = null; await publish();
     await expect(settings.locator('#codex .quota-reset-count')).toHaveText('重置卡：未提供');
-    await settings.screenshot({ path: 'test-results/reset-cards-settings.png' });
+    await settings.screenshot({ path: info.outputPath('reset-cards-settings.png') });
   } finally { await application.close(); }
 });

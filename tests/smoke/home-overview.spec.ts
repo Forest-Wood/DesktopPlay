@@ -1,14 +1,13 @@
 import { expect, test, _electron as electron } from '@playwright/test';
 import electronPath from 'electron';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { electronArgs } from './electron-args';
 import { settingsPage } from './settings-page';
 
-test('home opens by default, guides setup, and refreshes all three accounts in order', async () => {
-  const temp = path.resolve('.tmp/T036-smoke');
-  await mkdir(temp, { recursive: true });
-  const profile = await mkdtemp(path.join(temp, 'profile-'));
+test('home opens by default, guides setup, and refreshes all three accounts in order', async ({}, info) => {
+  const profile = info.outputPath('profile');
+  await mkdir(profile, { recursive: true });
   const env: Record<string, string> = {
     ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string')),
     DESKTOPPLAY_USER_DATA: profile,
@@ -41,7 +40,7 @@ test('home opens by default, guides setup, and refreshes all three accounts in o
       return rows.size === 3 && content.scrollWidth <= content.clientWidth && document.documentElement.scrollWidth <= innerWidth;
     })).toBe(true);
     await expect(settings.locator('#save-settings')).toBeInViewport();
-    await settings.screenshot({ path: 'test-results/T036-home-760x560-empty.png', scale: 'css' });
+    await settings.screenshot({ path: info.outputPath('home-760x560-empty.png'), scale: 'css' });
     await size(1060, 800);
 
     const refreshCalls = async () => app.evaluate(() => (globalThis as { t036RefreshCalls?: string[] }).t036RefreshCalls ?? []);
@@ -82,9 +81,10 @@ test('home opens by default, guides setup, and refreshes all three accounts in o
     expect(await refreshCalls()).toEqual(['refresh', 'refresh-codex', 'refresh-gemini']);
     const gemini = settings.locator('#home [data-account=gemini]');
     await expect(gemini.locator('.home-plan')).toHaveText('AI Pro');
-    await expect(gemini.locator('.gemini-quota-row strong')).toHaveText(['与 Gemini 共用', '0%', '未提供']);
+    await expect(gemini.locator('.gemini-quota-row span')).toHaveText(['Gemini 周额度', 'Gemini 5 小时额度']);
+    await expect(gemini.locator('.gemini-quota-row strong')).toHaveText(['0%', '未提供']);
     await expect(gemini.locator('progress')).toHaveCount(1);
-    await settings.screenshot({ path: 'test-results/T036-home-1060x800-desktop.png', scale: 'css' });
+    await settings.screenshot({ path: info.outputPath('home-1060x800-desktop.png'), scale: 'css' });
 
     await settings.locator('#home .home-reminder[data-source=chatgpt-work]').click();
     await expect(settings.locator('#reminder-guide-chatgpt-work')).toBeVisible();

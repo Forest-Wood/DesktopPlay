@@ -83,6 +83,7 @@
 .partner-option:has(> button[aria-pressed="true"]) { border-color: var(--role-color); }
 .settings-view #appearance > .panel .partner-option > .pet-option { width: 100%; background: transparent; border: none; box-shadow: none; }
 .settings-view .partner-option > .pet-option[aria-pressed="true"]::after { content: none; }
+.settings-view .partner-description { display: block; }
 .settings-view .partner-selected { display: none; }
 .settings-view .partner-option > .pet-option[aria-pressed="true"] .partner-selected { display: block; color: var(--role-color); }
 .partner-nicknames { display: grid; gap: 8px; padding: 0 12px 12px; }

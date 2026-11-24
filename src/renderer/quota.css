@@ -34,9 +34,9 @@
 .bubble-quota .gemini-quota-row:last-child { border-bottom: 0; }
 .bubble-quota .gemini-quota-row > span { font-weight: 500; }
 .bubble-quota .gemini-quota-row > strong { font-size: calc(18px * var(--bubble-font-scale, 1)); line-height: 1.05; letter-spacing: -.5px; font-weight: 700; }
-.bubble-quota .gemini-quota-row[data-state="shared"] > strong, .bubble-quota .gemini-quota-row[data-state="missing"] > strong { font-size: calc(10px * var(--bubble-font-scale, 1)); font-weight: 600; letter-spacing: 0; padding: 2px 6px; border-radius: 99px; background: color-mix(in srgb, var(--bubble-ink) 11%, transparent); }
+.bubble-quota .gemini-quota-row[data-state="missing"] > strong { font-size: calc(10px * var(--bubble-font-scale, 1)); font-weight: 600; letter-spacing: 0; padding: 2px 6px; border-radius: 99px; background: color-mix(in srgb, var(--bubble-ink) 11%, transparent); }
 .bubble-quota .gemini-quota-row[data-state="empty"] > strong { opacity: .58; }
 .bubble-quota .gemini-quota-row > small { font-size: calc(9px * var(--bubble-font-scale, 1)); line-height: 1.2; }
 .simple-mode .bubble-quota .gemini-quota-row { padding: 6px 0; font-size: calc(11.5px * var(--bubble-font-scale, 1)); }
 .simple-mode .gemini-quota-row > strong { font-size: calc(19px * var(--bubble-font-scale, 1)); }
-.simple-mode .gemini-quota-row[data-state="shared"] > strong, .simple-mode .gemini-quota-row[data-state="missing"] > strong { font-size: calc(11px * var(--bubble-font-scale, 1)); }
+.simple-mode .gemini-quota-row[data-state="missing"] > strong { font-size: calc(11px * var(--bubble-font-scale, 1)); }

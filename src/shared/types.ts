@@ -121,9 +121,9 @@ export interface PetAsset {
 
 export type BuiltinPetId = 'deepseek' | 'gpt' | 'gemini';
 export type GeminiAppearance = 'classic' | 'sketch';
-export type GeminiBucket = 'gemini-argon-wtu-weekly' | 'gemini-weekly' | 'gemini-5h';
+export type GeminiBucket = 'gemini-weekly' | 'gemini-5h';
 export interface GeminiQuotaState {
-  windows: Partial<Record<GeminiBucket, { remainingPercent: number | null; resetsAt: string | null; shared: boolean }>>;
+  windows: Partial<Record<GeminiBucket, { remainingPercent: number | null; resetsAt: string | null }>>;
   planName?: string;
   status: 'idle' | 'loading' | 'ready' | 'error';
   updatedAt: string | null;
