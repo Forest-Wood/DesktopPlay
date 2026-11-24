@@ -1,6 +1,6 @@
 import { test, expect, _electron as electron } from '@playwright/test';
 import electronPath from 'electron';
-import { mkdir, mkdtemp, writeFile, readFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { waitingSummary } from '../fixtures/gemini-summary';
@@ -9,16 +9,19 @@ import { electronArgs } from './electron-args';
 import { settingsPage } from './settings-page';
 
 test('Gemini skins, quota rows, Stop relay and saved profile', async ({}, info) => {
-  await mkdir('.tmp', { recursive: true });
-  const profile = await mkdtemp(path.resolve('.tmp/T024-smoke-'));
+  const profile = info.outputPath('profile');
   const home = path.join(profile, 'gemini-test-home');
   await mkdir(path.join(home, 'config'), { recursive: true });
   await writeFile(path.join(home, 'config/hooks.json'), '{"existing":{"enabled":false}}');
   const quota = path.join(home, 'quota.json');
+  const resetInHours = (hours: number) => new Date(Date.now() + hours * 3600000).toISOString();
   const quotaFixture = { groups: [{ buckets: [
-    { id: 'gemini-5h', remaining_fraction: .37 }, { id: 'gemini-argon-wtu-weekly', remaining_fraction: 0 },
-    { id: 'gemini-weekly', remaining_fraction: .62 },
+    { id: 'gemini-5h', remaining_fraction: .37, reset_time: resetInHours(3) },
+    { id: 'gemini-argon-wtu-weekly', remaining_fraction: 0 },
+    { id: 'gemini-weekly', remaining_fraction: .62, reset_time: resetInHours(80) },
   ] }] };
+  const quotaLabels = ['Gemini 周额度', 'Gemini 5 小时额度'];
+  const percentages = ['62%', '37%'];
   await writeFile(quota, JSON.stringify({ ...quotaFixture, planName: 'AI Pro' }));
   const env = { ...process.env, DESKTOPPLAY_USER_DATA: profile, DESKTOPPLAY_TEST_NO_CODEX: '1', DESKTOPPLAY_TEST_NO_ONBOARDING: '1' };
   delete (env as NodeJS.ProcessEnv).ELECTRON_RUN_AS_NODE;
@@ -29,6 +32,7 @@ test('Gemini skins, quota rows, Stop relay and saved profile', async ({}, info) 
     await pet.evaluate(() => window.desktopPlay.openSettings());
     const settings = app.windows().find(w => w !== pet) ?? await app.waitForEvent('window');
     await settingsPage(settings, 'appearance');
+    await expect(settings.locator('#select-gemini .partner-description')).toHaveText('周额度与 5 小时额度');
     await settings.locator('#select-gemini').click();
     await expect(settings.locator('#app')).toHaveClass(/gemini-theme/);
     await expect(pet.locator('.pet-canvas')).toHaveClass(/gemini-theme/);
@@ -40,21 +44,41 @@ test('Gemini skins, quota rows, Stop relay and saved profile', async ({}, info) 
     await settings.screenshot({ path: path.join(profile, 'gemini-appearance.png') });
     await settingsPage(settings, 'gemini');
     await expect(settings.locator('#gemini-status-chip')).toHaveText('已连接 Antigravity');
-    await expect(settings.locator('#gemini-quotas strong')).toHaveText(['0%', '62%', '37%']);
-    await expect(settings.locator('#gemini-quotas progress')).toHaveCount(3);
-    await settings.screenshot({ path: path.join(profile, 'gemini-settings.png') });
+    await expect(settings.locator('#gemini-plan')).toHaveText('AI Pro');
+    const cards = settings.locator('#gemini-quotas .gemini-quota-row');
+    await expect(cards.locator('span')).toHaveText(quotaLabels);
+    await expect(cards.locator('strong')).toHaveText(percentages);
+    await expect(cards.locator('progress')).toHaveCount(2);
+    await expect(cards.locator('small')).toHaveText([/重置 /, /重置 /]);
+    const setSettingsWidth = async (width: number) => {
+      await app.evaluate(({ BrowserWindow }, w) =>
+        BrowserWindow.getAllWindows().find(window => window.webContents.getURL().includes('view=settings'))!.setContentSize(w, 650), width);
+      await expect.poll(() => settings.evaluate(() => innerWidth)).toBe(width);
+    };
+    const cardRows = () => cards.evaluateAll(elements => new Set(elements.map(element => element.getBoundingClientRect().top)).size);
+    await setSettingsWidth(1000);
+    expect(await cardRows()).toBe(1);
+    await settings.screenshot({ path: info.outputPath('gemini-settings-wide.png') });
+    await setSettingsWidth(760);
+    expect(await cardRows()).toBe(2);
+    await settings.screenshot({ path: info.outputPath('gemini-settings-narrow.png') });
     await pet.locator('.pet-character').dispatchEvent('click');
     const rows = pet.locator('.gemini-quota-row');
     const plan = pet.locator('.gemini-plan-badge');
     await expect(plan).toHaveText('AI Pro');
+    await expect(rows.locator('span')).toHaveText(quotaLabels);
+    await expect(rows.locator('strong')).toHaveText(percentages);
+    await expect(rows.locator('small')).toHaveText([/^重置 /, /^重置 /]);
     expect(await rows.last().evaluate(el => el.getBoundingClientRect().bottom <= el.closest('.bubble-content')!.getBoundingClientRect().bottom + 1)).toBe(true);
     await pet.screenshot({ path: info.outputPath('gemini-full.png'), omitBackground: true });
     await writeFile(quota, JSON.stringify(quotaFixture));
     await pet.evaluate(() => window.desktopPlay.refreshGeminiQuota());
     await expect(plan).toBeHidden();
+    await expect(settings.locator('#gemini-plan')).toBeHidden();
     await pet.evaluate(() => window.desktopPlay.updateSettings({petMode:'simple'}));
-    await expect(rows.locator('span')).toHaveText(['Argon 周额度', 'Gemini 周额度', 'Gemini 5 小时额度']);
-    await expect(rows.locator('strong')).toHaveText(['0%', '62%', '37%']);
+    await expect(rows.locator('span')).toHaveText(quotaLabels);
+    await expect(rows.locator('strong')).toHaveText(percentages);
+    await expect(rows.locator('small')).toHaveCount(0);
     expect(await rows.last().evaluate(el => el.getBoundingClientRect().bottom <= el.closest('.bubble-content')!.getBoundingClientRect().bottom + 1)).toBe(true);
     await pet.screenshot({ path: info.outputPath('gemini-simple.png'), omitBackground: true });
     await pet.evaluate(() => { window.desktopPlay.onConversationNotice(n => { if (n.source === 'antigravity') document.body.dataset.geminiNotices = String(Number(document.body.dataset.geminiNotices ?? 0) + 1); }); });

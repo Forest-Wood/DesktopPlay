@@ -4,7 +4,9 @@
 
 ## 当前任务
 
-- [T045／R046](tasks/T045-gpt-quota-numbers.md)（`fix/T045-gpt-quota-numbers`，基准 `1e51051`，实现 `5491b84`，**待审查**）。GPT 完整与简洁气泡改用数字百分比。构建、8 项相关单测、2 项隔离 Electron 冒烟及截图核对通过。T044 的改动保留在主工作区。[PR #43](https://github.com/Forest-Wood/DesktopPlay/pull/43)
+- [T044／R045](tasks/T044-remove-argon-quota.md)（实现 `f8c7b16`）。Gemini 气泡、首页、账户页及浏览器演示统一显示周额度与 5 小时额度。Edge 演示通过，真实账户读取待验收。
+- [T045／R046](tasks/T045-gpt-quota-numbers.md)（实现 `5491b84`）。GPT 完整与简洁气泡改用数字百分比。
+- T044 与 T045 共用主工作区 `D:\desktop1\DesktopPlay`，在 `fix/T045-gpt-quota-numbers` 一起审查。整合后构建、15 项相关单测及 4 项隔离 Electron 冒烟通过。[PR #43](https://github.com/Forest-Wood/DesktopPlay/pull/43)
 - [T043／R044](tasks/T043-inverted-bubble-tail.md) 已通过 [PR #42](https://github.com/Forest-Wood/DesktopPlay/pull/42) 合入 `main`（`1e51051`）。修复桌宠倒置且水平镜像时气泡尖角方向，构建、相关 Electron 冒烟和截图目视检查通过。
 - [T042／R043](tasks/T042-release-v220.md) 已发布 [v2.2.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.2.0)（`37e2aad`，[PR #41](https://github.com/Forest-Wood/DesktopPlay/pull/41)，发布工作流 `45034132074`）。
 - [T034–T041／R041／R042](tasks/T041-ui-redesign-handoff.md) 已通过 [PR #40](https://github.com/Forest-Wood/DesktopPlay/pull/40) 合入主线 `242a007`，完成设置窗口 6 项导航重设计、首页总览、提醒中心矩阵、人设工作室、伙伴可编辑昵称、桌宠气泡升级、超级调色盘及 `DESIGN.md`／`docs/previews/T041/` 正式交接。
@@ -15,18 +17,17 @@
 - [T029／R036](tasks/T029-update-eta-gemini-completion.md) 已通过 [PR #33](https://github.com/Forest-Wood/DesktopPlay/pull/33) 合入主线 `d7c32c2`，随 v2.0.2 分发。应用内软件更新下载新增平滑速率与预计剩余时间估计；修复 Gemini 任务完成提示气泡在 VS Code 与桌面 App 均未展示的问题；在协作文档新增完成 `T(N)` 清理 `T(N-2)` 临时测试文件的滚动规范。真实 VS Code／App 端完成弹泡待实机验收。
 - [T028／R035](tasks/T028-release-v201.md) 已发布 [v2.0.1](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.1)。[PR #31](https://github.com/Forest-Wood/DesktopPlay/pull/31) 合入主线，标签 `v2.0.1` 指向 `9679547`。[发布工作流 44507457122](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44507457122) 通过打包、更新运行时与五项附件摘要及公告校验。
 - [T027／R034](tasks/T027-retention-bubble.md) 已通过 [PR #30](https://github.com/Forest-Wood/DesktopPlay/pull/30) 合入主线 `903dd9e`，随 v2.0.1 修复在“用量小报告”或“陪伴短句”气泡页点击“换角色”时挽留提示词拼接在原页面文案后面的问题。
-- [T026／R033](tasks/T026-gemini-ui.md) 已通过 [PR #29](https://github.com/Forest-Wood/DesktopPlay/pull/29) 合入主线 `c101c7e`，随 v2.0.1 提供 Gemini 气泡双列排版、设置页三栏额度卡与状态胶囊、星光紫角色舞台（`gemini-theme`）、三角色并排选择器与左右对称翻转后的经典／手绘两款造型。
+- [T026／R033](tasks/T026-gemini-ui.md) 已通过 [PR #29](https://github.com/Forest-Wood/DesktopPlay/pull/29) 合入主线 `c101c7e`，随 v2.0.1 提供 Gemini 气泡双列排版、设置页额度卡与状态胶囊、星光紫角色舞台（`gemini-theme`）、三角色并排选择器与左右对称翻转后的经典／手绘两款造型。
 - [T025／R032](tasks/T025-release-v200.md) 已发布 v2.0.0。[PR #27](https://github.com/Forest-Wood/DesktopPlay/pull/27) 合入主线，标签指向 `163a87a`。构建、324 项单测、27 项 Electron 测试及两套文件助手验证通过。
-- [T024／R031](tasks/T024-gemini-pet.md) 已经 [PR #26](https://github.com/Forest-Wood/DesktopPlay/pull/26) 合并，随 v2.0.0 提供 Gemini 的两款造型、三项额度与对话提醒。真实 App 与 agy 的额度已按三项对照，真实三端任务提醒和共享池账户仍待验收。
+- [T024／R031](tasks/T024-gemini-pet.md) 已通过 [PR #26](https://github.com/Forest-Wood/DesktopPlay/pull/26) 合并，随 v2.0.0 提供 Gemini 的两款造型、额度与对话提醒。初版额度已在真实 App 与 agy 对照，真实三端任务提醒仍待验收。
 
 ## 主线与发布
 
-- [v2.1.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.1.0) 于 2026-11-19 23:00:40（Asia/Shanghai）成为最新正式版。[发布工作流](https://github.com/Forest-Wood/DesktopPlay/actions/runs/44549546635) 校验了六个附件（含免安装版 `.blockmap`）和更新公告。
 - T031 与 T032 随 v2.1.0 分发；T029 随 [v2.0.2](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.2) 分发；T026 与 T027 随 [v2.0.1](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.1) 分发；T021 至 T024 随 [v2.0.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.0) 分发。此前 v1.1.0 的发布记录见 [T020](tasks/T020-release-v110.md)。
 
 ## 有效限制与后续
 
-- T045 已按 `T(N-2)` 规则清理 T043 的测试目录与 PR 草稿。T044 与 T045 的验证产物保留。明细见 [T045](tasks/T045-gpt-quota-numbers.md#临时文件滚动清理)。
+- 依次清理了 T042、T043 的本地测试目录与草稿。T044、T045 的验证产物与原 T045 工作区均保留。
 
 - 2026-11-12 GPT 额度只读排查（工作区 HEAD `cc318be`，保留全部既有 T022 未提交修改）：运行中安装版为 `D:\DesktopPet` v1.1.0，进程启动于 11-09，现存 VS Code Codex 扩展目录创建于 11-11。通过当前 `codex-quota.ts` 的发现及只读请求函数实测额度读取、解析成功，未记录账户身份或凭据。安装包代码与源代码均只在初始化发现程序，刷新失败不重新发现；旧扩展路径失效为高概率原因，未直接读取运行中缓存路径。建议完全退出并重开桌宠验证；尚未重启、未确认 UI 恢复、未修改业务代码或真实配置。诊断临时构建已在后续目录复核时确认不存在。若后续修复自动重新发现，另建任务分支；本次仅新增此排查记录，不归入 T022 实现结果。
 

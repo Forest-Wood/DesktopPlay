@@ -1,10 +1,10 @@
 import { PET_NICKNAME_DEFAULTS } from '../../../shared/pet-nicknames';
 import type { AppSettings, AppState, PetPersona } from '../../../shared/types';
 
-const PARTNERS: { id: AppState['activePet']; title: string; personas: PetPersona[] }[] = [
+const PARTNERS: { id: AppState['activePet']; title: string; personas: PetPersona[]; description?: string }[] = [
   { id: 'deepseek', title: 'DeepSeek', personas: ['whale'] },
   { id: 'gpt', title: 'GPT', personas: ['gpt', 'dragon'] },
-  { id: 'gemini', title: 'Gemini', personas: ['gemini'] },
+  { id: 'gemini', title: 'Gemini', personas: ['gemini'], description: '周额度与 5 小时额度' },
 ];
 
 export function mountPartners(appearance: HTMLElement, behavior: HTMLElement) {
@@ -12,13 +12,19 @@ export function mountPartners(appearance: HTMLElement, behavior: HTMLElement) {
   const cards = panel.querySelector<HTMLElement>('.pet-selector')!;
   cards.classList.add('partner-cards');
   const nicknames = new Map<PetPersona, HTMLInputElement>();
-  for (const { id, title, personas } of PARTNERS) {
+  for (const { id, title, personas, description } of PARTNERS) {
     const button = cards.querySelector<HTMLButtonElement>(`#select-${id}`)!;
     const card = document.createElement('article');
     card.className = 'partner-option';
     card.dataset.partner = id;
     const caption = button.querySelector('span')!;
     caption.replaceChildren(title);
+    if (description) {
+      const note = document.createElement('small');
+      note.className = 'partner-description';
+      note.textContent = description;
+      caption.append(note);
+    }
     const selected = document.createElement('small');
     selected.className = 'partner-selected';
     selected.textContent = '已选';
