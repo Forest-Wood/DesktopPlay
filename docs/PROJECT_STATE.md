@@ -4,7 +4,7 @@
 
 ## 当前任务
 
-- [T045／R046](tasks/T045-gpt-quota-numbers.md)（`fix/T045-gpt-quota-numbers`，基准 `1e51051`，**待审查**）。GPT 完整与简洁气泡改用数字百分比。构建、8 项相关单测、2 项隔离 Electron 冒烟及截图核对通过。T044 的改动保留在主工作区。
+- [T045／R046](tasks/T045-gpt-quota-numbers.md)（`fix/T045-gpt-quota-numbers`，基准 `1e51051`，实现 `5491b84`，**待审查**）。GPT 完整与简洁气泡改用数字百分比。构建、8 项相关单测、2 项隔离 Electron 冒烟及截图核对通过。T044 的改动保留在主工作区。[PR #43](https://github.com/Forest-Wood/DesktopPlay/pull/43)
 - [T043／R044](tasks/T043-inverted-bubble-tail.md) 已通过 [PR #42](https://github.com/Forest-Wood/DesktopPlay/pull/42) 合入 `main`（`1e51051`）。修复桌宠倒置且水平镜像时气泡尖角方向，构建、相关 Electron 冒烟和截图目视检查通过。
 - [T042／R043](tasks/T042-release-v220.md) 已发布 [v2.2.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.2.0)（`37e2aad`，[PR #41](https://github.com/Forest-Wood/DesktopPlay/pull/41)，发布工作流 `45034132074`）。
 - [T034–T041／R041／R042](tasks/T041-ui-redesign-handoff.md) 已通过 [PR #40](https://github.com/Forest-Wood/DesktopPlay/pull/40) 合入主线 `242a007`，完成设置窗口 6 项导航重设计、首页总览、提醒中心矩阵、人设工作室、伙伴可编辑昵称、桌宠气泡升级、超级调色盘及 `DESIGN.md`／`docs/previews/T041/` 正式交接。
