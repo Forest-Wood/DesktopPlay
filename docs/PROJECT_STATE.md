@@ -4,7 +4,7 @@
 
 ## 当前任务
 
-- [T046／R047](tasks/T046-release-v221.md) 准备将 T043–T045 作为补丁版 v2.2.1 发布。发布前修正 Codex 冒烟用例的选择范围。版本检查、构建与相关本地用例通过。
+- [T046／R047](tasks/T046-release-v221.md) 已将 T043–T045 发布为补丁版 v2.2.1，发布提交为 `fbd7a8e`。完整 Windows CI 和发布工作流通过，六项公开下载的大小与摘要已复核。[PR #44](https://github.com/Forest-Wood/DesktopPlay/pull/44) · [v2.2.1](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.2.1)
 - [T044／R045](tasks/T044-remove-argon-quota.md)（实现 `f8c7b16`）。Gemini 气泡、首页、账户页及浏览器演示统一显示周额度与 5 小时额度。Edge 演示通过，真实账户读取待验收。
 - [T045／R046](tasks/T045-gpt-quota-numbers.md)（实现 `5491b84`）。GPT 完整与简洁气泡改用数字百分比。
 - T044 与 T045 通过 [PR #43](https://github.com/Forest-Wood/DesktopPlay/pull/43) 合入主线 `3a32aea`。整合后构建、15 项相关单测及 4 项隔离 Electron 冒烟通过。完整 CI 捕获的 Codex 测试选择器冲突由 T046 修正。
