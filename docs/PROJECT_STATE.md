@@ -4,9 +4,10 @@
 
 ## 当前任务
 
+- [T046／R047](tasks/T046-release-v221.md) 准备将 T043–T045 作为补丁版 v2.2.1 发布。发布前修正 Codex 冒烟用例的选择范围。版本检查、构建与相关本地用例通过。
 - [T044／R045](tasks/T044-remove-argon-quota.md)（实现 `f8c7b16`）。Gemini 气泡、首页、账户页及浏览器演示统一显示周额度与 5 小时额度。Edge 演示通过，真实账户读取待验收。
 - [T045／R046](tasks/T045-gpt-quota-numbers.md)（实现 `5491b84`）。GPT 完整与简洁气泡改用数字百分比。
-- T044 与 T045 共用主工作区 `D:\desktop1\DesktopPlay`，在 `fix/T045-gpt-quota-numbers` 一起审查。整合后构建、15 项相关单测及 4 项隔离 Electron 冒烟通过。[PR #43](https://github.com/Forest-Wood/DesktopPlay/pull/43)
+- T044 与 T045 通过 [PR #43](https://github.com/Forest-Wood/DesktopPlay/pull/43) 合入主线 `3a32aea`。整合后构建、15 项相关单测及 4 项隔离 Electron 冒烟通过。完整 CI 捕获的 Codex 测试选择器冲突由 T046 修正。
 - [T043／R044](tasks/T043-inverted-bubble-tail.md) 已通过 [PR #42](https://github.com/Forest-Wood/DesktopPlay/pull/42) 合入 `main`（`1e51051`）。修复桌宠倒置且水平镜像时气泡尖角方向，构建、相关 Electron 冒烟和截图目视检查通过。
 - [T042／R043](tasks/T042-release-v220.md) 已发布 [v2.2.0](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.2.0)（`37e2aad`，[PR #41](https://github.com/Forest-Wood/DesktopPlay/pull/41)，发布工作流 `45034132074`）。
 - [T034–T041／R041／R042](tasks/T041-ui-redesign-handoff.md) 已通过 [PR #40](https://github.com/Forest-Wood/DesktopPlay/pull/40) 合入主线 `242a007`，完成设置窗口 6 项导航重设计、首页总览、提醒中心矩阵、人设工作室、伙伴可编辑昵称、桌宠气泡升级、超级调色盘及 `DESIGN.md`／`docs/previews/T041/` 正式交接。
@@ -27,7 +28,7 @@
 
 ## 有效限制与后续
 
-- 依次清理了 T042、T043 的本地测试目录与草稿。T044、T045 的验证产物与原 T045 工作区均保留。
+- T046 清理了 T044 的独立冒烟目录。T045、两项合并后的冒烟结果与 T046 验证产物继续保留。
 
 - 2026-11-12 GPT 额度只读排查（工作区 HEAD `cc318be`，保留全部既有 T022 未提交修改）：运行中安装版为 `D:\DesktopPet` v1.1.0，进程启动于 11-09，现存 VS Code Codex 扩展目录创建于 11-11。通过当前 `codex-quota.ts` 的发现及只读请求函数实测额度读取、解析成功，未记录账户身份或凭据。安装包代码与源代码均只在初始化发现程序，刷新失败不重新发现；旧扩展路径失效为高概率原因，未直接读取运行中缓存路径。建议完全退出并重开桌宠验证；尚未重启、未确认 UI 恢复、未修改业务代码或真实配置。诊断临时构建已在后续目录复核时确认不存在。若后续修复自动重新发现，另建任务分支；本次仅新增此排查记录，不归入 T022 实现结果。
 
@@ -36,4 +37,4 @@
 - 原生鼠标间歇偏移仍无根因结论，见 T010／T014／T022；T022 当前实现及基准对照均复现按住时位置偏移，不能用早期单次通过认定已解决。
 - 受限 Electron 存在启动超时／AppContainer 环境限制；隔离测试可在沙箱外运行，保持应用 Electron 沙箱启用。测试不得使用真实账户、账本或修改真实客户端设置。
 - appId、`%APPDATA%\DesktopPlay` 及安装／portable 共用数据保持兼容。等待与完成提示默认点击前常驻，可按场景设置定时关闭，隐藏／退出清空，不补历史。
-- 下一独立任务编号：T046／R047。
+- 下一独立任务编号：T047／R048。

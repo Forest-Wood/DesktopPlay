@@ -156,10 +156,10 @@ test('packaged renderer, secure bridge and persistent desktop settings', async (
       fixture.codex = { ...fixture.codex, status: 'ready', planType, updatedAt: new Date().toISOString(), buckets: [{ id: 'codex', name: 'Codex', planType, primary: { usedPercent: 0.1, remainingPercent: 99.9, windowMinutes: 10080, resetsAt: new Date(Date.now() + 3600000).toISOString() }, secondary: planType === null ? null : { usedPercent: 0, remainingPercent: 100, windowMinutes: 300, resetsAt: new Date(Date.now() + 3600000).toISOString() }, creditsRemaining: null, unlimitedCredits: false }] };
       await application.evaluate(({ BrowserWindow }, state) => { for (const win of BrowserWindow.getAllWindows()) win.webContents.send('desktopplay:state', state); }, fixture);
       const label = planType === null ? '套餐未知' : 'Plus';
-      for (const page of [settings, pet]) {
-        await expect(page.locator('.quota-plan-badge')).toHaveText(label);
-        await expect(page.locator('.quota-window').nth(0).locator('.quota-percentage')).toHaveText('99.9%');
-        await expect(page.locator('.quota-window')).toHaveCount(planType === null ? 1 : 2);
+      for (const quota of [settings.locator('#codex-quotas'), pet.locator('.bubble-quota')]) {
+        await expect(quota.locator('.quota-plan-badge')).toHaveText(label);
+        await expect(quota.locator('.quota-window').first().locator('.quota-percentage')).toHaveText('99.9%');
+        await expect(quota.locator('.quota-window')).toHaveCount(planType === null ? 1 : 2);
       }
       fixture.codex.status = 'error'; fixture.codex.error = 'smoke-refresh-failed';
       await application.evaluate(({ BrowserWindow }, state) => { for (const win of BrowserWindow.getAllWindows()) win.webContents.send('desktopplay:state', state); }, fixture);
