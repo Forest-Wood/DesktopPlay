@@ -222,7 +222,7 @@ export function mountHome(root: HTMLElement, actions: HomeActions, demo: boolean
       find('#home-heading').textContent = hour < 6 ? '夜深了' : hour < 12 ? '上午好' : hour < 18 ? '下午好' : '晚上好';
       const balanceData = !!state.balance;
       const codexData = !!(state.codex.buckets.length || state.codex.resetCredits || state.codex.planType);
-      const geminiData = Object.values(state.geminiQuota.windows).some(window => window.shared || window.remainingPercent !== null);
+      const geminiData = Object.values(state.geminiQuota.windows).some(window => window.remainingPercent !== null);
       const statuses = [
         accountStatus(state.balance?.isAvailable === false && state.status !== 'loading' ? 'error' : state.status, balanceData, demo),
         accountStatus(state.codex.status, codexData, demo),

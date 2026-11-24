@@ -20,13 +20,13 @@ export function renderGeminiQuota(root: HTMLElement, state: GeminiQuotaState, si
   root.replaceChildren();
   for (const [id, label] of GEMINI_WINDOWS) {
     const value = state.windows[id], row = document.createElement('div');
-    const remaining = !value?.shared && value?.remainingPercent != null && Number.isFinite(value.remainingPercent)
+    const remaining = value?.remainingPercent != null && Number.isFinite(value.remainingPercent)
       ? Math.max(0, Math.min(100, value.remainingPercent)) : null;
     row.className = 'gemini-quota-row';
-    row.dataset.state = value?.shared ? 'shared' : remaining === null ? 'missing' : remaining === 0 ? 'empty' : 'ready';
+    row.dataset.state = remaining === null ? 'missing' : remaining === 0 ? 'empty' : 'ready';
     const title = document.createElement('span'), percent = document.createElement('strong');
     title.textContent = label;
-    percent.textContent = value?.shared ? '与 Gemini 共用' : remaining !== null ? remainingLabel(remaining) : '未提供';
+    percent.textContent = remaining !== null ? remainingLabel(remaining) : '未提供';
     row.append(title, percent);
     if (!compact && remaining !== null) {
       const bar = document.createElement('progress');
@@ -36,7 +36,7 @@ export function renderGeminiQuota(root: HTMLElement, state: GeminiQuotaState, si
       row.append(bar);
     }
     if (!simple) {
-      if (value && !value.shared) {
+      if (value) {
         const reset = document.createElement('small');
         const expired = value.resetsAt ? Date.parse(value.resetsAt) <= Date.now() : false;
         reset.textContent = value.resetsAt
@@ -47,7 +47,7 @@ export function renderGeminiQuota(root: HTMLElement, state: GeminiQuotaState, si
         row.append(reset);
       } else if (!compact) {
         const reset = document.createElement('small');
-        reset.textContent = value?.shared ? '与 Gemini 周额度共用同一额度池' : state.status === 'loading' ? '正在读取额度与重置时间…' : '尚未获取该窗口的额度数据';
+        reset.textContent = state.status === 'loading' ? '正在读取额度与重置时间…' : '尚未获取该窗口的额度数据';
         row.append(reset);
       }
     }

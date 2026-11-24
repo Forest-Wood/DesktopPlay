@@ -14,28 +14,19 @@ function parseQuota(payload: unknown) {
   const summary = record(command.data ?? root.response ?? root.summary ?? root);
   if (!Array.isArray(summary.groups) || !summary.groups.length) throw new Error('Antigravity 尚未返回额度窗口，请稍后刷新。');
   const windows: GeminiQuotaState['windows'] = {};
-  let argonInGeminiPool = false;
   for (const group of summary.groups.map(record)) {
     if (!Array.isArray(group.buckets)) continue;
-    // Some accounts list Argon among the models in the ordinary Gemini group.
-    // General plan descriptions can mention several tiers; only use an explicit membership list.
-    const buckets = group.buckets.map(record);
-    if (buckets.some(b => (b.bucketId ?? b.bucket_id ?? b.id) === 'gemini-weekly' && b.disabled !== true)
-        && typeof group.description === 'string' && /^Models within this group:[^\n]*\bGemini (?:4 )?Argon\b/i.test(group.description)) argonInGeminiPool = true;
-    for (const bucket of buckets) {
+    for (const bucket of group.buckets.map(record)) {
       const match = GEMINI_WINDOWS.find(([key]) => key === (bucket.bucketId ?? bucket.bucket_id ?? bucket.id));
-      if (!match) continue;
+      if (!match || bucket.disabled === true) continue;
       const [key] = match, nested = record(bucket.remaining);
       const value = bucket.remainingFraction ?? bucket.remaining_fraction ?? nested.remainingFraction ?? (nested.case === 'remainingFraction' ? nested.value : null);
       const reset = bucket.resetTime ?? bucket.reset_time;
-      const shared = key === 'gemini-argon-wtu-weekly' && (bucket.sharedWith === 'gemini-weekly' || bucket.shared_with === 'gemini-weekly' || (bucket.disabled === true && /(?:shares?|shared with|counts? (?:toward|against)) (?:the |your )?(?:main |larger )?gemini (?:pool|quota)/i.test(String(bucket.description ?? ''))));
-      if (bucket.disabled === true && !shared) continue;
-      windows[key] = { remainingPercent: !shared && typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1 ? value * 100 : null,
-        resetsAt: typeof reset === 'string' && Number.isFinite(Date.parse(reset)) ? new Date(reset).toISOString() : null, shared };
+      windows[key] = {
+        remainingPercent: typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1 ? value * 100 : null,
+        resetsAt: typeof reset === 'string' && Number.isFinite(Date.parse(reset)) ? new Date(reset).toISOString() : null,
+      };
     }
-  }
-  if (argonInGeminiPool && !windows['gemini-argon-wtu-weekly']) {
-    windows['gemini-argon-wtu-weekly'] = { remainingPercent: null, resetsAt: null, shared: true };
   }
   // Only report a plan when the quota response includes dedicated plan metadata.
   const planName = [summary.planName, summary.plan_name, record(summary.paidTier).displayName, record(summary.userTier).name]

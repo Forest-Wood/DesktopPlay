@@ -13,22 +13,24 @@ import type { ConversationNotice } from '../../../src/shared/types';
 const dirs: string[] = [];
 afterEach(async () => { vi.useRealTimers(); await Promise.all(dirs.splice(0).map(dir => rm(dir, { recursive: true, force: true }))); });
 const expiry = '2026-11-18T05:00:00Z';
-it('separates local and CLI buckets, missing, disabled, shared and zero', () => {
-  const sample = { groups: [{ buckets: [
-    { bucketId: 'gemini-argon-wtu-weekly', remainingFraction: 0, resetTime: expiry },
-    { id: 'gemini-weekly', remaining: { case: 'remainingFraction', value: .72 } },
+it('reads Gemini quota from local and CLI responses and ignores legacy Argon data', () => {
+  const sample = { groups: [{ description: 'Models within this group: Gemini 4 Argon, Gemini Flash', buckets: [
+    { bucketId: 'gemini-argon-wtu-weekly', remainingFraction: .72, resetTime: expiry },
+    { id: 'gemini-weekly', remaining: { case: 'remainingFraction', value: 0 } },
     { id: 'gemini-5h', remaining_fraction: .21, reset_time: expiry },
     { id: 'unrelated', remainingFraction: 1 },
   ] }] };
-  const a = quotaWindows({ response: sample }), b = quotaWindows({ status: 'SUCCESS', command: { name: 'usage', data: sample } });
-  expect(a).toEqual(b);
-  expect(Object.values(a).map(w => w.remainingPercent)).toEqual([0,72,21]);
-  expect(a['gemini-5h']?.resetsAt).toBe(new Date(expiry).toISOString());
-  expect(quotaWindows({groups:[{buckets:[{id:'gemini-5h',disabled:true}]}]})).toEqual({});
-  expect(quotaWindows({groups:[{buckets:[{id:'gemini-argon-wtu-weekly',sharedWith:'gemini-weekly', disabled:true}]}]})['gemini-argon-wtu-weekly']).toMatchObject({shared:true, remainingPercent:null});
-  expect(quotaWindows({ groups: [{ description: 'Models within this group: Gemini 4 Argon, Gemini Flash', buckets: [
-    { id: 'gemini-weekly', remainingFraction: .4 }
-  ] }] })['gemini-argon-wtu-weekly']?.shared).toBe(true);
+  const expected = {
+    'gemini-weekly': { remainingPercent: 0, resetsAt: null },
+    'gemini-5h': { remainingPercent: 21, resetsAt: new Date(expiry).toISOString() },
+  };
+  expect(quotaWindows({ response: sample })).toEqual(expected);
+  expect(quotaWindows({ status: 'SUCCESS', command: { name: 'usage', data: sample } })).toEqual(expected);
+  expect(quotaWindows({ groups: [{ description: sample.groups[0].description, buckets: [
+    { id: 'gemini-argon-wtu-weekly', disabled: true, sharedWith: 'gemini-weekly' },
+    { id: 'gemini-weekly' },
+    { id: 'gemini-5h', disabled: true },
+  ] }] })).toEqual({ 'gemini-weekly': { remainingPercent: null, resetsAt: null } });
   expect(() => quotaWindows({status:'FAILURE',command:{name:'usage', data:sample}})).toThrow();
 });
 it('uses the signed-in CLI when local is closed, keeps the last success across failures, then refreshes after reset', async () => {
