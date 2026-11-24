@@ -2,7 +2,7 @@
 
 DesktopPet 是 Windows 桌宠。小鲸鱼显示 DeepSeek 余额，GPT 小伙伴显示 Codex 编程额度，Gemini 显示 Antigravity 剩余额度。GPT 角色可在原版与白龙两种内置造型间切换，也可继续使用自定义图片。面向 Windows 10/11 x64，提供 NSIS 安装版和 portable 免安装版。桌宠本身不需要 Node.js 或 DeepSeek Harness（DSH）；实时 Codex 额度需要本机已有原生 Codex 程序，并已使用 ChatGPT 账户登录。
 
-最新正式版 v2.0.2 为应用内更新下载补充实时速率与预计剩余时间估计，并修复 Gemini 任务完成提示气泡在 VS Code 与桌面 App 端均未展示的问题（默认通过只读监听本机会话摘要自动提醒，无需额外配置 hook）。[Windows x64 下载与更新说明](https://github.com/Forest-Wood/DesktopPlay/releases/tag/v2.0.2)
+v2.2.1 调整 Gemini 和 GPT 的额度展示，并修复桌宠倒挂时的气泡尖角方向。[版本公告](docs/releases/v2.2.1.md) · [下载最新正式版（Windows x64）](https://github.com/Forest-Wood/DesktopPlay/releases/latest)
 
 ## v1.0.0 新功能
 
